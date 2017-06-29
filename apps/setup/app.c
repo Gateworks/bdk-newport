@@ -88,6 +88,8 @@ void item_reboot(bdk_menu_t *menu, char key, void *arg)
     bdk_reset_chip(bdk_numa_master());
 }
 
+void menu_i2c(bdk_menu_t *menu, char key, void *arg);
+
 /**
  * Main entry point
  *
@@ -114,6 +116,7 @@ int main(int argc, const char **argv)
         bdk_menu_item(&menu, 'B', "Board Manufacturing Data", menu_board, NULL);
         if (bdk_trust_get_level() == BDK_TRUST_LEVEL_NONE)
         {
+            bdk_menu_item(&menu, 'I', "I2C Transfer", menu_i2c, NULL);
             bdk_menu_item(&menu, 'C', "Chip Features", menu_chip, NULL);
             bdk_menu_item(&menu, 'D', "DRAM Options", menu_dram, NULL);
             bdk_menu_item(&menu, 'Q', "QLM Options", menu_qlm, NULL);
