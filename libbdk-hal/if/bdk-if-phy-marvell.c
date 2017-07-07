@@ -38,8 +38,8 @@
 ***********************license end**************************************/
 #include <bdk.h>
 
-static bool LOOP_INTERNAL = false;
-static bool LOOP_EXTERNAL = false;
+//static bool LOOP_INTERNAL = false;
+//static bool LOOP_EXTERNAL = false;
 
 
 /**
@@ -98,7 +98,7 @@ int bdk_if_phy_marvell_setup(bdk_node_t node, int qlm, int mdio_bus, int phy_add
     /* Check if the PHY is marvell PHY we expect */
     int phy_status = bdk_mdio_read(node, mdio_bus, phy_addr, BDK_MDIO_PHY_REG_ID1);
     if (phy_status != 0x0141)
-        return;
+        return -1;
 	
     /* Check that the GSER mode is SGMII */
     /* Switch the marvell PHY to the correct mode */
@@ -108,14 +108,14 @@ int bdk_if_phy_marvell_setup(bdk_node_t node, int qlm, int mdio_bus, int phy_add
     
     if ((qlm_mode != BDK_QLM_MODE_SGMII_1X1) &&
         (qlm_mode != BDK_QLM_MODE_SGMII_2X1))
-	return;
+	return -1;
 
     BDK_TRACE(PHY,"%s: Detected Marvell Phy in SGMII mode\n", __FUNCTION__);    
     for (int port = 0; port < 2; port++)
     {
         setup_marvell_phy(node, mdio_bus, phy_addr + port);
     }
-
+    return 0;
 }
 
 #if 0

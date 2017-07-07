@@ -1883,7 +1883,7 @@ AQ_Retcode AQ_API_HardReset
   }
 
   /* Avoid set-but-not-used variable warnings (intentionally does nothing) */
-  if (junk);
+  if (junk) {;}
 
   return AQ_RET_OK;
 }
@@ -1909,7 +1909,7 @@ AQ_Retcode AQ_API_SoftReset
   AQ_API_Set(port->PHY_ID, AQ_GlobalStandardControl_1, softReset, 0x1);
 
   /* Avoid set-but-not-used variable warnings (intentionally does nothing) */
-  if (junk);
+  if (junk) {;}
 
   return AQ_RET_OK;
 }
@@ -8273,7 +8273,7 @@ AQ_Retcode AQ_API_WriteAndVerifyFlashImageOfKnownFLASH
      * Write the page of data 
      */
 
-    while ((pagePointer < (pageSize - 4)) && (addressPointer < (imageSize - 4 - 2)))
+    while (((int)pagePointer < (pageSize - 4)) && (addressPointer < (imageSize - 4 - 2)))
     {
       /* load the data "backwards" for big/little endian cross */
       dataMSW = (image[addressPointer+3] << 8) | image[addressPointer+2];
@@ -8315,7 +8315,7 @@ AQ_Retcode AQ_API_WriteAndVerifyFlashImageOfKnownFLASH
 
     /* Write the last bytes of the page.*/
     /* Note: this final write right-justifies non-dWord data in the final dWord */
-    bytesLeftInPage = (pagePointer >= pageSize - 4) ? (pageSize - pagePointer) : (imageSize - 2 - addressPointer);
+    bytesLeftInPage = ((int)pagePointer >= pageSize - 4) ? (pageSize - pagePointer) : (imageSize - 2 - addressPointer);
     switch (bytesLeftInPage)
     {
       case 1:
