@@ -332,7 +332,7 @@ int bdk_if_phy_vetesse_setup(bdk_node_t node, int qlm, int mdio_bus, int phy_add
     /* Check if the PHY is Vetesse PHY we expect */
     int phy_status = bdk_mdio_read(node, mdio_bus, phy_addr, BDK_MDIO_PHY_REG_ID1);
     if (phy_status != 0x0007)
-        return;
+        return -1;
 
     /* Check that the GSER mode is SGMII or QSGMII */
     bdk_qlm_modes_t qlm_mode = bdk_qlm_get_mode(node, qlm);
@@ -340,7 +340,7 @@ int bdk_if_phy_vetesse_setup(bdk_node_t node, int qlm, int mdio_bus, int phy_add
         (qlm_mode != BDK_QLM_MODE_SGMII_2X1) &&
         (qlm_mode != BDK_QLM_MODE_SGMII_4X1) &&
         (qlm_mode != BDK_QLM_MODE_QSGMII_4X1))
-        return;
+        return -1;
 
     /* Program the Vetesse PHY */
     vitesse_program(node, mdio_bus, phy_addr);
@@ -354,6 +354,7 @@ int bdk_if_phy_vetesse_setup(bdk_node_t node, int qlm, int mdio_bus, int phy_add
     }
     else
         setup_vitesse_phy(node, mdio_bus, phy_addr, false);
+    return 0;
 }
 
 #if 0
