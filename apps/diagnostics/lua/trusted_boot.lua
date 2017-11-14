@@ -1,0 +1,1 @@
+../../../lua-modules/trusted_boot.lua

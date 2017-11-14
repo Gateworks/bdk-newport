@@ -1,0 +1,95 @@
+= Overview
+
+The "Bringup and Diagnostic Kit" (BDK) is a set of executables and
+scripts designed to ease the bringup of new hardware based on Cavium's
+line of THUNDERX and OCTEON TX processors.  To ease development and
+increase maintainability, diagnostics are written in a high level
+scripting language, Lua.  Lua was chosen due to its simple syntax, ease
+of integration with C, and small resource requirements.  The BDK is
+capable of running a full interactive Lua environment from L2 cache
+before DRAM is configured.
+
+.Features of the BDK
+* Simple menu driven interface for testing many I/Os.
+* Built in traffic generation for ethernet based I/Os.
+* Many I/Os can be tested before DRAM is configured.
+* Prebuilt known good binaries for booting new hardware.
+* Easy automation of tasks through scripts running on a PC.
+* Fast PC based test development using a remote board.
+* GUI based interactive script debugger.
+* Lua remote procedure calls over serial.
+
+NOTE: The BDK supports both THUNDERX and OCTEON TX processors.
+Throughout this manual references to THUNDERX also apply to OCTEON TX.
+
+
+.The directory layout of the BDK
+
+apps/::
+
+Individual target application source.  These use the BDK libraries to
+implement the boot stub, hardware initialization, setup menus, and
+diagnostics.
+
+bin/::
+
+All host binaries and scripts.
+
+boards/::
+
+Device tree configuration files for the various boards supported by the
+BDK.  The BDK code normally doesn't change for each new board.  Instead
+a configuration is added into this directory as a device tree source
+file (*.dts).
+
+CN*.asim::
+
+Cavium Asim simulator setup files for the BDK.  Used by the "make run"
+target to execute the BDK in Asim.
+
+docs/::
+
+All documentation for the BDK.
+
+lib*/::
+
+The source code for the BDK is divided into multiple library
+directories.  Doxygen based documentation for these files can be found
+under *docs/api-docs/html/index.html*.
+
+license.txt::
+
+The Cavium BDK contains source code from a number of open source
+projects along with code developed by Cavium.  This file gives a short
+overview of the various components and pointers to their exact license
+information.  In the event of a conflict, the license file for a
+specific file or project takes precedence over this file.  This files is
+a summary only.
+
+lua-modules/::
+
+Lua scripts used on the target to implement the diagnostics application.
+
+Makefile::
+
+Top level make file for the BDK. Build the BDK with "make -s -j8".
+
+target-bin/::
+
+Target binaries.  The file target-bin/bdk.bin is the final output of a
+BDK build.  Burn it to flash.
+
+tests/::
+
+Various tests used by Cavium.  Not supported for customer use, but may
+be useful as a reference.
+
+trust-keys/::
+
+Signing keys used to support trusted boot.  See the section describing
+trusted boot for more information.
+
+utils/::
+
+Source for host build scripts and utilities.
+

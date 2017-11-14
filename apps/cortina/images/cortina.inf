@@ -1,0 +1,13 @@
+0807 2015 1409 /rom/cortina.img auto
+
+# First line of this file must be of format:
+#
+# 0702 2015 1557 /rom/cortina.img auto
+# ^    ^    ^    ^                ^
+# |    |    |    |                +- Update mode:
+# |    |    |    |                   auto  = update if provided firmware is newer
+# |    |    |    |                   match = update if provided firmware is not the same
+# |    |    |    +------------------ Full Path to binary image file name
+# |    |    +----------------------- Time stamp
+# |    +---------------------------- Year stamp
+# +--------------------------------- Month / Day stamp

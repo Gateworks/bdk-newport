@@ -1,0 +1,16 @@
+=================================
+DRAM Menu
+=================================
+ 1) Load current DRAM config using "evb7000" board settings
+ 2) Load current DRAM config using "ebb7800" board settings
+ 3) Load current DRAM config from a file
+ 4) Save current DRAM config to a file
+ 5) Display current DRAM config
+ 6) Change DRAM clock frequency
+ 7) Set SPD TWSI addresses
+ 8) Toggle verbose output (Currently OFF)
+ 9) Set environment variable
+10) Get environment variable
+11) Initialize DRAM controller using current config
+12) Memory Testing Menu
+13) Main menu

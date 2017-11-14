@@ -1,0 +1,96 @@
+# ***********************license start***********************************
+# Copyright (c) 2003-2017  Cavium Inc. (support@cavium.com). All rights
+# reserved.
+#
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   * Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#
+#   * Redistributions in binary form must reproduce the above
+#     copyright notice, this list of conditions and the following
+#     disclaimer in the documentation and/or other materials provided
+#     with the distribution.
+#
+#   * Neither the name of Cavium Inc. nor the names of
+#     its contributors may be used to endorse or promote products
+#     derived from this software without specific prior written
+#     permission.
+#
+# This Software, including technical data, may be subject to U.S. export
+# control laws, including the U.S. Export Administration Act and its
+# associated regulations, and may be subject to export or import
+# regulations in other countries.
+#
+# TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+# AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
+# WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT
+# TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
+# REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
+# DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
+# OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
+# PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT,
+# QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK
+# ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
+# **********************license end**************************************
+
+# Load the CN93XX IOs
+@${ASIM}/configs/cn93xx-1s24p.asim
+
+# Listen for uart connections on port 2000, 2001
+control n0.uaa0 connect ${UART0PORT}
+control n0.uaa1 connect ${UART1PORT}
+
+# Load BOOT ROM
+load ${BDK_ROOT}/target-bin/bdk.bin $(NODEIOBASE + 0x1000000)
+rm0 pc = 0x1020000
+
+# Set GPIO strap pins (boot method)
+# SPI0 then SPI1
+control n0.gpio0 set strap 0x3002
+# eMMC0 then eMMC1
+#control n0.gpio0 set strap 0x1000
+
+# Load SPI image
+control n0.mpi0 connect 0 ${BIN_IMAGE}
+
+# Load eMMC image
+control n0.emm0 connect ${BIN_IMAGE}
+
+# Load the BDK symbols
+symbols ${SYMBOL_IMAGE}
+
+# Load the XCP ROM image
+control n0.xcp0 load ${BDK_ROOT}/target-bin/scp_bl0.exe-cn93xx
+#control n0.xcp0 gdbserver 2159
+# trace n0.xcp0 on
+
+
+# Break on BDK exceptions
+#bp 0
+#bp __bdk_exception_current_el_sync_sp0
+#bp __bdk_exception_current_el_irq_sp0
+#bp __bdk_exception_current_el_fiq_sp0
+#bp __bdk_exception_current_el_serror_sp0
+#bp __bdk_exception_current_el_sync_spx
+#bp __bdk_exception_current_el_irq_spx
+#bp __bdk_exception_current_el_fiq_spx
+#bp __bdk_exception_current_el_serror_spx
+#bp __bdk_exception_lower_el_sync_sp0
+#bp __bdk_exception_lower_el_irq_sp0
+#bp __bdk_exception_lower_el_fiq_sp0
+#bp __bdk_exception_lower_el_serror_sp0
+#bp __bdk_exception_lower_el_sync_spx
+#bp __bdk_exception_lower_el_irq_spx
+#bp __bdk_exception_lower_el_fiq_spx
+#bp __bdk_exception_lower_el_serror_spx
+
+echo
+echo
+echo "Wait for the uart program to connect to asim, then"
+echo "type 'start 0' to start execution"
+echo
+

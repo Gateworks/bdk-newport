@@ -1,0 +1,32 @@
+[[GPIO]]
+= GPIO
+
+Many boards use GPIOs to control other parts of the board.  The
+GPIO menu can be used to manually control the GPIO pins.
+
+.The GPIO Menu
+----
+include::../captures/gpio_menu.capture[]
+----
+
+== Configure a GPIO
+
+Choose this option to configure a GPIO.  Prompts ask for which GPIO
+and its input or output state.  Here is an example configuring GPIO 0
+as a high output.
++
+----
+GPIO number(29INS)> 0
+Configure as output(y/n)(30INS)> y
+GPIO state (0/1)(31INS)> 1
+----
+
+== Read GPIO state
+
+Read the current state of a GPIO.
++
+----
+GPIO number(1INS)> 0
+GPIO 0: 1
+----
+

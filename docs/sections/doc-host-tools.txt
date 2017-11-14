@@ -1,0 +1,54 @@
+= Host Scripts and Utilities
+
+== bdk-lua
+
+The BDK supplies the executable *bdk-lua* for scripting on a host PC.
+This should be used for the shell to execute Lua scripts for remote
+controlling THUNDERX either on the command line, or through scripts.
+
+.Usage for *bdk-lua*
+----
+usage: bdk-lua [options] [script [args]]
+Available options are:
+  -e stat  execute string 'stat'
+  -i       enter interactive mode after executing 'script'
+  -l name  require library 'name'
+  -v       show version information
+  --       stop handling options
+  -        stop handling options and execute stdin
+----
+
+== bdk-debug
+
+Lua scripts can be interactively debugged using the *bdk-debug*
+script.  Start your Lua scripts as follows to debug them:
+
+----
+bdk-debug <script.lua> <script arguments>
+----
+
+image::images/bdk-debug.png[bdk-debug screenshot]
+
+The *bdk-debug* user interface is divided into four regions.
+
+* The 'cyan' area contains the current call stack.  The active stack
+entry is in bold.  Use the *up* and *down* commands to flip through
+the stack.
+
+* The 'green' area contains all local variables in the current stack
+frame.  Note that Lua variables start their scope at the definition
+line, so functions and variables don't show up until you execute their
+definitions.
+
+* The 'blue' area contains the source code for the current stack
+context.  Breakpoints are highlighted in red.  The current line is
+shown in bold.
+
+* The uncolored region contains program and debugger output along with
+the debugger command line.
+
+.Commands supported by *bdk-debug*
+----
+include::../captures/bdk-debug-help.capture[]
+----
+

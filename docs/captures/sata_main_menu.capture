@@ -1,0 +1,17 @@
+=================================
+SATA Menu
+=================================
+ 1) Select SATA port (Currently 0)
+ 2) Perform an identify disk
+ 3) Hex display
+ 4) Write pattern 0x00
+ 5) Read  pattern 0x00
+ 6) Write pattern 0xff
+ 7) Read  pattern 0xff
+ 8) Write pattern 0x55
+ 9) Read  pattern 0x55
+10) Write pattern 0xaa
+11) Read  pattern 0xaa
+12) Run automated pattern test
+13) Main menu
+

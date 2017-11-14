@@ -1,0 +1,98 @@
+/***********************license start***********************************
+* Copyright (c) 2003-2017  Cavium Inc. (support@cavium.com). All rights
+* reserved.
+*
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are
+* met:
+*
+*   * Redistributions of source code must retain the above copyright
+*     notice, this list of conditions and the following disclaimer.
+*
+*   * Redistributions in binary form must reproduce the above
+*     copyright notice, this list of conditions and the following
+*     disclaimer in the documentation and/or other materials provided
+*     with the distribution.
+*
+*   * Neither the name of Cavium Inc. nor the names of
+*     its contributors may be used to endorse or promote products
+*     derived from this software without specific prior written
+*     permission.
+*
+* This Software, including technical data, may be subject to U.S. export
+* control laws, including the U.S. Export Administration Act and its
+* associated regulations, and may be subject to export or import
+* regulations in other countries.
+*
+* TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+* AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
+* WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT
+* TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
+* REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
+* DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
+* OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
+* PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT,
+* QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK
+* ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
+***********************license end**************************************/
+#include <bdk.h>
+#include "libbdk-arch/bdk-csrs-pccpf.h"
+#include "libbdk-arch/bdk-csrs-iobn.h"
+#include "libbdk-arch/bdk-csrs-ecam.h"
+
+BDK_REQUIRE_DEFINE(DRIVER_IOBN5);
+
+/**
+ * The SMMU probe function does all initialization so that other devices may do
+ * DMAs in their init() functions. The assumption is that no DMAs will be needed
+ * until the SMMU probe() is complete.
+ *
+ * @param device SMMU to probe
+ *
+ * @return Zero on success, negative on failure
+ */
+static int probe(bdk_device_t *device)
+{
+    /* Change the device name */
+    bdk_device_rename(device, "N%d.IOBN5%d", device->node, device->instance);
+
+    /* Allow all IO units to access secure memory */
+    for (int pcc = 0; pcc < 256; pcc++)
+        BDK_BAR_WRITE(device, BDK_IOBNX_RSLX_STREAMS(device->instance, pcc), 0);
+    /* Loop through all possible domains */
+    int ecam = 0;
+    BDK_CSR_INIT(ecamx_const, device->node, BDK_ECAMX_CONST(ecam));
+    for (int domain = 0; domain < ecamx_const.s.domains; domain++)
+    {
+        /* Per Wilson, domains may not be contiguous */
+        BDK_CSR_INIT(domx_const, device->node, BDK_ECAMX_DOMX_CONST(ecam, domain));
+        if (domx_const.s.pres)
+        {
+            for (int bus = 0; bus < 256; bus++)
+                BDK_BAR_WRITE(device, BDK_IOBNX_DOMX_BUSX_STREAMS(device->instance, domain, bus), 0);
+            for (int dev = 0; dev < 32; dev++)
+                BDK_BAR_WRITE(device, BDK_IOBNX_DOMX_DEVX_STREAMS(device->instance, domain, dev), 0);
+        }
+    }
+    return 0;
+}
+
+/**
+ * SMMU init() function
+ *
+ * @param device SMMU to initialize
+ *
+ * @return Zero on success, negative on failure
+ */
+static int init(bdk_device_t *device)
+{
+    /* Nothing to do here */
+    return 0;
+}
+
+bdk_driver_t __bdk_driver_iobn5 = {
+    .id = (BDK_PCC_PROD_E_GEN << 24) | BDK_PCC_VENDOR_E_CAVIUM | (BDK_PCC_DEV_IDL_E_IOBN5 << 16),
+    .probe = probe,
+    .init = init,
+};

@@ -1,0 +1,12 @@
+
+Bringup and Diagnostic Kit
+==========================
+
+:leveloffset: 1
+include::bdk-getting-started.txt[]
+include::bdk-trusted-boot.txt[]
+include::sections/doc-customization.txt[]
+include::bdk-bringup-guide.txt[]
+include::bdk-internals.txt[]
+
+

@@ -1,0 +1,57 @@
+[[CONFIGURE]]
+= Configure the BDK
+
+Before detailed testing begins, some parameters need to be set in order
+to customize the BDK for the board.  For ethernet tests, covered
+later, the PHY addresses and MAC address needs to be set.
+
+CAUTION: Configuration options are *not saved* and will be lost on
+reset.  Configuration needs to be redone after every boot.
+
+.Sample Configuration Menu from CN68XX
+----
+include::../captures/configure_menu.capture[]
+----
+
+== Configure the MAC Address
+
+The BDK creates a semi random MAC address based on internal chip
+parameters.  This default is normally good enough for lab testing, but
+it should be replaced before the board is used on a large LAN.  The
+BDK default starts with Cavium's OUI with the locally administered bit
+set, '02:0f:b7'.  The next three bytes are derived based on internal
+chip data.
+
+== Configure PHY Addresses
+
+RGMII, MII, and SGMII ports on the board should have ethernet PHYs
+connected using SMI/MDIO.  Before these ports can be used,
+the SMI/MDIO address for each PHY needs to be programmed.  Choose the menu option
+for each RGMII, MII, and SGMII port. When prompted, enter the PHY address encoded as follows:
+
+----
+Address = <SMI/MDIO address> + 256 * <SMI/MDIO bus>
+----
+
+SMI/MDIO address::
+
+This is the address of the PHY as configured by strapping on the board.
+
+SMI/MDIO bus::
+
+This is the number of the SMI/MDIO bus used.
+
+TIP: If the PHY addresses are unknown, the scan utility in the
+SMI/MDIO menu can be useful.  It will display all the devices THUNDERX
+can automatically find.
+
+
+Interlaken port X lanes::
+
+The number of QLM lanes to use for Interlaken port X.  Must be 0-8.
+
+Interlaken port X channels::
+
+The number of virtual channels to configure for Interlaken port X.
+Must be 0-16.
+

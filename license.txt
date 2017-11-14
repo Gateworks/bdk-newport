@@ -1,0 +1,107 @@
+BDK License Summary
+===================
+
+The Cavium BDK contains source code from a number of open source projects
+along with code developed by Cavium.  This file gives a short overview of
+the various components and pointers to their exact license information.
+In the event of a conflict, the license file for a specific file or
+project takes precedence over this file.  This files is a summary only.
+
+BDK Components
+==============
+
+Component:      Newlib
+License:        BSD
+License Text:   libc/newlib-2.1.0/COPYING.NEWLIB
+Project URL:    https://sourceware.org/newlib/
+Directories:    libc/newlib-2.1.0/*
+Notes:          The targets licensed under LGPL are not used by the BDK. The
+                target parts of Newlib used by the BDK are under a BSD
+                license. Note that Makefiles are under the GPL, but these are
+                not included in the final THUNDERX binary.
+
+Component:      libgloss
+License:        BSD
+License Text:   libc/newlib-2.1.0/COPYING.LIBGLOSS
+Project URL:    https://sourceware.org/newlib/
+Directories:    libc/newlib-2.1.0/*
+Notes:          The targets licensed under LGPL are not used by the BDK. The
+                target parts of libgloss used by the BDK are under a BSD
+                license. Note that Makefiles are under the GPL, but these are
+                not included in the final THUNDERX binary.
+
+Component:      FatFS
+License:        BSD-style
+License Text:   utils/fatfs-tool/FatFs/doc/en/appnote.html
+Project URL:    http://elm-chan.org/fsw/ff/00index_e.html
+Directories:    libfatfs/*, utils/fatfs-tool/FatFs/
+
+Component:      libfdt
+License:        BSD (Dual license GPL and BSD)
+License Text:   libfdt/fdt.h
+Project URL:    https://git.kernel.org/cgit/utils/dtc/dtc.git
+Directories:    libfdt/*
+Notes:          The device tree compiler, only licensed under GPL, is not
+                included. The build scripts use the host's dtc for builds.
+                Only libfdt itself is part of the THUNDERX binary, used
+                under the BSD license option.
+
+Component:      Lua
+License:        MIT
+License Text:   docs/lua/readme.html
+Project URL:    http://www.lua.org/
+Directories:    liblua/*, doc/lua/*, utils/bdk-luac/*
+
+Component:      Lua Sockets
+License:        MIT
+License Text:   utils/bdk-lua/libluasocket/LICENSE
+Project URL:    http://w3.impa.br/~diego/software/luasocket/
+Directories:    utils/bdk-lua/libluasocket/* , docs/luasocket/*
+Notes:          This library is not used on THUNDERX, only for host based
+                tools.
+
+Component:      LZMA Decompression library
+License:        Public Domain
+License Text:   liblzma/readme.txt
+Project URL:    http://www.7-zip.org/sdk.html
+Directories:    liblzma/*
+Notes:          This library is to support loading compressed images from FATFS
+
+Component:      micro-ecc
+License:        BSD
+License Text:   libuecc/LICENSE.txt
+Project URL:    https://github.com/kmackay/micro-ecc
+Directories:    libuecc/*
+Notes:          This library is to support ECDSA for trusted boot
+
+Component:      Python Elf Tools
+License:        Public Domain
+License Text:   utils/scripts/elftools/__init__.py
+Project URL:    https://github.com/eliben/pyelftools
+Directories:    utils/scripts/elftools/*
+Notes:          This is used by the BDK build scripts, but does not appear in
+                the final THUNDERX binary.
+
+Component:      Python ECDSA
+License:        Public Domain
+License Text:   utils/scripts/ecdsa/LICENSE
+Project URL:    https://github.com/warner/python-ecdsa
+Directories:    utils/scripts/ecdsa/*
+Notes:          This is used by the BDK build scripts for code signing, but
+                does not appear in the final THUNDERX binary.
+
+Component:      XHCI Driver
+License:        BSD
+License Text:   http://opensource.org/licenses/bsd-license.php
+Project URL:    https://github.com/tianocore/edk2
+Directories:    libbdk-hal/usb/*
+Notes:          Driver is originally from Intel's EDK2
+
+Component:      Cavium BDK Code
+License:        BSD
+License Text:   docs/cavium-license-type5.txt
+Project URL:    N/A
+Directories:    Everything else
+
+
+

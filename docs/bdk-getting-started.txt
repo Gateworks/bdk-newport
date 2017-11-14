@@ -1,0 +1,18 @@
+= Getting Started
+
+:leveloffset: 2
+include::sections/doc-bdk-overview.txt[]
+include::sections/doc-host-setup.txt[]
+include::sections/doc-host-tools.txt[]
+include::sections/doc-lua-scripting.txt[]
+include::sections/doc-remote-control.txt[]
+include::sections/doc-interactive-target.txt[]
+
+= Lua
+:leveloffset: 2
+include::sections/doc-virtual-filesystem.txt[]
+include::sections/doc-lua-modules.txt[]
+include::sections/doc-lua-tips.txt[]
+include::sections/doc-lua-startup.txt[]
+:leveloffset: 1
+

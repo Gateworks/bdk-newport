@@ -1,0 +1,11 @@
+[[SATA]]
+= SATA
+
+SATA supports identifying a device and read/write of disk devices.  ATAPI
+is not supported.
+
+.Sample SATA Main Menu
+----
+include::../captures/sata_main_menu.capture[]
+----
+

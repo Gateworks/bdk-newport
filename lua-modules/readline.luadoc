@@ -1,0 +1,22 @@
+---
+-- Module supplying line input, history, and raw key access
+--
+
+---
+-- Prompt the user for input and read a line.
+--
+-- @function readline.readline
+-- @param prompt Prompt string to show the user
+-- @param tab_complete Optional table of tab complete data. Tab complete data
+-- is a table of "name=value" pairs to use for completion. Each "name" is used
+-- for a completion, where the next word comes from "value". If "value" is a
+-- table, the tab completion continues recursively.
+-- @param timeout_us Time to wait for input in microseconds, Zero means forever.
+-- @return String of input
+
+---
+-- Read a single key from input. Waits a maximum of one second for a key.
+--
+-- @function readline.getkey
+-- @return String of key read or nil
+

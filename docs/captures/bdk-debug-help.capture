@@ -1,0 +1,23 @@
+help             Show list of supported commands.
+h                Shortcut for "help".
+s                Step into.
+n                Step over.
+c                Continue execution.
+b                Display all breakpoints.
+b <line>         Insert breakpoint into the current file for <line>.
+b <file>:<line>  Insert breakpoint into <file> for <line>.
+db <num>         Delete breakpoint <num>. Use the index from the "b" command.
+bt               Display a backtrace of the stack.
+p <variable>     Print the value of a variable.
+e <expression>   Execute the Lua expression.
+up               Move up the call stack.
+down             Move down the call stack.
+gui on           Enable the text based GUI
+gui off          Disable the text based GUI
+where            Show the current stackframe, file, and line
+locals           Show a list of all active local variables
+skip             Display the files the debugger will skip.
+skip <file>      Add/remove file to/from skip list.
+skip -           Add/remove the current file to/from skip list.
+quit             Quit the debugger.
+An empty line is the same as "n".

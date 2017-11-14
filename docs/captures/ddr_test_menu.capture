@@ -1,0 +1,24 @@
+=================================
+DRAM Test Menu
+=================================
+ 1) Bringup Cores for multi-core testing
+ 2) Number of time to repeat the test (1)
+ 3) Starting address (0x0)
+ 4) Length of the range to check (All)
+ 5) Set test range from 64MB to 128MB
+ 6) Run all DRAM tests
+ 7) Data Bus
+ 8) Address Bus
+ 9) Marching Rows
+10) Random Data
+11) Random XOR (32 Burst)
+12) Self Address
+13) March C- Solid Bits
+14) March C- Checkerboard
+15) Walking Ones Left
+16) Walking Ones Right
+17) Walking Zeros Left
+18) Walking Zeros Right
+19) Random XOR (224 Burst)
+20) Main menu
+

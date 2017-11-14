@@ -1,0 +1,196 @@
+---
+-- Module accessing CAVIUM's hardware
+--
+
+---
+-- Model Checking
+-- @section model
+
+---
+-- Returns true if the current chip matches the supplied model.
+-- @function cavium.is_model
+-- @param model  One of the `cavium.CN*` constants
+-- @return Returns true if the current chip matches the supplied model.
+
+---
+-- CAVIUM model constant
+-- @field cavium.CN61XX
+
+---
+-- CAVIUM model constant
+-- @field cavium.CN68XX
+
+---
+-- CAVIUM model constant
+-- @field cavium.CN70XX
+
+---
+-- CAVIUM model constant
+-- @field cavium.CN78XX
+
+---
+-- BDK configuration constants
+-- Constants for use with cavium.c.bdk_config_get_int() and
+-- cavium.c.bdk_config_set_int().
+-- @field cavium.BDK_CONFIG_*
+
+---
+-- CSR Access
+-- @section csr
+
+---
+-- Returns an iterator that iterates through the possible CSR names.
+--
+-- List all CSRs from Lua
+--	for name in cavium.csr()
+--	do
+--		print (name)
+-- 	end
+--
+-- @function cavium.csr
+-- @return Returns an iterator that iterates through the possible CSR names.
+
+---
+-- Read the value of the CSR **NAME**.  **NAME** is name such as "CIU_FUSE"
+-- or "CIU_INTX_SUM0(0)".
+--
+-- @function cavium.csr.NAME.read
+-- @return Returns the CSR value
+
+---
+-- Write the value of the CSR **NAME**.  **NAME** is name such as "CIU_FUSE"
+-- or "CIU_INTX_SUM0(0)".
+--
+-- @function cavium.csr.NAME.write
+-- @param value Value to write
+-- @return Nothing
+
+----
+-- Uses **optional_value** as a numeric value for the CSR.  It then decodes
+-- each field and displays it.  If **optional_value** is not supplied the actual
+-- value is read from the hardware.
+--
+-- @function cavium.csr.NAME.display
+-- @param optional_value If supplied, value of CSR to display.
+-- @return Nothing
+
+---
+-- Uses **optional_value** as a numeric value for the CSR.  It then decodes
+-- each field and returns a Lua table containing the fields.  If
+-- **optional_value** is not supplied the actual value is read from the
+-- hardware.
+--
+-- Decode example
+--	pprint(cavium.csr.ciu_fuse.decode())
+--
+-- Decode output
+--	{
+--		FUSE = 63
+--		RESERVED_6_63 = 0
+--	}
+--
+-- @function cavium.csr.NAME.decode
+-- @param optional_value If supplied, value of CSR to decode.
+-- @return Returns a table of the decoded values.
+
+---
+-- Converts a table of CSR fields into a CSR value and writes it to the
+-- hardware.  The format of the table is identical to the *decode()*
+-- format.  Missing fields are filled with zeros.
+--
+-- @function cavium.csr.NAME.encode
+-- @param table Table of fields to encode.
+-- @return Nothing
+
+---
+-- Reads the CSR and returns the value of a specific field.
+-- For assignments, performs a read, modify, and write of a
+-- CSR changing the specified field.
+--
+-- @field cavium.csr.NAME.FIELD
+
+---
+-- C Functions.
+-- @section c
+
+---
+-- Many low level C functions are directly exported through this
+-- interface.  No argument checking is performed on these functions, so
+-- it is very important to get the arguments correct.  Errors may crash
+-- the system.
+--
+-- @function cavium.c.FUNCTION
+-- @param ... Arguments to C function
+-- @return C function return cast to a number
+
+---
+-- Traffic Generation.
+-- The module *cavium.trafficgen* allows Lua to generate and receive ethernet
+-- traffic on all chip interfaces. A user friendly interactive interface is
+-- available through *trafficgen.lua*.
+--
+-- @section cavium.trafficgen
+
+---
+-- Return all port names as an array of strings
+--
+-- @function cavium.trafficgen.get_port_names
+-- @return Return all port names as an array of strings
+
+---
+-- Returns a table containing the port configuration.
+--
+-- @function cavium.trafficgen.get_config
+-- @param port_name String port name to get the configuration for.
+-- @return Returns a table containing the port configuration.
+
+---
+-- Get parameters for a port. Use **get_config** to find the parameter names.
+--
+-- @function cavium.trafficgen.set_config
+-- @param port_name String port name to set the configuration for.
+-- @param config_table Table containing the configuration items to change.
+-- @return Nothing
+
+---
+-- Start traffic on a list of ports.
+--
+-- @function cavium.trafficgen.start
+-- @param port_array Array of port names to start transmitting on.
+-- @return Nothing
+
+---
+-- Stop traffic on a list of ports.
+--
+-- @function cavium.trafficgen.stop
+-- @param port_array Array of port names to stop transmitting on.
+-- @return Nothing
+
+---
+-- See if any of the given ports are transmitting.
+--
+-- @function cavium.trafficgen.is_transmitting
+-- @param port_array Array of port names to check if they are transmitting.
+-- @return Returns a boolean true or false depending on if any ports are transmitting.
+
+---
+-- Clear hardware statistics counters.
+--
+-- @function cavium.trafficgen.clear
+-- @param port_array Array of port names to clear statistics for.
+-- @return Nothing
+
+---
+-- Clear and reset ports to their default state.
+--
+-- @function cavium.trafficgen.reset
+-- @param port_array Array of port names to clear statistics and reset config for.
+-- @return Nothing
+
+---
+-- Get the latest hardware statistics and optionally clear them.
+--
+-- @function cavium.trafficgen.update
+-- @param do_clear True if the current statistics counters should be cleared for deltas.
+-- @return Table index by port name where each entry is a table of statistics.
+

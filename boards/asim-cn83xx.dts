@@ -1,0 +1,107 @@
+/***********************license start***********************************
+* Copyright (c) 2003-2016  Cavium Inc. (support@cavium.com). All rights
+* reserved.
+*
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are
+* met:
+*
+*   * Redistributions of source code must retain the above copyright
+*     notice, this list of conditions and the following disclaimer.
+*
+*   * Redistributions in binary form must reproduce the above
+*     copyright notice, this list of conditions and the following
+*     disclaimer in the documentation and/or other materials provided
+*     with the distribution.
+*
+*   * Neither the name of Cavium Inc. nor the names of
+*     its contributors may be used to endorse or promote products
+*     derived from this software without specific prior written
+*     permission.
+*
+* This Software, including technical data, may be subject to U.S. export
+* control laws, including the U.S. Export Administration Act and its
+* associated regulations, and may be subject to export or import
+* regulations in other countries.
+*
+* TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+* AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
+* WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT
+* TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
+* REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
+* DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
+* OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
+* PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT,
+* QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK
+* ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
+***********************license end**************************************/
+/dts-v1/;
+
+/ {
+cavium,bdk {
+	/* Determine how multi-node is supported for this system:
+	    0 = Multi-node is not supported
+	    1 = Multi-node is supported and booting requires two nodes
+	    2 = Multi-node is auto detected. Two nodes are used if
+		if available, otherwise fall back to single node. */
+	MULTI-NODE = "0";
+
+	/* Set the mode of a QLM. The possible mode strings are:
+	    DISABLED
+	    PCIE_1X1
+	    PCIE_2X1
+	    PCIE_1X2
+	    PCIE_1X4
+	    PCIE_1X8
+	    SATA_4X1
+	    SATA_2X1
+	    ILK
+	    SGMII_4X1
+	    SGMII_2X1
+	    XAUI_1X4
+	    RXAUI_2X2
+	    RXAUI_1X2
+	    OCI
+	    XFI_4X1
+	    XFI_2X1
+	    XLAUI_1X4
+	    10G_KR_4X1
+	    10G_KR_2X1
+	    40G_KR4_1X4 */
+	QLM-MODE.N0.QLM0 = "PCIE_1X8";
+	QLM-MODE.N0.QLM2 = "XFI_4X1";
+	QLM-MODE.N0.QLM3 = "XAUI_1X4";
+	QLM-MODE.N0.QLM4 = "SATA_2X1";
+	QLM-MODE.N0.QLM5 = "XLAUI_1X4";
+
+	/* Set the speed of a QLM in Mhz. The possible speeds are:
+	    1250
+	    2500
+	    3125
+	    5000
+	    6250
+	    8000
+	   10312 */
+	QLM-FREQ.N0.QLM0 = "8000";
+	QLM-FREQ.N0.QLM1 = "8000";
+	QLM-FREQ.N0.QLM2 = "10312";
+	QLM-FREQ.N0.QLM3 = "6250";
+	QLM-FREQ.N0.QLM4 = "6000";
+	QLM-FREQ.N0.QLM5 = "10312";
+	QLM-FREQ.N0.QLM6 = "10312";
+
+	/* Set the source of the QLM reference clock:
+	    0 = Common clock 0
+	    1 = Common clock 1
+	    2 = QLM external reference */
+	QLM-CLK.N0.QLM0 = "0";
+	QLM-CLK.N0.QLM1 = "0";
+	QLM-CLK.N0.QLM2 = "1";
+	QLM-CLK.N0.QLM3 = "1";
+	QLM-CLK.N0.QLM4 = "0";
+	QLM-CLK.N0.QLM5 = "1";
+	QLM-CLK.N0.QLM6 = "1";
+};
+};
+

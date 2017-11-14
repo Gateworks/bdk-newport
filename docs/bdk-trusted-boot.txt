@@ -1,0 +1,598 @@
+//
+// This is a asciidoc document. Edit here, but view the HTML
+//
+
+= Trusted Boot
+
+== Overview
+
+Maintaining a chain of trust from the chip secure ROM into the final
+operating system requires that each file in the boot path be
+authenticated.  Cavium processors use a combination of the BDK and ARM
+Trusted Firmware (ATF) code to maintain the chain of trust up through
+the bootloader.  The bootloader (UEFI, Uboot, etc) is then responsible for
+authenticating the final operation system.  This document describes how
+the BDK maintains the chain of trust until ATF takes over.
+
+=== Start of Trust, the Secure ROM and Fuses
+
+Secure on chip ROM starts executing without any off chip IOs enabled.
+This creates the base anchor for the chain of trust.  The ROM code loads
+and verifies TBL1FW from flash.  TBL1FW must be signed with the public
+key who's hash is stored in the FUSF_ROTPKX fuses.
+
+TBL1FW:: Trusted Boot Level 1 Firmware.  The first code loaded from
+flash, located at 0x50000.
+
+CSIB:: Cavium ROM Code Signature Information-Block Structure.  Located
+at 0x10300, contains the SHA256 hash of TBL1FW, and the root of trust
+(ROT) public key.
+
+CLIB:: Cavium ROM Code Load Information-Block Structure.  Located at
+0x10200, contains the CSIB signature.
+
+Secure ROM authenticates the ROT public key by computing the SHA256 and
+comparing it with the FUSF_ROTPK fuses.  Once the SHA256 matches, the
+first link of the chain of trust becomes the ROT public key.
+
+=== Trusted Boot Fuses
+
+The following chip fuses control trusted boot:
+
+FUSF_ROTPK(0..3):: SHA256 hash of the ROT public key
+FUSF_SSKX(0..1):: AES128 key for Secret Symmetric Key Encryption
+FUSF_HUKX(0..1):: AES128 key for Binding Secret Symmetric Key Encryption
+FUSF_CTL:: Trusted boot configuration options
+FUSF_EKX(0..3):: ECC Private Endorsement Key, unused by the BDK
+FUSF_SWX(0..7):: Software defined fuses, unused by the BDK
+
+The BDK supplies a menu for viewing and programming the fuses needed for
+secure boot.  The top level menu option "Trusted Boot options" in
+diagnostics enters the fuse management menus.
+
+.Diagnostics Fuse Management Menu
+----
+=================================
+Trusted Boot Menu
+=================================
+ 1) Display SHA256 of the Root-of-Trust Public Key (ROTK)
+ 2) Display Secret Symmetric Key (SSK)
+ 3) Display Hardware Unique Key (HUK)
+ 4) Display ECC Private Endorsement Key (EK)
+ 5) Display Software Fuses (SW)
+ 6) Display Control Fuses (CTL)
+ 7) Soft blow SHA256 of the Root-of-Trust Public Key (ROTK)
+ 8) Soft blow Secret Symmetric Key (SSK)
+ 9) Soft blow Hardware Unique Key (HUK)
+10) Soft blow ECC Private Endorsement Key (EK)
+11) Soft blow Software Fuses (SW)
+12) Soft blow Control Fuses (CTL)
+13) Hard blow fuses
+14) Main menu
+(INS)Menu choice []:
+----
+
+For development testing the soft blow menu options can quickly test
+various fuse settings.  The fuses persist until the next power cycle.
+Once the desired fuses are debugged, permanent setting can be save in by
+the "Hard blow fuses" menu.
+
+.Hard Fuse Blow Menu
+----
+=================================
+FUSF Fuse Blow Menu
+=================================
+ 1) Hard blow SHA256 of the Root-of-Trust Public Key (ROTK)
+ 2) Hard blow Secret Symmetric Key (SSK)
+ 3) Hard blow Hardware Unique Key (HUK)
+ 4) Hard blow ECC Private Endorsement Key (EK)
+ 5) Hard blow Software Fuses (SW)
+ 6) Hard blow Control Fuses (CTL)
+ 7) Main menu
+(INS)Menu choice []:
+----
+
+Fuses hard blown on a chip must be stored in a database so that the
+various encryption keys can be used in future firmware updates.  Index
+the database with the device tree chip identifier *CHIP-SERIAL* or
+*CHIP-UNIQUE-ID*.
+
+NOTE: Hard fuse blow requires board power supplies enable 1.5V, the fuse
+        blowing voltage, on pin *EFUSE_PROG* when pin *EFUSE_ENABLE_L* is low.
+        See "EFUSE Supply" in the Cavium hardware reference manual.
+
+
+=== Display Fuses used in a Build
+
+When building the BDK for trusted boot, it can be easy to lose track of
+the various FUSF settings for ROTPK, SSK, and HUK.  To facilitate
+development, the BDK make system will display this information in
+various formats.  Set the make variable *FUSES=1* to see this information.
+
+[source, sh]
+----
+make -s -j8 FUSES=1
+----
+
+During a BDK build, the fuses displayed above are also written to
+*signing-key.asim*.  This file can be used to setup trusted boot in
+Cavium's *asim* simulator.  Include signing-key.asim into asim with the
+"@" command.
+
+.Include fuses using Asim's CLI
+[source, sh]
+----
+@signing-key.asim
+----
+
+.Running the BDK in Asim
+[source, sh]
+----
+# Set the path to Asim's top level directory
+export ASIM=????
+
+# In first window start the uart utility
+${ASIM}/bin/uart -p 2000
+
+# In second window start the BDK
+ASIM_CHIP=CN83XX:1.0 make -s run
+asim> @signing-key.asim
+
+# Wait for the uart to connect, then start core 0
+asim> start 0
+
+# BDK output appears in the uart window
+----
+
+
+== Public and Private Keys
+
+The BDK uses two public/private key pairs for verification of the chain
+of trust.  The first public/private key pair is the Root Of Trust (ROT)
+described above, and in the Cavium SoC hardware reference manual.  The
+second public/private key pair is the BDK signing key.
+
+.Private keys stored in $(BDK_ROOT)/trust-keys/
+hw-rot-private.pem:: Root of Trust (ROT) key
+bdk-sign-private.pem:: BDK Signing key
+
+.The following files are signed by the Root of Trust private key:
+* TBL1FW
+* Trusted SCP-BL1 (Required for CN9XXX)
+* Trusted MCP-BL1 (Required for CN9XXX)
+* bdk-sign.pub
+
+.The following files are signed by the BDK signing private key:
+* Applications, such as init, setup, diagnostics, etc.
+* Device tree files
+* ATF BL1
+
+.The following files are not signed:
+* Board Manufacturing Information
+* NTBL1FW
+* Non-trusted SCP-BL1 (Required for CN9XXX)
+* Non-trusted MCP-BL1 (Required for CN9XXX)
+
+== Using Encryption
+
+Trusted firmware can optionally be encrypted with a AES128 key.  This
+prevents attackers from extracting the firmware code from flash for
+analysis.  Cavium processors support two options for AES128 key, Secret
+Symmetric Key (SSK) and Binding Secret Symmetric Key (BSSK).
+
+=== Secret Symmetric Key (SSK) Encryption
+
+The SSK is normally programmed the same across an entire product line,
+making the firmware flash images identical across the product.  Encrypt
+BDK builds with a SSK by setting the make variable *SSK* to the encryption
+key.  The key must be 32 hex digits.
+
+.Specify SSK
+[source, sh]
+----
+make -s -j8 SSK=0123456789abcdef0123456789abcdef
+----
+
+NOTE: For non-production quick tests, you can set the SSK to the word
+        "random" and the BDK will create a new SSK every build.  This is
+        only useful in the asim simulation environment.
+
+=== Binding Secret Symmetric Key (BSSK) Encryption
+
+The Hardware Unique Key (HUK) is normally programmed differently for
+every chip, preventing cloning.  Encrypt BDK builds with a BSSK by
+setting the make variable *HUK* to the encryption key.  The key must be
+32 hex digits.  If both HUK and SSK are specified, the files are
+encrypted with BSSK and the SSK is unused.
+
+BSSK = AES128(HUK, CSIB[FS0..FS1])
+
+.Specify HUK
+[source, sh]
+----
+make -s -j8 HUK=0123456789abcdef0123456789abcdef
+----
+
+NOTE: For non-production quick tests, you can set the HUK to the word
+        "random" and the BDK will create a new HUK every build.  This is
+        only useful in the asim simulation environment.
+
+=== Encryption Performed During Packing
+
+AES128 encryption is done by *fatfs_tool* with the "-e" option.  As
+each file is copied by fatfs_tool, it is encrypted before being written
+into $(BDK_ROOT_target-bin/bdk.bin. The "-e" option is automatically added
+by the BDK make system when you specify a SSK or HUK.
+
+The encrypted files can be accessed on the build host by using the
+fatfs_tool extract command.  After extracting the file, you can manually
+decrypt it using OpenSSL.
+
+.Manually checking SSK encryption
+[source, sh]
+----
+$(BDK_ROOT)/bin/fatfs-tool -i $(BDK_ROOT)/target-bin/bdk.bin extract init.bin .
+openssl enc -d -aes-128-cbc -in init.bin -out init-decrypt.bin \
+        -K $(SSK/BSSK) -iv 00000000000000000000000000000000
+----
+
+=== DRAM Scrambling
+
+The device tree parameter *DDR-CONFIG-SCRAMBLE* controls DRAM
+scrambling.  Systems using SSK or BSSK encryption should normally use
+DRAM scrambling to prevent attackers from extracting secrets from DRAM.
+
+.Values for DDR-CONFIG-SCRAMBLE
+* 0: No scrambling
+* 1: Always scramble
+* 2: Scramble only when using trusted boot. This is the default
+
+.Default Setup
+[source, c]
+----
+/* Scramble DRAM to prevent snooping. This options programs the DRAM
+controller to scramble addresses and data with random values.
+Supported values:
+    0: No scrambling
+    1: Always scramble
+    2: Scramble only when using trusted boot (Default) */
+//DDR-CONFIG-SCRAMBLE = "2";
+----
+
+== Protection Against Rollback
+
+To prevent rollback of firmware updates, the BDK implements a secure
+non-volatile counter in FUSF.  The fuses FUSF_CTL[ROM_T_CNT] implement
+32 possible NV counter values.
+
+=== Using the Non-volatile Anti-rollback Counter
+
+The BDK normally use a non-volatile counter value of zero.  This can be
+changed through the make variable *NV_COUNT*.
+
+[source, sh]
+----
+make -s -j8 NV_COUNT=1
+----
+
+For safety, the BDK defaults to soft blow of FUSF_CTL[ROM_T_CNT].  This
+is fine for development, but not suitable for production.  Production
+builds should change the define *BDK_TRUST_HARD_BLOW_NV* to 1
+inside *$(BDK_ROOT)/libbdk-trust/bdk-trust.c*.
+
+.File $(BDK_ROOT)/libbdk-trust/bdk-trust.c
+[source, c]
+----
+/* The define BDK_TRUST_HARD_BLOW_NV controls whether the BDK will
+   hard blow the secure NV counter on boot. This is needed for a
+   production system, but can be dangerous in a development
+   environment. The default value of 0 is to prevent bricking of
+   chips due to CSIB[NVCOUNT] mistakes. BDK_TRUST_HARD_BLOW_NV must
+   be changed to a 1 for production. The code below will display a
+   warning if BDK_TRUST_HARD_BLOW_NV=0 in a trusted boot to remind
+   you */
+#define BDK_TRUST_HARD_BLOW_NV 0
+----
+
+IMPORTANT: Always set *BDK_TRUST_HARD_BLOW_NV=1* for releases.
+
+=== Device Tree Parameters Passed for Trusted Boot
+
+The following device tree items are added to the BDK device tree as part
+of trusted boot.
+
+TRUST-CSIB:: Contains the 256 byte ROM_CSIB_S read from flash signing
+the initial TBL1FW boot stage.
+
+TRUST-ROT-ADDR:: Physical address of the Root of Trust Public Key in
+secure memory.  This address is normally an IO address referencing
+secure key memory.
+
+TRUST-BSSK-ADDR:: Physical address of the BSSK in secure memory.  This
+address is normally an IO address referencing secure key memory.
+
+=== Setup Menu Differences with Trusted Boot
+
+Due to the hardening of trust associated with trusted boot, a number of
+setup options available during a non-trusted boot are hidden when
+trusted boot is used.
+
+.Setup options disabled by Trusted Boot
+* Chip Features - Runtime changes to the configuration
+* DRAM Options - Runtime changes to DRAM setup
+* QLM Options - Runtime changes to SERDES setup
+* Power Options - Runtime changes to power setup
+* Save Settings and Exit - Since no changes are possible, saving settings is
+disabled
+
+== File Format Details
+
+This section describes exact low level formats of file related to
+trusted boot.
+
+=== Root of Trust (ROT) Private Key
+
+The root of trust private key is PEM encoded ASN.1.  It contains a
+Elliptic Curve private key of 256 bits, for curve prime256v1.  The key
+is stored in *$(BDK_ROOT)/trust-keys/hw-rot-private.pem*.
+
+.Example ROT Private Key, hw-rot-private.pem
+        -----BEGIN EC PRIVATE KEY-----
+        MHcCAQEEIMDFxto5wfnfWmT8WuQSNrxy2jew1LTIPdzpYIw/xoDRoAoGCCqGSM49
+        AwEHoUQDQgAEW9sG+aI4sLebr9+tLkP5LBFJhLLQ5oSOZG3x96bqPcclUCClvwLK
+        dMmq5Unq5uTc7nrc6v4ok2IMQSWwCM8DcA==
+        -----END EC PRIVATE KEY-----
+
+The openssl command to generate a key in this format is:
+
+[source, sh]
+----
+openssl ecparam -name prime256v1 -genkey -noout -out hw-rot-private.pem
+----
+
+The BDK make system will generate a new ROT key if hw-rot-private.pem
+doesn't exist.
+
+
+=== BDK Signing Private Key
+
+The BDK signing private key is PEM encoded ASN.1.  It contains a
+Elliptic Curve private key of 256 bits, for curve prime256v1.  The key
+is stored in *$(BDK_ROOT)/trust-keys/bdk-sign-private.pem*.
+
+.Example BDK Signing Private Key, bdk-sign-private.pem
+        -----BEGIN EC PRIVATE KEY-----
+        MHcCAQEEILGdcgUnEgMAGOPrt3YaVxIHeS0yhcwaOFyczx6qaW/roAoGCCqGSM49
+        AwEHoUQDQgAEKKEp5y2dIWo4z87p1WCaIsYy9VfTMv1KKZi8x/dpX3w9mxLgNTHt
+        ZBrwH93xAr7l/vLmeYnJGyt3rIXWXLS5dQ==
+        -----END EC PRIVATE KEY-----
+
+The openssl command to generate a key in this format is:
+
+[source, sh]
+----
+openssl ecparam -name prime256v1 -genkey -noout -out bdk-sign-private.pem
+----
+
+The BDK make system will generate a new BDK signing key if
+bdk-sign-private.pem doesn't exist.
+
+
+=== BDK Signing Public Key
+
+The BDK Signing Public Key is present inside the private key file on the
+host build system.  For use on the target system, the public is
+repackaged into a certificate like format without the private key.  The
+public key is stored in *$(BDK_ROOT)/trust-keys/bdk-sign.pub*.  The
+format of this file is:
+
+.Format of bdk-sign.pub
+* 56 bytes of random data
+* 8 byte NV counter in little endian format
+* 32 bytes of EC public key pair R in little endian format
+* 32 bytes of EC public key pair S in little endian format
+
+The BDK signing public key is signed by the ROT private key, creating
+$(BDK_ROOT)/trust-keys/bdk-sign.pub.sign.
+
+=== Signature of file signed by BDK Signing Private Key (*.sign files)
+
+The signature of a file is stored in an independent file with the same
+name, except ".sign" appended.  The file is a ASN.1 encoded point on
+the EC curve padded to a multiple of 16 bytes, the AES key size.
+
+[source, sh]
+----
+openssl dgst -sha256 -binary -sign bdk-sign-private.pem -out FILE.sign FILE
+$(BDK_ROOT)/bin/bdk-aes-pad FILE.sign
+----
+
+.Example Decoded signature
+[source, sh]
+----
+dumpasn1 $(BDK_ROOT)/trust-keys/bdk-sign.pub.sign
+  0  69: SEQUENCE {
+  2  32:   INTEGER
+       :     28 29 6F F1 60 D2 7A 34 BC 5C A9 06 51 EF 2C F2
+       :     AF 68 FB 14 F0 C5 F9 E3 C1 85 34 79 89 1C 3B 6F
+ 36  33:   INTEGER
+       :     00 AF 87 03 25 71 F1 EA C1 58 B5 C1 35 DB B3 1D
+       :     33 5D 76 B5 C8 98 13 9E 59 98 1D 53 8E 00 2A 25
+       :     1E
+       :   }
+----
+
+=== LZMA Compressed Images
+
+LZMA compressed images (*.bin.lzma) follow the LZMA standard, except for
+requiring the uncompressed size to be correct in the header.
+
+.LZMA header format
+* 1 byte of Properties
+* 4 bytes encoding Dictionary Size, little endian
+* 8 bytes of uncompressed size, little endian
+
+The BDK takes the LZMA compressed file and pads it to a multiple of 16
+bytes, the AES key size.
+
+[source, sh]
+----
+$(BDK_ROOT)/bin/lzma lzma e FILE FILE.lzma
+$(BDK_ROOT)/bin/bdk-aes-pad FILE.lzma
+openssl dgst -sha256 -binary -sign $(BDK_ROOT)/trust-keys/bdk-sign-private.pem \
+        -out FILE.lzma.sign FILE.lzma
+$(BDK_ROOT)/bin/bdk-aes-pad FILE.lzma.sign
+----
+
+IMPORTANT: ARM Trusted Firmware boot level 1, *bl1.bin*, is expected to
+be copied to *$(BDK_ROOT)/target-bin/bl1.bin* before the BDK is built.
+The BDK will compress and sign bl1.bin and include it into the FAT
+filesystem.  If bl1.bin is not copied, the file will no be present in
+the firmware image, causing ATF to fail trusted boot.
+
+=== Uncompressed Images
+
+Uncompressed image files (*.bin) contain a 256 byte header followed by
+executable code.  The image files are padded multiple of 16 bytes, the
+AES key size.
+
+[source, sh]
+----
+FILE.bin built by BDK make
+$(BDK_ROOT)/bin/bdk-aes-pad FILE.bin
+----
+
+=== Device Tree Files
+
+Device tree source files stored in *$(BDK_ROOT)/boards/* are
+automatically compiled and signed for inclusion into the target binary.
+The following steps are automatically performed by the BDK make system.
+
+[source, sh]
+----
+dtc -I dts -O dtb -o FILE.dtb FILE.dts
+$(BDK_ROOT)/bin/bdk-aes-pad FILE.dtb
+openssl dgst -sha256 -binary -sign $(BDK_ROOT)/trust-keys/bdk-sign-private.pem \
+        -out FILE.dtb.sign FILE.dtb
+$(BDK_ROOT)/bin/bdk-aes-pad FILE.dtb.sign
+----
+
+
+
+== Trusted Boot Sequence
+
+.Trusted Boot Sequence of files
+
+. Chip strapping, or FUSF_CTL[tz_force2] enables trusted boot
+. Chip exits reset, begins executing the secure ROM
+. Secure ROM load CLIB, CSIB, TBL1FW, and NTBL1FW from flash
+. Secure ROM calculates the SHA256 of CSIB[rotpk0..rotpk7]
+. If the SHA256 matches FUSF_ROTPK(0..3) then trusted boot continues
+. Secure ROM calculates the SHA256 of CSIB
+. The EC signature in CLIB[csib_sign0..csib_sign7] is checked against the
+        SHA256 of CSIB, verifying the trust of CSIB
+. If CSIB[crypt] specifies, the TBL1FW is AES decrypted
+** CSIB[crypt]=1, then AES key is SSK = FUSF_SSK(0..1)
+** CSIB[crypt]=2, then AES key is BSSK = AES128(FUSF_HUK(0..1), CSIB[fs0..fs1])
+. Secure ROM calculates the SHA256 of TBL1FW
+. If the SHA256 matches CSIB[fs0..fs3] then trusted boot continues
+. TBL1FW takes control, which is $(BDK_ROOT)/apps/boot/boot.bin
+. TBL1FW Loads *bdk-sign.pub* and *bdk-sign.pub.sign* from flash
+. If *bdk-sign.pub* authenticates against *bdk-sign.pub.sign*, the current chain
+        for trust key changes from ROT to the BDK signing key.
+. TBL1FW Loads the manufacturing data from flash. This data is not authenticated
+. TBL1FW Loads *BOARD.dtb* and *BOARD.dtb.sign* from flash. The exact name of the
+        device tree file loaded is based on the manufacturing data. Details
+        are documented in *BDK_Config-X.Y.pdf*.
+. If *BOARD.dtb* authenticates against *BOARD.dtb.sign*, the BDK configuration
+        is updated.
+. TBL1FW Loads *init.bin* and *init.bin.sign* from flash
+. If *init.bin* authenticates against *init.bin.sign*, booting continues. If it
+        fails, the boot menu is shown.
+. Init.bin takes control, which is $(BDK_ROOT)/apps/init/init.bin. Current
+        chain of trust key reverts to ROT
+. Init.bin receives the current BDK config from TBL1FW in a device tree
+        located in cache
+. Init.bin receives the CSIB, ROT public key address, and BSSK address in a
+        device tree located in cache
+. Init.bin Loads *bdk-sign.pub* and *bdk-sign.pub.sign* from flash
+. If *bdk-sign.pub* authenticates against *bdk-sign.pub.sign*, the current chain
+        for trust key changes from ROT to the BDK signing key.
+. Init.bin initializes the hardware
+. If the BDK config specifies DRAM scrambling, init.bin enables scrambling
+. Init.bin Loads *LINUX.dtb* and *LINUX.dtb.sign* from flash. The exact name of
+        the device tree file loaded is based on the manufacturing data.
+        Details are documented in *BDK_Config-X.Y.pdf*.
+. If *LINUX.dtb* authenticates against *LINUX.dtb.sign*, the in memory device
+        tree is updated.
+. Init.bin Loads *bl1.bin* and *bl1.bin.sign* from flash
+. If *bl1.bin* authenticates against *bl1.bin.sign*, booting continues to ATF.
+        If it fails, *diagnostics.bin.lzma* and *diagnostics.bin.lzma.sign* are
+        tried.
+
+
+== Flash Layout
+
+.Flash Layout
+[options="header", cols="15,10,75"]
+|==========================================================================
+|Offset    |Size  |Description
+|0000 0000 |512B  |MBR - DOS style partition table
+|0000 0200 |16.5K |Reserved for Primary GPT Header
+|0000 4400 |3K    |Reserved for future use
+|0000 5000 |4K    |CN9XXX ROM script
+|0000 6000 |40K   |Reserved for future use
+|0001 0000 |256B  |Cavium CVM_CLIB header - Non trusted, for NTBL1FW
+|0001 0100 |256B  |Cavium CVM_CSIB header - Non trusted, for NTBL1FW
+|0001 0200 |256B  |Cavium CVM_CLIB header - Trusted, for TBL1FW
+|0001 0300 |256B  |Cavium CVM_CSIB header - Trusted, for TBL1FW
+|0001 0400 |256B  |Cavium CVM_CLIB header - Non trusted, for SCP-BL1
+|0001 0500 |256B  |Cavium CVM_CSIB header - Non trusted, for SCP-BL1
+|0001 0600 |256B  |Cavium CVM_CLIB header - Trusted, for SCP-BL1
+|0001 0700 |256B  |Cavium CVM_CSIB header - Trusted, for SCP-BL1
+|0001 0800 |256B  |Cavium CVM_CLIB header - Non trusted, for MCP-BL1
+|0001 0900 |256B  |Cavium CVM_CSIB header - Non trusted, for MCP-BL1
+|0001 0a00 |256B  |Cavium CVM_CLIB header - Trusted, for MCP-BL1
+|0001 0b00 |256B  |Cavium CVM_CSIB header - Trusted, for MCP-BL1
+|0001 0c00 |60.5KB|Reserved for future use
+|0002 0000 |192KB |NTBL1FW. 192KB loaded by the secure ROM in non-trusted boot
+|0005 0000 |192KB |TBL1FW. 192KB loaded by the secure ROM in trusted boot
+|0008 0000 |256KB |Non-trusted SCP-BL1 (Required for CN9XXX)
+|000c 0000 |256KB |Trusted SCP-BL1 (Required for CN9XXX)
+|0010 0000 |256KB |Non-trusted MCP-BL1 (Required for CN9XXX)
+|0014 0000 |256KB |Trusted MCP-BL1 (Required for CN9XXX)
+|0018 0000 |2.5MB |FatFS of 2.5MB
+|0040 0000 |2MB   |ARM Trusted Firmware (ATF) FIP
+|0060 0000 |3MB   |UEFI or Uboot bootloader, unused by the BDK
+|0090 0000 |6MB   |Unused by BDK, owned by other firmware
+|00f0 0000 |896KB |UEFI data storage
+|00fe 0000 |64KB  |Reserved for future use
+|00ff 0000 |64KB  |Board Manufacturing Data
+|0100 0000 |-     |End of flash used by firmware
+|==========================================================================
+
+.Contents of FatFS Flash Section
+[options="header", cols="30,70"]
+|==========================================================================
+|File                           | Description
+|bdk-sign.pub                   | BDK signing public key
+|bdk-sign.pub.sign              | Signature, based on ROT private key
+|bl1.bin.lzma                   | ATF BL1 application
+|bl1.bin.lzma.sign              | Signature, based on BDK signing private key
+|init.bin                       | Hardware Initialization
+|init.bin.sign                  | Signature, based on BDK signing private key
+|diagnostics.bin.lzma           | Diagnostics application
+|diagnostics.bin.lzma.sign      | Signature, based on BDK signing private key
+|setup.bin.lzma                 | Setup application
+|setup.bin.lzma.sign            | Signature, based on BDK signing private key
+|cortina-app.bin.lzma           | PHY update application
+|cortina-app.bin.lzma.sign      | Signature, based on BDK signing private key
+|BOARD.dtb                      | Various board configuration device tree files, see BDK_Config-X.Y.pdf.
+|BOARD.dtb.sign                 | Signature, based on BDK signing private key
+|LINUX.dtb                      | Various Linux device tree files, see BDK_Config-X.Y.pdf.
+|LINUX.dtb.sign                 | Signature, based on BDK signing private key
+|==========================================================================
+
+
+
+

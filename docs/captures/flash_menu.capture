@@ -1,0 +1,10 @@
+=================================
+Flash Menu
+=================================
+ 1) Query for NOR flash
+ 2) View NOR flash (CS0)
+ 3) Write NOR flash (CS0)
+ 4) Query for eMMC, MMC, or SD
+ 5) View eMMC, MMC, or SD
+ 6) Write eMMC, MMC, or SD
+ 7) Main menu

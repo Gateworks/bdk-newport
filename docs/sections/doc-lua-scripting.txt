@@ -1,0 +1,82 @@
+= Lua Scripting
+
+The BDK contains the scripting environment Lua.  Lua allows you to
+write simple scripts to easily control THUNDERX tests and perform remote
+operations.  Take a look at the link:lua/readme.html[documentation for
+Lua] for more information about the Lua language.  Many BDK functions
+can be called from Lua.  Under the Lua environment, a module *cavium*
+is supplied.
+
+TIP: The link:lua/contents.html[Lua Reference] can be useful.
+
+
+== Executing Lua on the Host
+
+The BDK supplies the executable *bdk-lua* for scripting on a host PC.
+This should be used for the shell to execute Lua scripts for remote
+controlling THUNDERX either on the command line, or through scripts.
+
+.Command line
+[source,sh]
+----
+$ bdk-lua script.lua
+----
+
+.In scripts
+[source,lua]
+----
+#!/usr/bin/env bdk-lua
+print("Hello World!")
+----
+
+.Usage of *bdk-lua*
+----
+usage: bdk-lua [options] [script [args]]
+Available options are:
+  -e stat  execute string 'stat'
+  -i       enter interactive mode after executing 'script'
+  -l name  require library 'name'
+  -v       show version information
+  --       stop handling options
+  -        stop handling options and execute stdin
+----
+
+.Printing the functions in a module
+----
+$ bdk-lua -l utils -e "pprint(table)"
+----
+.Output of *table* print
+----
+{
+    concat = function
+    foreach = function
+    foreachi = function
+    getn = function
+    insert = function
+    maxn = function
+    pack = function
+    remove = function
+    sort = function
+    sorted_keys = function
+    sorted_values = function
+    unpack = function
+}
+----
+
+== Executing Lua on the Target
+
+Three methods are supported for booting the BDK on the development
+board.  Most developers choose to burn the BDK to flash.  If your
+board doesn't support flash, or already has a bootloader, then you may
+choose a different method.  Below is a list of the most common methods
+of loading the BDK.
+
+.Booting from NOR flash
+
+Burn *target-bin/bdk.bin* to the beginning of the SPI NOR flash
+connected to the bootbus chip select 0.
+
+.Booting from PCIe
+
+TBD
+

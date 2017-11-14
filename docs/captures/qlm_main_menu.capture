@@ -1,0 +1,10 @@
+=================================
+QLM/DLM Menu
+=================================
+ 1) Change QLM/DLM configuration
+ 2) DLM 0 - Two QSGMII @ 5.000 GBaud, ref  62.500 Mhz
+ 3) DLM 1 - 2 PCIe, 1 lane each @ 5.000 GBaud, ref  49.999 Mhz
+ 4) DLM 2 - 2 SATA, one lane each @ 6.000 GBaud, ref  49.999 Mhz
+ 5) PRBS and SERDES Tuning
+ 6) Main menu
+

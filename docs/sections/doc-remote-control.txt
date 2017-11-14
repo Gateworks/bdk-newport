@@ -1,0 +1,29 @@
+= Using the BDK host Scripts to Control the Target
+
+Lua scripts run on the host PC can remotely control the target through
+a serial connection. The serial connection can be either through the
+host's serial port (example /dev/ttyUSB0) or using a TCP/IP socket
+connection to a terminal server. The connection is controlled by a
+environment variable on the host, *CAVIUM_REMOTE_CONSOLE*.
+
+. For use through a serial port on the PC
++
+[source, sh]
+----
+# export CAVIUM_REMOTE_CONSOLE=<device_file>
+$ export CAVIUM_REMOTE_CONSOLE=/dev/ttyUSB0
+----
+
+. For use through a TCP/IP connection to a terminal server
++
+[source, sh]
+----
+# Using telnet to a port server
+# export CAVIUM_REMOTE_CONSOLE=<ip_address>:<port>
+$ export CAVIUM_REMOTE_CONSOLE=192.168.1.1:22
+# Using the MCU of a Cavium EBB8800
+$ export CAVIUM_REMOTE_CONSOLE=b04-0010:9761
+----
+
+
+

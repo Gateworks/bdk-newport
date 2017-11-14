@@ -1,0 +1,60 @@
+================================
+DLM0 Reference clock
+=================================
+ 1) Common reference clock 0 (DLMC_REF_CLK0_P/N)
+ 2) Common reference clock 1 (DLMC_REF_CLK1_P/N)
+ 3) External reference clock 0 (DLM0_REF_CLK_P/N)
+(INS)Menu choice [3]:
+
+=================================
+DLM1 Reference clock
+=================================
+ 1) Common reference clock 0 (DLMC_REF_CLK0_P/N)
+ 2) Common reference clock 1 (DLMC_REF_CLK1_P/N)
+(INS)Menu choice [1]:
+
+=================================
+DLM2 Reference clock
+=================================
+ 1) Common reference clock 0 (DLMC_REF_CLK0_P/N)
+ 2) Common reference clock 1 (DLMC_REF_CLK1_P/N)
+(INS)Menu choice [1]:
+
+=================================
+DLM0 Mode
+=================================
+ 1) RXAUI   lanes 0-1
+ 2) SGMII   lane 0, SGMII   lane 1
+ 3) SGMII   lane 0, QSGMII  lane 1
+ 4) SGMII   lane 0, Disable lane 1
+ 5) QSGMII  lane 0, SGMII   lane 1
+ 6) QSGMII  lane 0, QSGMII  lane 1
+ 7) QSGMII  lane 0, Disable lane 1
+ 8) Disable lane 0, SGMII   lane 1
+ 9) Disable lane 0, QSGMII  lane 1
+10) Disable both lanes
+(INS)Menu choice [6]:
+Programming Vitesse PHY at address 4
+Programming Vitesse PHY at address 8
+
+=================================
+DLM1-2 Mode
+=================================
+ 1) PCIe x4 lanes 2-5
+ 2) PCIe x2 lanes 2-3, PCIe x2 lanes 4-5
+ 3) PCIe x1 lane  2,   PCIe x1 lane  4,  PCIe x1 lane  5
+ 4) PCIe x2 lanes 2-3, SATA    lanes 4,5
+ 5) PCIe x1 lane  2,   PCIe x1 lane  3,  SATA    lanes 4,5
+ 6) Disable lanes 2-5
+(INS)Menu choice [5]:
+(INS)Configure PCIe for gen2(y/n) [y]:
+(INS)Configure PCIe port 1 as a root complex(y/n) [y]:
+(INS)GPIO for SATA compliance lab loopback testing (lab_lb_pin) (-1 - 19) [-1]:
+(INS)GPIO for SATA0 mechanical presence detect (p0_mp_switch) (-1 - 19) [-1]:
+(INS)GPIO for SATA0 cold presence detect (p0_cp_det) (-1 - 19) [-1]:
+(INS)GPIO for SATA0 cold presence power-on device (p0_cp_pod) (-1 - 19) [-1]:
+(INS)GPIO for SATA0 activity LED(p0_act_led) (-1 - 19) [-1]:
+(INS)GPIO for SATA1 mechanical presence detect (p1_mp_switch) (-1 - 19) [-1]:
+(INS)GPIO for SATA1 cold presence detect (p1_cp_det) (-1 - 19) [-1]:
+(INS)GPIO for SATA1 cold presence power-on device (p1_cp_pod) (-1 - 19) [-1]:
+(INS)GPIO for SATA1 activity LED (p1_act_led) (-1 - 19) [-1]:

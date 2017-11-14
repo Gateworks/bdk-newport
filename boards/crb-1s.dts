@@ -1,0 +1,702 @@
+/***********************license start***********************************
+* Copyright (c) 2003-2016  Cavium Inc. (support@cavium.com). All rights
+* reserved.
+*
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are
+* met:
+*
+*   * Redistributions of source code must retain the above copyright
+*     notice, this list of conditions and the following disclaimer.
+*
+*   * Redistributions in binary form must reproduce the above
+*     copyright notice, this list of conditions and the following
+*     disclaimer in the documentation and/or other materials provided
+*     with the distribution.
+*
+*   * Neither the name of Cavium Inc. nor the names of
+*     its contributors may be used to endorse or promote products
+*     derived from this software without specific prior written
+*     permission.
+*
+* This Software, including technical data, may be subject to U.S. export
+* control laws, including the U.S. Export Administration Act and its
+* associated regulations, and may be subject to export or import
+* regulations in other countries.
+*
+* TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+* AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
+* WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT
+* TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
+* REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
+* DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
+* OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
+* PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT,
+* QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK
+* ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
+***********************license end**************************************/
+/dts-v1/;
+
+/include/ "ddr3-common.dtsi"
+
+/ {
+cavium,bdk {
+	/* Some boards shipped with BOARD-MAC-ADDRESS-NUM programmed
+	incorrectly. This value overrides the setting in flash of
+	BOARD-MAC-ADDRESS-NUM, allowing correction of the value. This
+	should normally not be used.
+	 */
+	//BOARD-MAC-ADDRESS-NUM-OVERRIDE = "-1";
+
+	/* On-chip TWSI port connected to the BMC for IPMI traffic.
+	-1 = No connection exists. 0+ is TWSI bus number. */
+	//BMC-TWSI = "-1";
+	BMC-TWSI = "5";
+
+	/* This specifies a watchdog timer should run during boot and reset
+	the chip if boot hangs for some reason. The timeout is specified
+	in milliseconds. Zero disables the watchdog. */
+	//WATCHDOG-TIMEOUT = "0";
+
+	/* Allow a sequence of TWSI writes to be performed during boot. Each
+	string in the list line is executed in sequence. The TWSI write
+	format is:
+	    node,twsi_id,dev_addr,internal_addr,num_bytes,ia_width_bytes,data
+	    sleep,ms
+	    gpio,node,gpio_num,state
+	node           = Node ID the twsi bus is on. -1 means the local node
+	twsi_id        = TWSI bus to use
+	dev_addr       = TWSI bus address
+	internal_addr  = TWSI internal address, zero if not used
+	num_bytes      = Number of bytes to write (1-8)
+	ia_width_bytes = Internal address width in bytes (0-2)
+	data           = Data to write as a 64bit number
+	sleep,ms       = This on a line delays for 'ms' milliseconds
+	gpio,...       = This sets the state of a GPIO gpio_num to 0 or 1 */
+	//TWSI-WRITE = "";
+	TWSI-WRITE =
+		/* Initialize IO expander U29 to set SFP_TX_DISABLE_0=0 and SFP_TX_DISABLE_1=0
+		Set all pins as inputs except:
+		    Pin 0.4: QSFP_RST_N
+		    Pin 0.5: QSFP_MODSEL_N
+		    Pin 0.6: QSFP_LPMODE
+		    Pin 1.3: SFP_TX_DISABLE_0
+		    Pin 1.7: SFP_TX_DISABLE_1
+		    Data high means pin is input */
+		"-1,0,0x20,0x6,1,1,0x8f",
+		"-1,0,0x20,0x7,1,1,0x77",
+
+		/* Drive output pins:
+		    Pin 0.4: QSFP_RST_N=1
+		    Pin 0.5: QSFP_MODSEL_N=1
+		    Pin 0.6: QSFP_LPMODE=1
+		    Pin 1.3: SFP_TX_DISABLE_0=0
+		    Pin 1.7: SFP_TX_DISABLE_1=0 */
+		"-1,0,0x20,0x2,1,1,0x70",
+		"-1,0,0x20,0x3,1,1,0x00",
+                "sleep,100"; /* Delay 100ms to allow reset to complete before MDIO accesses */
+
+	/* Allow a sequence of MDIO writes to be performed during boot. Each
+	string in the list line is executed in sequence. The MDIO write
+	format is:
+	    clause,node,bus_id,phy_id,device,location,val
+	    sleep,ms
+	    gpio,node,gpio_num,state
+	clause   = MDIO clause for the write (22 or 45)
+	node     = Node the MDIO bus is connected, -1 for local
+	bus_id   = MDIO bus to use
+	phy_id   = MDIO address
+	device   = Clause 45 internal device address, zero for clause 22
+	location = MDIO register
+	val      = Value to write
+	sleep,ms = This on a line delays for 'ms' milliseconds
+	gpio,... = This sets the state of a GPIO gpio_num to 0 or 1 */
+	//MDIO-WRITE = "";
+	MDIO-WRITE =
+		/* The Cortina PHY shows up on MDIO bus 1, PHY address 0 and 1.
+		    Each PHY is divided into 4 slices, one per SERDES lane. The
+		    40G port uses all slices, where the 10G ports use one slice
+		    each. PHY Internal address is always zero.
+		    XLAUI0: Slice 0-3 of PHY address 1 (reg through reg + 0x3000)
+		    XFI1.0: Slice 3 of PHY address 0 (reg + 0x3000)
+		    XFI1.1: Slice 2 of PHY address 0 (reg + 0x2000)
+
+		    Reset the line side of the PHY. This is register 0x1000,
+		    which is incremented by 0x1000 for each slice.
+		    Reset the host side of the PHY. This is register 0x1800,
+		    which is incremented by 0x1000 for each slice. */
+		/* XLAUI0, all 4 slices */
+		"45,0,1,1,0,0x1000,0x3",
+		"45,0,1,1,0,0x1800,0x3",
+		"45,0,1,1,0,0x2000,0x3",
+		"45,0,1,1,0,0x2800,0x3",
+		"45,0,1,1,0,0x3000,0x3",
+		"45,0,1,1,0,0x3800,0x3",
+		"45,0,1,1,0,0x4000,0x3",
+		"45,0,1,1,0,0x4800,0x3",
+		/* XFI1.0, slice 3 */
+		"45,0,1,0,0,0x4000,0x3",
+		"45,0,1,0,0,0x4800,0x3",
+		/* XFI1.1, slice 2 */
+		"45,0,1,0,0,0x3000,0x3",
+		"45,0,1,0,0,0x3800,0x3",
+		/* Leave PHY in reset for 100ms */
+		"sleep,100",
+		/* Take the line side out of reset */
+		"45,0,1,1,0,0x1000,0",
+		"45,0,1,1,0,0x1800,0",
+		"45,0,1,1,0,0x2000,0",
+		"45,0,1,1,0,0x2800,0",
+		"45,0,1,1,0,0x3000,0",
+		"45,0,1,1,0,0x3800,0",
+		"45,0,1,1,0,0x4000,0",
+		"45,0,1,1,0,0x4800,0",
+		/* XFI1.0, slice 3 */
+		"45,0,1,0,0,0x4000,0",
+		"45,0,1,0,0,0x4800,0",
+		/* XFI1.1, slice 2 */
+		"45,0,1,0,0,0x3000,0",
+		"45,0,1,0,0,0x3800,0";
+
+	/* PHY address encoding:
+	    Bits[31:24]: Node ID, 0xff for node the ethernet device is on
+	    Bits[23:16]: Only used for TWSI
+	    Bits[15:12]: PHY connection type (0=MDIO, 1=Fixed, 2=TWSI)
+	For MDIO:
+	    Bits[31:24]: Node ID, 0xff for node the ethernet device is on
+	    Bits[23:16]: 0
+	    Bits[15:12]: 0=MDIO
+	    Bits[11:8]: MDIO bus number
+	    Bits[7:0]: MDIO address
+	For Fixed:
+	    Bits[31:24]: 0
+	    Bits[23:16]: Zero
+	    Bits[15:12]: 1=Fixed
+	    Bits[11:0]:  0 = 1Gb, 1 = 100Mb
+	For TWSI:
+	    Bits[31:24]: Node ID, 0xff for node the ethernet device is on
+	    Bits[23:16]: TWSI internal address width in bytes (0-2)
+	    Bits[15:12]: 2=TWSI
+	    Bits[11:8]: TWSI bus number
+	    Bits[7:0]: TWSI address */
+	//PHY-ADDRESS.N%d.BGX%d.P%d = "-1";
+	/* BGX0 (QLM0, Lane 0-3) QSFP+ module uses TBD. This is
+            currently not used by the BDK */
+	/* BGX1 (QLM1, Lane 0) right SFP+ module (near BMC etherent) uses
+            local node, TWSI bus 2, addresses 0x50 and 0x56, with one
+            internal address byte. The addresses are only readable when a
+            1Gbps SFP+ is installed. 0x50 is a read only rom, 0x56 are the
+            modules registers. */
+	PHY-ADDRESS.N0.BGX1.P0 = "0xff012256";
+	/* BGX1 (QLM1, Lane 1) left SFP+ module (near QSFP+) uses local node,
+            TWSI bus 3, addresses 0x50 and 0x56, with one internal address
+            byte. The addresses are only readable when a 1Gbps SFP+ is
+            installed. 0x50 is a read only rom, 0x56 are the modules
+            registers. */
+	PHY-ADDRESS.N0.BGX1.P1 = "0xff012356";
+
+	/* Independent enables for each on-chip BGX port. Use this to
+	disable ports that are not wired on a board. Default is that all
+	ports are enabled. */
+	//BGX-ENABLE.N%d.BGX%d.P%d = "1";
+	BGX-ENABLE.N0.BGX1.P2 = "0";
+	BGX-ENABLE.N0.BGX1.P3 = "0";
+
+	/* BDK Version information. */
+	//BDK-VERSION = "";
+
+	/* Number of packet buffers in the BDK. */
+	//BDK-NUM-PACKET-BUFFERS = "0x1000";
+
+	/* The size of each packet buffer in the BDK. */
+	//BDK-PACKET-BUFFER-SIZE = "0x400";
+
+	/* Controls whether the BDK displays link status messages. */
+	//BDK-SHOW-LINK-STATUS = "1";
+
+	/* Controls the cores used by the BDK. Zero means all cores. */
+	//BDK-COREMASK = "0";
+
+	/* Timeout for the boot menu in seconds. */
+	//BDK-BOOT-MENU-TIMEOUT = "0xa";
+
+	/* This is used by the boot menu to control which boot path the init
+	code chooses. The supported options are
+	    0 = Normal boot path
+	    1 = Diagnostics boot path */
+	//BDK-BOOT-PATH-OPTION = "0";
+
+	/* This is used by the boot apps to determine the next boot stage.
+	    e.g.:
+	      BDK-CONFIG-BOOT-NEXT-STAGE-INIT=/fatfs/cortina-app.bin */
+	//BDK-CONFIG-BOOT-NEXT-STAGE-%s = "";
+	BDK-CONFIG-BOOT-NEXT-STAGE-INIT = "/fatfs/cortina-app.bin";
+
+	/* BDK trace level. This is a bitmask of the enumeration defined in
+	bdk-warn.h. Each bit turns on tracing of a specific BDK
+	component. */
+	//BDK-CONFIG-TRACE = "0";
+
+	/* Determine how multi-node is supported for this system:
+	    0 = Multi-node is not supported
+	    1 = Multi-node is supported and booting requires two nodes
+	    2 = Multi-node is auto detected. Two nodes are used if
+	        if available, otherwise fall back to single node. */
+	//MULTI-NODE = "2";
+	MULTI-NODE = "0";
+
+	/* Determine if internal PCIe ECAMs support Enhanced Allocation(EA):
+	    0 = Enhanced Allocation is not supported
+	    1 = Enhanced Allocation is supported
+	Note EA is not supported on CN88XX pass 1.x, and is always
+	disabled. */
+	//PCIE-ENHANCED-ALLOCATION = "1";
+
+	/* Enforcing stronger PCIe ordering. Use this option if a PCIe card
+	is having compatibility issues.
+	    0 = Don't wait for commit, default for best performance.
+	    1 = Wait for commit, use conservative ordering. */
+	//PCIE-ORDERING = "0";
+
+	/* Specifies the preset request vector (PCIERCX_CFG554[PRV]). Requesting
+	of presets during the initial part of the EQ master phase.
+	Encoding scheme as follows:
+	    Bit [15:0] = 0x0: No preset is requested and evaluated in the EQ master phase.
+	    Bit [i] = 1: Preset=i is requested and evaluated in the EQ master phase.
+	    0000000000000000: No preset req/evaluated in EQ master phase
+	    00000xxxxxxxxxx1: Preset 0 req/evaluated in EQ master phase
+	    00000xxxxxxxxx1x: Preset 1 req/evaluated in EQ master phase
+	    00000xxxxxxxx1xx: Preset 2 req/evaluated in EQ master phase
+	    00000xxxxxxx1xxx: Preset 3 req/evaluated in EQ master phase
+	    00000xxxxxx1xxxx: Preset 4 req/evaluated in EQ master phase
+	    00000xxxxx1xxxxx: Preset 5 req/evaluated in EQ master phase
+	    00000xxxx1xxxxxx: Preset 6 req/evaluated in EQ master phase
+	    00000xxx1xxxxxxx: Preset 7 req/evaluated in EQ master phase
+	    00000xx1xxxxxxxx: Preset 8 req/evaluated in EQ master phase
+	    00000x1xxxxxxxxx: Preset 9 req/evaluated in EQ master phase
+	    000001xxxxxxxxxx: Preset 10 req/evaluated in EQ master phase
+	    All other encodings: Reserved
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-PRESET-REQUEST-VECTOR.N%d.PORT%d = "0x593";
+
+	/* Override the auto detected width of a PCIe port. The width of a PCIe
+	port is normally auto detected. Some boards do not wire all PCIe lanes,
+	which causes the port assume more lanes than are actually possible. Use
+	this value to limit the maximum lanes the port can support. The default
+	value of -1 lets the hardware decide.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-WIDTH.N%d.PORT%d = "-1";
+
+	/* Configure the physical slot number for a PCIe port. This is used by error
+	reporting to narrow down failures to a board PCIe slot number. The
+	default value of -1 doesn't set the slot number.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-PHYSICAL-SLOT.N%d.PORT%d = "-1";
+	PCIE-PHYSICAL-SLOT.N0.PORT0 = "1";
+	PCIE-PHYSICAL-SLOT.N0.PORT1 = "2";
+	PCIE-PHYSICAL-SLOT.N0.PORT2 = "3";
+	PCIE-PHYSICAL-SLOT.N0.PORT3 = "4";
+	PCIE-PHYSICAL-SLOT.N0.PORT4 = "5";
+
+	/* Allow a sequence of PCIe config accesses during endpoint boot. Each
+	string in the list is written to the PCIe SPI flash to configure
+	the endpoint before link initialization. The string format is:
+	    cl2,address,data
+	    erase
+	cl2      = 1 for writes to the mask, 0 for normal writes
+	address  = PCIe config space address
+	data     = Data to write
+	erase    = Special case to erase the SPI flash without programming anything */
+	//PCIE-FLASH.N%d.PORT%d = "";
+
+	/* Force CCPI lane reversal. This should be set for boards which
+	reverse the CCPI lanes between nodes. If lane 0 connects to lane
+	23, this option is needed. CN88XX pass 2.0 and higher automatically
+	detect lane reversal, so setting this is optional.
+	    0 = Automatically detect lane reversal, no lane reversal on
+	        CN88XX pass 1.x.
+	    1 = Force lane reversal, required on CN88XX pass 1.0 with CCPI
+	        lanes reversed. */
+	//CCPI-LANE-REVERSE = "0";
+
+	/* Cavium SKU for the chip. This is determined by early code and
+	passed to later software for display. This should not be set in
+	the input device tree, it will be ignored. */
+	//CHIP-SKU.NODE%d = "TBD";
+
+	/* Cavium serial number for the chip. This is determined by early
+	code and passed to later software for display. This should not be
+	set in the input device tree, it will be ignored. */
+	//CHIP-SERIAL.NODE%d = "TBD";
+
+	/* Cavium unique ID for the chip. This is determined by early
+	code and passed to later software for display. This should not be
+	set in the input device tree, it will be ignored. */
+	//CHIP-UNIQUE-ID.NODE%d = "TBD";
+
+	/* For Cavium evaluation boards, query the MCU for QLM/DLM setup
+	information. The MCU supplies a TWSI protocol for the SOC to
+	query the modules plugged in and automatically set the QLMs or
+	DLMs to the correct mode. This should only be enabled(1) on Cavium
+	EBB8XXX boards. Other boards should have it disabled(0). */
+	//QLM-AUTO-CONFIG = "0";
+
+	/* Set the mode of a QLM/DLM. The possible mode strings are:
+	    DISABLED
+	    PCIE_1X1
+	    PCIE_2X1
+	    PCIE_1X2
+	    PCIE_1X4
+	    PCIE_1X8
+	    SATA_4X1
+	    SATA_2X1
+	    ILK
+	    SGMII_4X1
+	    SGMII_2X1
+	    SGMII_1X1
+	    XAUI_1X4
+	    RXAUI_2X2
+	    RXAUI_1X2
+	    OCI
+	    XFI_4X1
+	    XFI_2X1
+	    XFI_1X1
+	    XLAUI_1X4
+	    10G_KR_4X1
+	    10G_KR_2X1
+	    10G_KR_1X1
+	    40G_KR4_1X4
+	    QSGMII_4X1 */
+	//QLM-MODE.N%d.QLM%d = "";
+	QLM-MODE.N0.QLM0 = "XLAUI_1X4";
+	QLM-MODE.N0.QLM1 = "XFI_4X1";
+	QLM-MODE.N0.QLM2 = "PCIE_1X4";
+	QLM-MODE.N0.QLM3 = "SATA_4X1";
+	QLM-MODE.N0.QLM4 = "PCIE_1X8";
+	QLM-MODE.N0.QLM6 = "PCIE_1X8";
+
+	/* Set the speed of a QLM/DLM in Mhz. The possible speeds are:
+	    1250
+	    1500
+	    2500
+	    3000
+	    3125
+	    5000
+	    6000
+	    6250
+	    8000
+	   10312 */
+	//QLM-FREQ.N%d.QLM%d = "0";
+	QLM-FREQ.N0.QLM0 = "10312";
+	QLM-FREQ.N0.QLM1 = "10312";
+	QLM-FREQ.N0.QLM2 = "8000";
+	QLM-FREQ.N0.QLM3 = "6000";
+	QLM-FREQ.N0.QLM4 = "8000";
+	QLM-FREQ.N0.QLM6 = "8000";
+
+	/* Set the source of the QLM/DLM reference clock:
+	    0 = Common clock 0
+	    1 = Common clock 1
+	    2 = QLM/DLM external reference
+	    3 = Common clock 2
+	 */
+	//QLM-CLK.N%d.QLM%d = "2";
+	QLM-CLK.N0 = "0";
+	QLM-CLK.N0.QLM0 = "1";
+	QLM-CLK.N0.QLM1 = "1";
+
+	/* Setting of GSERX_LANEX_TX_CFG_0[CFG_TX_SWING] for the QLM/DLM. This
+	should only be used for QLMs or DLMs used for BGX and CCPI not using KR
+	training. */
+	//QLM-TUNING-TX-SWING.N%d.QLM%d.LANE%d = "-1";
+
+	/* Setting of GSERX_LANEX_TX_PRE_EMPHASIS[CFG_TX_PREMPTAP] for the
+	QLM/DLM. This should only be used for QLMs or DLMs used for BGX and CCPI not
+	using KR training. CFG_TX_PREMPTAP:
+	    Bits[8:5] = Tx Post Tap; Bits[3:0] = Tx Pre Tap */
+	//QLM-TUNING-TX-PREMPTAP.N%d.QLM%d.LANE%d = "-1";
+
+	/* Setting of GSERX_LANEX_TX_CFG_3[PCS_SDS_TX_GAIN] for the QLM/DLM. This
+	should only be used for QLMs or DLMs used for BGX and CCPI not using KR
+	training. */
+	//QLM-TUNING-TX-GAIN.N%d.QLM%d.LANE%d = "-1";
+
+	/* Setting of GSERX_LANEX_TX_CFG_3[CFG_TX_VBOOST_EN] for the QLM/DLM. This
+	should only be used for QLMs or DLMs used for BGX and CCPI not using KR
+	training. */
+	//QLM-TUNING-TX-VBOOST.N%d.QLM%d.LANE%d = "-1";
+
+	/* The insertion loss at Nyquist rate (e.g. 5.125Ghz for XFI/XLAUI) in
+	dB for the RX channel should be passed into the channel loss
+	attribute. For CN8XXX, this attribute is used for XFI/10GBASE-KR,
+	XLAUI/40GBASE-KR4, and CCPI. If no channel loss attribute is
+	provided the default value assumes a loss of greater than 10dB
+	for networking (long channel) and less than 10dB (short channel)
+	for CCPI. This matches the most common usage. */
+	//QLM-CHANNEL-LOSS.N%d.QLM%d = "-1";
+
+	/* Speed grade to use for DRAM in MT/s. Hardware may adjust this value
+	slightly to improve DRAM stability, so scope measurements may not
+	exactly match the frequency with MT/s. The Cavium supported speed
+	grades are:
+	       0 (auto-set from SPD contents)
+	     666 MT/s (DDR3 only)
+	     800 MT/s (DDR3 only)
+	    1066 MT/s (DDR3 only)
+	    1333 MT/s (DDR3 only)
+	    1600 MT/s
+	    1866 MT/s
+	    2133 MT/s (DDR4 only)
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DDR-SPEED.N%d = "0";
+
+	/* The DRAM initialization code has the ability to toggle a GPIO to
+	signal when it is running. Boards may need to mux TWSI access
+	between a BMC and the SOC so the BMC can monitor DIMM temperatures
+	and health. This GPIO will be driven high when the SOC may read
+	from the SPDs on the DIMMs. When driven low, another device (BMC)
+	may takeover the TWSI connections to the DIMMS. The default value
+	(-1) disables this feature. */
+	//DDR-CONFIG-GPIO = "-1";
+	DDR-CONFIG-GPIO = "25";
+
+	/* TWSI address of the DIMM SPD. The encoding of this address is
+	:    [15:12]: TWSI bus the DIMM is connected to.
+	     [11:7]: Reserved, set to zero.
+	      [6:0]: TWSI address for the DIMM.
+	A value of zero means the DIMMs are not accessible. Hard coded
+	values will be read from DDR-CONFIG-SPD-DATA.Parameters:
+	    LMC#: Parameter can be different for memory controller. This
+	        specifies which LMC the value is for. LMC must be
+	        0-3. Optional.
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DDR-CONFIG-SPD-ADDR.DIMM%d.LMC%d.N%d = "0";
+	DDR-CONFIG-SPD-ADDR.DIMM0.LMC0 = "0x1050";
+	DDR-CONFIG-SPD-ADDR.DIMM1.LMC0 = "0x1051";
+	DDR-CONFIG-SPD-ADDR.DIMM0.LMC1 = "0x1052";
+	DDR-CONFIG-SPD-ADDR.DIMM1.LMC1 = "0x1053";
+	DDR-CONFIG-SPD-ADDR.DIMM0.LMC2 = "0x1054";
+	DDR-CONFIG-SPD-ADDR.DIMM1.LMC2 = "0x1055";
+	DDR-CONFIG-SPD-ADDR.DIMM0.LMC3 = "0x1056";
+	DDR-CONFIG-SPD-ADDR.DIMM1.LMC3 = "0x1057";
+
+        /* Other DRAM settings are read from ddr3-common.dtsi */
+
+	/* Specify a on-chip GPIO used to control power for a USB port. When
+	set, the USB host controller will toggle the GPIO automatically
+	during USB reset events. The default value assumes the SOC has no
+	control of the USB power and it is always on. */
+	//USB-PWR-GPIO.N%d.PORT%d = "-1";
+
+	/* Specify the polarity of a on-chip GPIO used to control power for
+	a USB port. The GPIO used is specified by USB-PWR-GPIO. Setting this
+	GPIO low. The default value drives the GPIO high. */
+	//USB-PWR-GPIO-POLARITY.N%d.PORT%d = "1";
+
+	/* Specify reference clock source for SuperSpeed and HighSpeed PLL.
+	Possible sources:
+	 USB_REF_CLK pin
+	Additional sources for CN81XX/CN80XX chips
+	 DLMC_REF_CLK0 pin
+	 DLMC_REF_CLK1 pin
+	 PLL_REF_CLK
+	Clock used by usb needs to run at 100MHz frequency except PLL_REF_CLK
+	which requires 50MHz frequency.
+	Encoding:
+	0 - SS(USB_REF_CLK)   HS(USB_REF_CLK)
+	1 - SS(DLMC_REF_CLK0) HS(DLMC_REF_CLK0)
+	2 - SS(DLMC_REF_CLK1) HS(DLMC_REF_CLK1)
+	3 - SS(USB_REF_CLK)   HS(PLL_REF_CLK)
+	4 - SS(DLMC_REF_CLK0) HS(PLL_REF_CLK)
+	5 - SS(DLMC_REF_CLK1) HS(PLL_REF_CLK)
+	The default is 0 : USB_REF_CLK. */
+	//USB-REFCLK-SRC.N%d.PORT%d = "0";
+
+	/* CN88XX SC and SNT parts have an errata where a GPIO is used to
+	toggle DC_OK. For boards with SC and SNT parts, a GPIO must be wired
+	per errata description. */
+	//NITROX-GPIO.N%d = "-1";
+
+	/* Number of reading with no errors to signal the start of an
+	eye. The default value should be good for most cases. */
+	//QLM-EYE-NUM-ZEROS = "2";
+
+	/* Time to sample at each location in microseconds. The default
+	value should be good for most cases. */
+	//QLM-EYE-SAMPLE-TIME = "0x190";
+
+	/* Time to settle after each movement in microseconds. The
+	default value should be good for most cases. */
+	//QLM-EYE-SETTLE-TIME = "0x32";
+
+	/* Reference clock in Hz. CN88XX drives data on rising edges of this
+	clock, and the target latches data on the falling edges of this
+	clock. On reset CN88XX tristates SGPIO_SCLK. When not exchanging
+	a bit stream CN88XX keeps SGPIO_SCLK low.
+	  Min: 128 Hz
+	  Max: 100 kHz */
+	//SGPIO-SCLOCK-FREQ.N%d = "0x2710";
+
+	/* Output pin number for SGPIO controller power control. */
+	//SGPIO-PIN-POWER.N%d = "-1";
+
+	/* Output pin number for SGPIO SCLOCK signal. */
+	//SGPIO-PIN-SCLOCK.N%d = "-1";
+
+	/* Output pin number for SGPIO SLOAD signal. */
+	//SGPIO-PIN-SLOAD.N%d = "-1";
+
+	/* Output pin number for SGPIO SDATAOUT[n] signal. n = 0..3. */
+	//SGPIO-PIN-SDATAOUT.N%d.D%d = "-1";
+
+	/* Temperature where THERMAL_TRIP_N is asserted. When the chip reaches
+	this temperature THERMAL_TRIP_N will assert, signalling the board
+	to emergency power off. The default value is the Cavium recommended
+	maximum temperature of the chip. Values between 0 and 110 degrees
+	Celsius. */
+	//VRM-TEMP-TRIP.N%d = "0x6e";
+
+	/* Temperature where maximum throttling is applied to the chip. Chip
+	performance will be greatly reduced to keep the temperature below
+	thermal trip (VRM-TEMP-TRIP). The default value is the Cavium
+	recommended maximum operating temperature of the chip. Values
+	between 0 and 110 degrees Celsius. */
+	//VRM-TEMP-HIGH.N%d = "0x6e";
+
+	/* Temperature where minimum throttling is applied to the chip. Chip
+	performance will be maximized at or below this temperature. The
+	throttling level will be set to VRM-THROTTLE-NORMAL. The default
+	value is the Cavium recommended operating temperature of the chip.
+	Values between 0 and 110 degrees Celsius. */
+	//VRM-TEMP-LOW.N%d = "0x64";
+
+	/* Throttle level of the chip when operating normally. Temperatures
+	at or below VRM-TEMP-LOW will use this throttling level. The default
+	level (70%), allows good performance while still reducing power under
+	heavy loads. Value is a percentage between 1 and 100. */
+	//VRM-THROTTLE-NORMAL.N%d = "0x41";
+
+	/* Throttle level of the chip is overheating. Temperatures at or
+	above VRM-TEMP-HIGH will use this throttling level. The default
+	level (5%), allows for forward progress while still reducing power.
+	Value is a percentage between 1 and 100. Setting a value of 100
+	disables dynamic throttling (not recommended). */
+	//VRM-THROTTLE-THERM.N%d = "0xf";
+
+	/* Internal source for GPIO pins. The enumeration GPIO_PIN_SEL_E
+	details the possible internal sources for GPIO pins in the chip.
+	The value of this setting is the numeric value from the GPIO_PIN_SEL_E
+	enumeration. The default value(-1) leaves the pin at the hardware
+	default, which is to connect the pin to the GPIO block for manual
+	control.
+	Parameters:
+	    GPIO#: Which GPIO pin to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//GPIO-PIN-SELECT-GPIO%d.N%d = "-1";
+
+	/* Set the polarity of GPIO pins. GPIO pins are normally high=1 and
+	low=0. Setting this configuration item to '1' inverts this, so
+	high=0 and low=1. The inversion applies to both input and output.
+	The default value of '0' configures high=1 and low=0.
+	Parameters:
+	    GPIO#: Which GPIO pin to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//GPIO-POLARITY-GPIO%d.N%d = "0";
+
+	/* Configure a PBUS region. The encoding of this value is the exact
+	register contents of PBUS_REGX_CFG. Note that the base is
+	overwritten by the BDK to fix addressing in the code.
+	Parameters:
+	    REGION#: Which PBUS region to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//PBUS-CFG.REGION%d.N%d = "0";
+
+	/* Configure a PBUS region timing. The encoding of this value is the
+	exact register contents of PBUS_REGX_TIM.
+	Parameters:
+	    REGION#: Which PBUS region to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//PBUS-TIM.REGION%d.N%d = "0";
+
+	/* Binary blob containing the TBL1FW CSIB header use to boot. If boot
+	was non-trusted, this parameter will not be in the device tree.
+	 */
+	//TRUST-CSIB = [];
+
+	/* Address of the Root of Trust public key (ROT). This will be zero for
+	non-trusted boot, or an address in secure space when trusted boot.
+	This public key is copied from the trusted CSIB, so it is a coordinate
+	pair (Qx,Qy) of 256-bit integers in little-endian format.
+	 */
+	//TRUST-ROT-ADDR = "0";
+
+	/* If boot was trusted and FUSF_HUK is non-zero, this contains the
+	address in secure space for the BSSK. The BSSK is derived from the
+	HUK and bytes 32- 47 of the CSIB.
+	 */
+	//TRUST-BSSK-ADDR = "0";
+
+	/**********************************************************************
+	 * The entries below are currently not used by the BDK. They are being
+	 * used only by ATF / UEFI.
+	 *
+	 * Format for TWSI configuration:
+	 *   TWSI-VAR-NAME = 0x01050E
+	 *                     ||||||
+	 *                     ||||++-- TWSI address
+	 *                     ||++---- TWSI bus
+	 *                     ++------ Node ID (0xFF = local node)
+	 *
+	 * Format for GPIO configuration:
+	 *   GPIO-VAR-NAME = 0x01001A
+	 *                     ||||||
+	 *                     ||||++-- GPIO Number
+	 *                     |||+---- GPIO polarity (0=normal, 1=inverted)
+	 *                     ||+----- GPIO type (0=level, 1=edge)
+	 *                     ++------ Node ID (0xFF = local node)
+	 *
+	 **********************************************************************/
+
+	/* TWSI bus and address for Boot Status information to BMC. */
+	//BMC-BOOT-TWSI-CONFIG = "-1";
+	BMC-BOOT-TWSI-CONFIG = "0x000520";
+
+	/* TWSI bus and address for IPMI communication to BMC
+	   -1 =  No connection exists  */
+	//BMC-IPMI-TWSI-CONFIG = "-1";
+	BMC-IPMI-TWSI-CONFIG = "0x000412";
+
+	/* GPIO pin connected to board power button */
+	//GPIO-SHUTDOWN-CTL-IN = "-1";
+	GPIO-SHUTDOWN-CTL-IN = "0x00101A";
+
+	/* GPIO pin to CPLD-BMC from SOC to inform host initiated shutdown */
+	//GPIO-SHUTDOWN-CTL-OUT = "-1";
+	GPIO-SHUTDOWN-CTL-OUT = "0x000018";
+
+	/* RTC connection over TWSI bus.
+	   -1 =  No connection exists  */
+	//RTC-TWSI-CONFIG = "-1";
+	RTC-TWSI-CONFIG = "0x000268";
+}; /* cavium,bdk */
+}; /* / */

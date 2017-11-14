@@ -1,0 +1,260 @@
+[[NETWORKING]]
+= Networking
+
+== Overview
+
+Many THUNDERX hardware ports are designed to transfer packetized data.
+Testing of these types of I/Os normally takes external test equipment,
+such as an IXIA.  The BDK simplifies testing these interfaces by supplying
+a traffic generator already built in.  This traffic generator can transmit
+and receive on all interfaces that support ethernet style packets.  The
+simplest method of testing a board is to connect one ethernet port to
+another.  The traffic generator can then transmit on one port and receive
+on the other.  Unlike most BDK menus, the traffic generator supports too
+many options to list in a menu.  The generator uses a command line
+interface.  The following sections detail the formatting of these
+commands.
+
+
+== Traffic Generator Port Naming
+
+Device ports are named based on their type, interface collection, and
+port in a collection.  All names are of the form:
+
+----
+TYPE INTERFACE INDEX
+----
+
+TYPE::
+
+The port type is based on the underlying transport layer.  Some of the
+support types are SGMII, XAUI, ILK, LOOP, and MGMT.
+
+INTERFACE::
+
+Each type of port has an internal chip interface.  These interfaces are
+number 0-X, where X is the maximum supported for the chip.  The exact
+numbering is dictated by the wiring of I/Os on the board.
+
+INDEX::
+
+Some port types, such as SGMII, have multiple ports in each interface.
+This number represents the index number into the interfaces.
+Interfaces not supporting multiple ports, such as XAUI, will always
+use zero for this number.  Channelized interfaces, such as Interlaken,
+will use this index as the channel number.
+
+Most commands take an optional port range.  The port range is
+specified as a series of names separated by commas or dashes.  Dashes
+include all ports between the named ports.  Commas are used to
+separate independent port, making a list.  No spaces are allowed in a
+port range.  Some example port ranges are "SGMII00-SGMII03",
+"XAUI00,XAUI10", and "LOOP00-LOOP03".  When not specified, the port
+range is taken from the range given in the last "default" command.
+
+The exact list of valid ports varies based on the chip being used and the
+wiring of the board it is on.  To get a list of all possible ports, issue
+the command *default all*.
+
+
+== Traffic Generator Control Commands
+cls::
+
+Clear the screen.
+
+csr <csr name> [value]::
+
+Read or write a CSR by name.
+
+default [port range]::
+
+Set the range of ports commands should use when an explicit range is
+not specified.
+
+display_packet [port range] on|off::
+
+Enable or disable the display of each packet as it is received.
+
+help::
+
+Show a list of the possible commands.
+
+hide::
+
+Hide all statistics counters.
+
+output_count [port range] count::
+
+Set the number of packet to transmit on a port. Use zero to transmit forever.
+
+output_packet_size [port range] size::
+
+Set the size of the packet to transmit (60-65524).
+
+quit::
+
+Exit the traffic generator.  Note that this will not stop traffic, so
+you need to issue a *stop all* before quiting.
+
+readline on|off::
+
+Enable or disable readline support.  Turning readline support off can
+be useful if you are driving the traffic generator with a script.
+Defaults to on.
+
+reboot::
+
+Perform a soft reset of chip.
+
+reset::
+
+Clear all counters and reset the port configuration to the default.
+
+scan_sizes [port range]::
+
+Scan through all possible packet sizes, making sure every packet sent
+is received back.  The sequence followed by the scan sizes is as follows.
++
+. Set the output packet size to 60 bytes
+. Take a snapshot of the RX packets, octets, and errors.
+. Transmit 100 packets on each port in the port range simultaneously.
+. Take another snapshot of the RX packets, octets, and errors.
+. Make sure that the received packets incremented by 100 times the number of ports.
+. Make sure that the received octets incremented by the packet size times the number of packets sent.
+. Make sure the receive and validation error counts have not changed.
+. If the packet size is less than 65524, increment the size by one and start over at step 2.
+
+show [port range]::
+
+Display statistics for the port range on the screen as a constantly
+updating GUI.
+
+start [port range]::
+
+Start transmitting packets on the port range.
+
+stop [port range]::
+
+Stop transmitting packets on the port range.
+
+tx_percent [port range] percent::
+
+Set the transmit rate as a percentage of 1Gbps.  Note that this does
+not affect ports that are transmitting until they stop and restart.
+
+tx_rate [port range] packet/s::
+
+Set the transmit rate in packets per second.  Note that this does not
+affect ports that are transmitting until they stop and restart.
+
+validate [port range] on|off::
+
+Turn packet validation on or off.  This should normally be on.  Packet
+validation puts a CRC32 at the end of every packet transmitted.  For
+every packet received, the CRC32 of the payload is calculated and
+matched against the last 4 bytes of the packet.  Since packet sources
+other than the BDK do not contain this CRC32, packets not generated by
+the BDK will always fail validation.  Validation is most useful when
+performing loopback tests as it will catch any packet corruption.
+
+== Traffic Generator Statistics Commands
+
+clear [port range]::
+
+Clear the statistics for the port range.
+
+l2_stats on | off::
+
+Turn on/off detailed L2 usage and statistics counters.  This option
+displays large numbers of statistics for the L2 cache controller.  These
+are normally not useful during board validation.
+
+rx_backpressure [port range]::
+
+Display counters of backpressure received on a port range.
+
+rx_dropped_octets [port range]::
+
+Number of bytes dropped during reception for each port.
+
+rx_dropped_packets [port range]::
+
+Number of packets dropped during reception for each port.
+
+rx_errors [port range]::
+
+Number of receive errors for each port.
+
+rx_octets_total [port range]::
+
+Number of bytes received for each port.
+
+rx_packets_total [port range]::
+
+Number of packets received for each port.
+
+rx_validation_errors [port range]::
+
+Number of validation errors received for each port.
+
+tx_octets_total [port range]::
+
+Number of bytes transmitted for each port.
+
+tx_packets_total [port range]::
+
+Number of packets transmitted for each port.
+
+
+== Traffic Generator Shortcut Keys
+
+* F1 = 'help': Show a list of supported commands.
+* F9 = 'validate all on': Enable packet validation on all ports.
+* F10 = 'stop all': Stop transmitting on all ports.
+* F11 = 'start default': Transmit on the ports specified in the last 'default' command.
+* F12 = 'stop default': Stop transmit on the ports specified in the last 'default' command.
+* PageDown = 'clear default': Clear the statistics counters for the ports in the default range.
+* PageUp = 'clear all': Clear the statistics counters for all ports.
+
+Below is a sample screen capture from the traffic generator.  Two
+commands were issued, one to set the default ports to SGMII40 through
+SGMII43, and the second to show the port statistics.
+
+.Sample Traffic Generator Screen
+----
+                Port|   SGMII40|   SGMII41|   SGMII42|   SGMII43|    Totals
+rx backpressure     |         0|         0|         0|         0|         0
+rx Mbps             |         0|         0|         0|         0|         0
+rx dropped octets   |         0|         0|         0|         0|         0
+rx dropped packets  |         0|         0|         0|         0|         0
+rx errors           |         0|         0|         0|         0|         0
+rx octets           |         0|         0|         0|         0|         0
+rx octets total     |         0|         0|         0|         0|         0
+rx packets          |         0|         0|         0|         0|         0
+rx packets total    |         0|         0|         0|         0|         0
+rx validation errors|         0|         0|         0|         0|         0
+tx Mbps             |         0|         0|         0|         0|         0
+tx octets           |         0|         0|         0|         0|         0
+tx octets total     |         0|         0|         0|         0|         0
+tx packets          |         0|         0|         0|         0|         0
+tx packets total    |         0|         0|         0|         0|         0
+Lua memory(KB)      |       277
+C memory(KB)        |      3732
+ -------
+
+BDK Traffic Generator
+
+Type "help" for a list of commands
+SGMII40: Link up, 1000 Mbps, Full duplex
+SGMII41: Link up, 1000 Mbps, Full duplex
+SGMII42: Link up, 1000 Mbps, Full duplex
+SGMII43: Link up, 1000 Mbps, Full duplex
+XAUI00: Link up, 10000 Mbps, Full duplex, 2 lanes
+XAUI10: Link up, 10000 Mbps, Full duplex, 2 lanes
+MGMT00: Link up, 1000 Mbps, Full duplex
+Command(1INS)> default SGMII40-SGMII43
+Default ports: SGMII40 SGMII41 SGMII42 SGMII43
+Command(2INS)> show
+Command(3INS)>
+----
+

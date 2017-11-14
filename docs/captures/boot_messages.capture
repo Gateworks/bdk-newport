@@ -1,0 +1,30 @@
+Bringup and Diagnostic Kit (BDK)
+Locking L2 cache
+Transferring to thread scheduler
+Hardware flow control enabled on UART0
+Hardware flow control disabled on UART1
+Switching to main
+BDK version: 2013.10-r89384
+Initializing DRAM with conservative settings...
+Parameter found in environment. ddr_ranks = "1" 0x1 (1)
+Limiting DRAM size to 64 MBytes based on limit_dram_mbytes env. variable
+DRAM: 64 MB, 400 MHz
+Clearing DRAM...
+Searching for second stage...
+Loading second stage of 1240722 bytes...
+Verifing second stage...
+Unlock L2 before jumping to second stage...
+Jumping to second stage
+
+Bringup and Diagnostic Kit (BDK)
+Transferring to thread scheduler
+Performing common initialization
+Hardware flow control enabled on UART0
+Hardware flow control disabled on UART1
+Switching to main
+Lua 5.2.0  Copyright (C) 1994-2011 Lua.org, PUC-Rio
+
+THUNDERX Bringup and Diagnostic Kit
+Copyright (C) 2010-2013 Cavium Networks
+Version 2013.10-r89384
+

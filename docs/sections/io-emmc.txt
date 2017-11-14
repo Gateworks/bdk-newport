@@ -1,0 +1,62 @@
+[[EMMC]]
+= eMMC and SD
+
+Support for eMMC and SD is divided into two parts.  The first part
+supports basic input and output, while the second supports read or writing
+an eMMC/SD through a remote connection such as EJTAG or PCIe.
+
+== Target based eMMC/SD access
+
+The main interface menu contains an option "Flash and MMC/SD".  Along with
+NOR flash access, this option also supports reading and writing to a
+eMMC/SD.
+
+.Flash and eMMC/SD menu
+----
+=================================
+Flash Menu
+=================================
+ 1) Query for NOR flash
+ 2) View eMMC, MMC, or SD
+ 3) Write eMMC, MMC, or SD
+ 4) Main menu
+----
+
+== Read
+Use the menu option *"View eMMC, MMC, or SD"* to view the contents
+of eMMC/SD in a hexadecimal dump.
+
+----
+Chip select (0 - 3) [0]: 0
+Starting offset: 0
+Bytes to display: 512
+00000000: 100007ff 00000000 424f4f54 abbea0a2    ........BOOT....
+00000010: 00c00001 0002001c 00023640 ee58dae5    ..........6@.X..
+00000020: ffffffff e0000000 00000000 00030000    ................
+00000030: 00000000 00000000 00000000 00000000    ................
+*
+----
+
+Repeated lines are replaced with a "*". In the above dump, the eMMC
+is zero from offset 0x30 through 0x1ff.
+
+== Write
+Use the menu option *"Write eMMC, MMC, or SD"* to write the contents
+of eMMC/SD.
+
+----
+(INS)Chip select (0 - 3) [0]:
+(INS)Enter source filename: /xmodem
+(INS)eMMC offset: 0
+Waiting for file through XMODEM
+Send ^X to abort
+----
+
+In the above example, the special file */xmodem* was used to download a
+file over XMODEM and write it to eMMC.  A good starting file would be a
+BDK boot image, such as *bdk-boot-emmc-cn78xx.bin*.
+
+NOTE: Booting the image *bdk-xmodem-load.bin* may also be of use.  It
+provides a menu based XMODEM download utility that is quick to boot over
+EJTAG or PCIe.
+

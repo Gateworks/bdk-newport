@@ -1,0 +1,217 @@
+# ***********************license start***********************************
+# Copyright (c) 2003-2017  Cavium Inc. (support@cavium.com). All rights
+# reserved.
+#
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   * Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#
+#   * Redistributions in binary form must reproduce the above
+#     copyright notice, this list of conditions and the following
+#     disclaimer in the documentation and/or other materials provided
+#     with the distribution.
+#
+#   * Neither the name of Cavium Inc. nor the names of
+#     its contributors may be used to endorse or promote products
+#     derived from this software without specific prior written
+#     permission.
+#
+# This Software, including technical data, may be subject to U.S. export
+# control laws, including the U.S. Export Administration Act and its
+# associated regulations, and may be subject to export or import
+# regulations in other countries.
+#
+# TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+# AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
+# WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT
+# TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
+# REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
+# DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
+# OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
+# PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT,
+# QUIET POSSESSION OR CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK
+# ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
+# **********************license end**************************************
+
+#
+# Use this on the MA cluster to get YAML files with one file
+# per chip pass.
+#
+
+CSR3_ARGS=--yaml-stdout # Write to stdout
+CSR3_ARGS+=--yaml-expand-inherits # Simplify field inherits
+CSR3_ARGS+=--yaml-strip-chippass # Remove chip pass lines since we're making a file per chip
+CSR3_ARGS+=--input *.csr # Remove chip pass lines since we're making a file per chip
+CSR3_ARGS+=--doc-replace # Use document names, not raw rtl names
+CSR3=csr3 $(CSR3_ARGS) --yaml-pass
+
+CSR3_ARGS_T88=--address-overlap 0 # Don't do address overlap checking as TNS fails
+CSR3_ARGS_T88+=--bar-overlap 0 # Don't do address overlap checking as TNS fails
+CSR3_T88=csr3 $(CSR3_ARGS) $(CSR3_ARGS_T88) --yaml-pass
+
+.DEFAULT: help
+.SILENT: help
+help:
+	echo ""
+	echo "Generate YAML files for thunder and octeon chips for use by"
+	echo "software. Each yaml file represents a single pass of a chip"
+	echo "model."
+	echo ""
+	echo "checkout:  Get all the chip information from the RTL svn"
+	echo "update:    Update existing svn from last checkout"
+	echo "generate:  Generate yaml files"
+	echo "clean:     Delete yaml files, but not svn checkouts"
+	echo "distclean: Delete everything"
+	echo ""
+
+.PHONY: generate
+generate: t81 t83 t88 t93 o70 o73 o75 o78
+
+#
+# Initial checkout
+#
+.PHONY: checkout
+checkout:
+	# t81
+	svn co -q svn+ssh://masvn/svn/t81/trunk/hwcode/regs/gen t81
+	svn co -q svn+ssh://masvn/svn/t81/trunk/dvconf t81/dvconf
+	svn co -q svn+ssh://masvn/svn/t81/trunk/Project_Root t81/Project_Root
+	# t83
+	svn co -q svn+ssh://masvn/svn/t83/trunk/hwcode/regs/gen t83
+	svn co -q svn+ssh://masvn/svn/t83/trunk/dvconf t83/dvconf
+	svn co -q svn+ssh://masvn/svn/t83/trunk/Project_Root t83/Project_Root
+	# t88
+	svn co -q svn+ssh://masvn/svn/t88/trunk/hwcode/regs/gen t88
+	svn co -q svn+ssh://masvn/svn/t88/trunk/dvconf t88/dvconf
+	svn co -q svn+ssh://masvn/svn/t88/trunk/Project_Root t88/Project_Root
+	# t93
+	svn co -q svn+ssh://masvn/svn/t93/trunk/hwcode/regs/gen t93
+	svn co -q svn+ssh://masvn/svn/t93/trunk/dvconf t93/dvconf
+	svn co -q svn+ssh://masvn/svn/t93/trunk/Project_Root t93/Project_Root
+	# o70
+	svn co -q svn+ssh://masvn/svn/o70/trunk/hwcode/regs/gen o70
+	svn co -q svn+ssh://masvn/svn/o70/trunk/dvconf o70/dvconf
+	svn co -q svn+ssh://masvn/svn/o70/trunk/Project_Root o70/Project_Root
+	# o73
+	svn co -q svn+ssh://masvn/svn/o73/trunk/hwcode/regs/gen o73
+	svn co -q svn+ssh://masvn/svn/o73/trunk/dvconf o73/dvconf
+	svn co -q svn+ssh://masvn/svn/o73/trunk/Project_Root o73/Project_Root
+	# o75
+	svn co -q svn+ssh://masvn/svn/o75/trunk/hwcode/regs/gen o75
+	svn co -q svn+ssh://masvn/svn/o75/trunk/dvconf o75/dvconf
+	svn co -q svn+ssh://masvn/svn/o75/trunk/Project_Root o75/Project_Root
+	# o78
+	svn co -q svn+ssh://masvn/svn/o78/trunk/hwcode/regs/gen o78
+	svn co -q svn+ssh://masvn/svn/o78/trunk/dvconf o78/dvconf
+	svn co -q svn+ssh://masvn/svn/o78/trunk/Project_Root o78/Project_Root
+
+#
+# Update
+#
+.PHONY: update
+update:
+	svn update t81 t83 t88 t93 o70 o73 o75 o78 */dvconf
+
+.PHONY: t93-dev
+t93-dev:
+	svn export -q --force svn+ssh://masvn/svn/t93/branches/eb/nix_rvu__t93_branches_eb_t98_nix2__t93_trunk/rtl/nix/nix.csr t93/nix.csr
+	svn export -q --force svn+ssh://masvn/svn/t93/branches/eb/npa_rvu2__t93_branches_eb_t98_nix2__t93_trunk/rtl/npa/npa.csr t93/npa.csr
+	sed "s/NPA->NPA_AQ_/NPA->NPA_AF_AQ_/g" -i t93/nix.csr
+	sed "/reset_matches/d" -i t93/npa.csr
+
+#
+# Clean
+#
+.PHONY: clean
+clean:
+	rm -f *.yaml
+
+#
+# Distclean
+#
+.PHONY: distclean
+distclean: clean
+	rm -rf o?? t??
+
+#
+# t93
+#
+.PHONY: t93
+t93: t93_pass_1.0.yaml
+
+t93_pass_1.0.yaml: t93/*.csr
+	cd t93 && $(CSR3) t93@1.0 > ../$@
+
+#
+# t88
+#
+.PHONY: t88
+t88: t88_pass_1.0.yaml t88_pass_1.1.yaml t88_pass_2.0.yaml
+
+t88_pass_1.0.yaml: t88/*.csr
+	cd t88 && $(CSR3_T88) t88@1.0 > ../$@
+t88_pass_1.1.yaml: t88/*.csr
+	cd t88 && $(CSR3_T88) t88@1.1 > ../$@
+t88_pass_2.0.yaml: t88/*.csr
+	cd t88 && $(CSR3_T88) t88@2.0 > ../$@
+
+#
+# t83
+#
+.PHONY: t83
+t83: t83_pass_1.0.yaml
+
+t83_pass_1.0.yaml: t83/*.csr
+	cd t83 && $(CSR3) t83@1.0 > ../$@
+
+#
+# t81
+#
+.PHONY: t81
+t81: t81_pass_1.0.yaml
+
+t81_pass_1.0.yaml: t81/*.csr
+	cd t81 && $(CSR3) t81@1.0 > ../$@
+
+#
+# o70
+#
+.PHONY: o70
+o70: o70_pass_1.0.yaml
+
+o70_pass_1.0.yaml: o70/*.csr
+	cd o70 && $(CSR3) o70@1.0 > ../$@
+
+#
+# o73
+#
+.PHONY: o73
+o73: o73_pass_1.0.yaml
+
+o73_pass_1.0.yaml: o73/*.csr
+	cd o73 && $(CSR3) o73@1.0 > ../$@
+
+#
+# o75
+#
+.PHONY: o75
+o75: o75_pass_1.0.yaml
+
+o75_pass_1.0.yaml: o75/*.csr
+	cd o75 && $(CSR3) o75@1.0 > ../$@
+
+#
+# o78
+#
+.PHONY: o78
+o78: o78_pass_1.0.yaml o78_pass_2.0.yaml
+
+o78_pass_1.0.yaml: o78/*.csr
+	cd o78 && $(CSR3) o78@1.0 > ../$@
+o78_pass_2.0.yaml: o78/*.csr
+	cd o78 && $(CSR3) o78@2.0 > ../$@
+
