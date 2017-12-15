@@ -1,0 +1,10 @@
+/dts-v1/;
+
+/include/ "ddr4-common.dtsi"
+/include/ "gw630x.dtsi"
+
+/ {
+cavium,bdk {
+	DDR-ALT-REFCLK.N0 = "100"; /* use ext 100MHz ref clk */
+};
+};
