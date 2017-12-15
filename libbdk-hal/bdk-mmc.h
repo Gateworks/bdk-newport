@@ -86,4 +86,6 @@ extern int bdk_mmc_read(bdk_node_t node, int chip_sel, uint64_t address, void *b
  */
 extern int bdk_mmc_write(bdk_node_t node, int chip_sel, uint64_t address, const void *buffer, int length);
 
+extern bool bdk_mmc_card_is_sd(bdk_node_t node, int chip_sel);
+
 /** @} */
