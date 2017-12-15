@@ -902,6 +902,11 @@ int64_t bdk_mmc_initialize(bdk_node_t node, int chip_sel)
     return mmc_capacity;
 }
 
+bool bdk_mmc_card_is_sd(bdk_node_t node, int chip_sel)
+{
+	return (card_state[chip_sel].card_is_sd);
+}
+
 /**
  * Read blocks from a MMC card
  *
