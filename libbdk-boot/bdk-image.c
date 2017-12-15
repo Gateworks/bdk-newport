@@ -124,10 +124,12 @@ int bdk_image_read_header(FILE *handle, bdk_image_header_t *header)
  */
 int bdk_image_boot(const char *filename, uint64_t loc)
 {
+/*
     if (loc)
         printf("    Loading image at %s:0x%lx\n", filename, loc);
     else
         printf("    Loading image file '%s'\n", filename);
+*/
 
     uint64_t filesize = 0;
     void *image = bdk_signed_load(filename, loc, BDK_SIGNED_IMAGE,
@@ -153,7 +155,9 @@ int bdk_image_boot(const char *filename, uint64_t loc)
         }
     }
 
+/*
     printf("---\n");
+*/
     BDK_MB;
 
     if (bdk_watchdog_is_running())

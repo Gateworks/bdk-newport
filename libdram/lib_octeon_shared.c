@@ -166,8 +166,10 @@ static int init_octeon_dram_interface(bdk_node_t node,
         }
     }
 
+/*
     error_print("N%d.LMC%d Configuration Completed: %d MB\n",
                 node, ddr_interface_num, mem_size_mbytes);
+*/
     return mem_size_mbytes;
 }
 

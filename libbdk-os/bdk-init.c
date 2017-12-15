@@ -239,14 +239,18 @@ void __bdk_init(uint32_t image_crc, uint64_t reg_x0, uint64_t reg_x1, uint64_t r
             bdk_set_baudrate(node, 1, BDK_UART_BAUDRATE, 0);
 
         __bdk_fs_init_early();
+#if 0
         if (BDK_SHOW_BOOT_BANNERS)
             write(1, BANNER_1, sizeof(BANNER_1)-1);
+#endif
 
         /* Only lock L2 if DDR3 isn't initialized */
         if (bdk_is_platform(BDK_PLATFORM_HW) && !__bdk_is_dram_enabled(node))
         {
+#if 0
             if (BDK_TRACE_ENABLE_INIT)
                 write(1, BANNER_2, sizeof(BANNER_2)-1);
+#endif
             /* Lock the entire cache for chips with less than 4MB of
                L2/LLC. Larger chips can use the 1/4 of the cache to
                speed up DRAM init and testing */
@@ -296,6 +300,7 @@ void __bdk_init(uint32_t image_crc, uint64_t reg_x0, uint64_t reg_x1, uint64_t r
         extern void _start();
         uint32_t *ptr_crc32 = (uint32_t *)(_start + 16);
         uint32_t correct_crc = bdk_le32_to_cpu(*ptr_crc32);
+#if 0
         if (correct_crc == image_crc)
             write(1, BANNER_CRC_RIGHT, sizeof(BANNER_CRC_RIGHT) - 1);
         else
@@ -303,6 +308,7 @@ void __bdk_init(uint32_t image_crc, uint64_t reg_x0, uint64_t reg_x1, uint64_t r
 
         if (BDK_TRACE_ENABLE_INIT)
             write(1, BANNER_3, sizeof(BANNER_3)-1);
+#endif
         bdk_thread_initialize();
     }
 

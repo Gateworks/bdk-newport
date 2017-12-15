@@ -3352,8 +3352,12 @@ int init_octeon3_ddr3_interface(bdk_node_t node,
     // always print out the useful DIMM information...
     for (i = 0; i < DDR_CFG_T_MAX_DIMMS; i++) {
         if (i < dimm_count)
+{
+/*
             report_dimm(node, &dimm_config_table[i], i, ddr_interface_num,
                         num_ranks, dram_width, mem_size_mbytes / dimm_count);
+*/
+}
         else
             if (validate_dimm(node, &dimm_config_table[i]) == 0) // only if there is a slot
                 printf("N%d.LMC%d.DIMM%d: Not Present\n", node, ddr_interface_num, i);
