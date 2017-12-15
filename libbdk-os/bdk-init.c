@@ -192,6 +192,7 @@ void __bdk_init(uint32_t image_crc, uint64_t reg_x0, uint64_t reg_x1, uint64_t r
     bdk_node_t node = bdk_numa_local();
     bdk_numa_set_exists(node);
 
+#if 0
     /* Default color, Reset scroll region and goto bottom */
     static const char BANNER_1[] = "\33[0m\33[1;r\33[100;1H"
                                    "\n\n\nCavium SOC\n";
@@ -199,6 +200,7 @@ void __bdk_init(uint32_t image_crc, uint64_t reg_x0, uint64_t reg_x1, uint64_t r
     static const char BANNER_CRC_RIGHT[] = "PASS: CRC32 verification\n";
     static const char BANNER_CRC_WRONG[] = "FAIL: CRC32 verification\n";
     static const char BANNER_3[] = "Transferring to thread scheduler\n";
+#endif
 
     BDK_MSR(TPIDR_EL3, 0);
 
@@ -298,9 +300,9 @@ void __bdk_init(uint32_t image_crc, uint64_t reg_x0, uint64_t reg_x1, uint64_t r
 
         /* Validate the image CRC */
         extern void _start();
+#if 0
         uint32_t *ptr_crc32 = (uint32_t *)(_start + 16);
         uint32_t correct_crc = bdk_le32_to_cpu(*ptr_crc32);
-#if 0
         if (correct_crc == image_crc)
             write(1, BANNER_CRC_RIGHT, sizeof(BANNER_CRC_RIGHT) - 1);
         else

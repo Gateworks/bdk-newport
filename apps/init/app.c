@@ -38,6 +38,7 @@
 ***********************license end**************************************/
 #include <bdk.h>
 #include <malloc.h>
+#include <newport.h>
 #include "libbdk-arch/bdk-csrs-key.h"
 #include "libbdk-arch/bdk-csrs-usbh.h"
 
@@ -315,6 +316,7 @@ int main(int argc, const char **argv)
     /* Send status to the BMC: Started boot stub */
     bdk_boot_status(BDK_BOOT_STATUS_INIT_STARTING);
 
+#if 0
     printf(
         "===========\n"
         "Cavium Init\n"
@@ -415,6 +417,9 @@ int main(int argc, const char **argv)
 	   	    bdk_if_phy_setup(n);
 	   }	    
     }
+#else
+    newport_config();
+#endif
 
     /* Poke the watchdog */
     bdk_watchdog_poke();

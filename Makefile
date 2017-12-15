@@ -170,7 +170,8 @@ else
 endif
 BUILD_DATE=$(shell date -u)
 # Build the full BDK version string
-DISPLAY_VERSION = "$(BUILD_REV), Branch: $(BUILD_BRANCH), Built: $(BUILD_DATE)"
+#DISPLAY_VERSION = "$(BUILD_REV), Branch: $(BUILD_BRANCH), Built: $(BUILD_DATE)"
+DISPLAY_VERSION = "$(BUILD_REV) $(BUILD_DATE)"
 
 .PHONY: version
 version:

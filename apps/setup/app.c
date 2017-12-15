@@ -37,6 +37,7 @@
 * ARISING OUT OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
 ***********************license end**************************************/
 #include <bdk.h>
+#include <gsc.h>
 #include <unistd.h>
 
 /**
@@ -106,8 +107,13 @@ int main(int argc, const char **argv)
     const char *model = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
     if (strcmp(model, "unknown") == 0)
     {
+#if 0
         menu_board(&menu, 'B', NULL);
         item_factory(&menu, 'F', NULL);
+#else
+        menu_gsc(&menu, 'P', NULL);
+        item_reboot(&menu, 'X', NULL);
+#endif
     }
 
     while (1)
@@ -117,6 +123,7 @@ int main(int argc, const char **argv)
         if (bdk_trust_get_level() == BDK_TRUST_LEVEL_NONE)
         {
             bdk_menu_item(&menu, 'I', "I2C Transfer", menu_i2c, NULL);
+            bdk_menu_item(&menu, 'G', "Gateworks System Controller", menu_gsc, NULL);
             bdk_menu_item(&menu, 'C', "Chip Features", menu_chip, NULL);
             bdk_menu_item(&menu, 'D', "DRAM Options", menu_dram, NULL);
             bdk_menu_item(&menu, 'Q', "QLM Options", menu_qlm, NULL);

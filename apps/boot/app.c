@@ -167,6 +167,7 @@ int main(int argc, const char **argv)
     /* Drive GPIO 10 high, signalling success transferring from the boot ROM */
     bdk_gpio_initialize(node, 10, 1, 1);
 
+#if 0
 /* Platform: RBD8030
  * QSGMII-VSC7421-02 Switch and RGX-VSC8531 Phy has RESET_L connected to GPIO37 of CN8030
  * Assert the RESET_L pin to High by gpio func will boot the VSC7421 switch and RGX Phy in BDK level.
@@ -207,10 +208,12 @@ int main(int argc, const char **argv)
         bdk_config_get_str(BDK_CONFIG_BOARD_REVISION),
         bdk_config_get_str(BDK_CONFIG_BOARD_SERIAL));
     bdk_boot_info_strapping(bdk_numa_master());
+#endif
 
     /* Check if the next boot stage is configured. */
     next_stage = bdk_config_get_str(BDK_CONFIG_BOOT_NEXT_STAGE, "BOOT");
 
+#if 0
     /* If no DRAM config goto the boot menu. First check for SPD addresses */
     int spd_addr = bdk_config_get_int(BDK_CONFIG_DDR_SPD_ADDR, 0 /* DIMM */, 0 /* LMC */, bdk_numa_master());
     if ((spd_addr == 0) && !bdk_is_platform(BDK_PLATFORM_ASIM) && !bdk_is_platform(BDK_PLATFORM_EMULATOR))
@@ -232,16 +235,25 @@ int main(int argc, const char **argv)
         bdk_bist_check();
         bdk_image_boot("/fatfs/init.bin", 0);
     }
+#endif
 
     bdk_boot_status(BDK_BOOT_STATUS_BOOT_STUB_WAITING_FOR_KEY);
 
     int boot_timeout = bdk_config_get_int(BDK_CONFIG_BOOT_MENU_TIMEOUT);
+#if 0
     printf("\nPress 'B' within %d seconds for boot menu\n", boot_timeout);
     int key;
     do
     {
         key = bdk_readline_getkey(boot_timeout * 1000000);
     } while ((key != -1) && (key != 'B') && (key != 'b'));
+#else
+    int key = -1;
+#endif
+
+    const char *board = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
+    if (!strcmp(board, "unknown"))
+	next_stage = "/fatfs/setup.bin.lzma";
 
     if (key == -1)
     {

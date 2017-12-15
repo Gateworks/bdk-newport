@@ -1424,7 +1424,12 @@ int bdk_config_save(void)
     }
 
     fclose(outf);
+
+#if 0
     return 0;
+#else
+    return gsc_eeprom_update(bdk_numa_master());
+#endif
 }
 
 /**
@@ -1841,6 +1846,7 @@ void __bdk_config_init(void)
     __bdk_trust_init();
     done_trust_init = true;
 
+#if 0
     if (bdk_is_platform(BDK_PLATFORM_ASIM))
     {
         if (CAVIUM_IS_MODEL(CAVIUM_CN88XX))
@@ -1923,6 +1929,28 @@ void __bdk_config_init(void)
         if (config_load_file(filename, 0) == 0)
             goto done;
     }
+#else
+	bdk_node_t node = bdk_numa_master();
+	const char *model;
+	char path[64];
+	const char *file;
+	int i;
+
+	if (gsc_init(node))
+		goto done;
+	model = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
+
+	for (i = 0; ; i++) {
+		file = gsc_get_dtb_name(node, i);
+		if (!file)
+			break;
+		snprintf(path, sizeof(path), "/fatfs/%s.dtb", file);
+		if (config_load_file(path, 0) == 0) {
+			printf("DTB     : %s.dtb\n", file);
+			goto done;
+		}
+	}
+#endif
 
     /* No board specific configuration was found. Warn the user */
     printf("\33[1m"); /* Bold */
