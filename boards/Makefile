@@ -62,7 +62,7 @@ include $(BDK_ROOT)/libbdk/bdk.mk
 #
 # Create a list of the device tree DTB files we need
 #
-DTS_FILES=$(wildcard *.dts)
+DTS_FILES=$(wildcard gw*.dts)
 DTB_FILES=$(DTS_FILES:%.dts=%.dtb)
 DTB_SIGNATURES=$(DTS_FILES:%.dts=%.dtb.sign)
 EXTRA_FILES=$(BDK_ROOT)/apps/cortina/cortina-app.bin.lzma
