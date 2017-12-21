@@ -707,6 +707,16 @@ void fixup_mmc(void *fdt)
 
 int newport_devtree_fixups(void *fdt)
 {
+	const char *str;
+
+	/* board serial number */
+	str = bdk_config_get_str(BDK_CONFIG_BOARD_SERIAL);
+	fdt_setprop(fdt, 0, "system-serial", str, strlen(str) + 1);
+
+	/* board model */
+	str = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
+	fdt_setprop(fdt, 0, "board", str, strlen(str) + 1);
+
 	fixup_mmc(fdt);
 	return 0;
 }
