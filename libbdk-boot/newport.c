@@ -524,7 +524,7 @@ static int newport_phy_setup(bdk_node_t node, int model)
 	int bgx, addr;
 
 	/* 81xx has only 2 BGX (BGX0-BGX1); BGX2 is RGMII */
-	for (bgx = 0; bgx < 3; bgx++) {
+	for (bgx = 2; bgx >= 0; bgx--) {
 		int mdio_bus, mdio_addr;
 
 		addr = bdk_config_get_int(BDK_CONFIG_PHY_ADDRESS, node, bgx, 0);
