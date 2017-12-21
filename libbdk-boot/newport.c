@@ -425,28 +425,10 @@ int newport_chip_details(bdk_node_t node, int model)
 	int trust_mode = bdk_extract(gpio_strap.u,
 				     BDK_GPIO_STRAP_PIN_E_TRUSTED_MODE, 1);
 	int boot_method = bdk_extract(gpio_strap.u, 0, 4);
-	switch ( boot_method )
-	{
-		case BDK_RST_BOOT_METHOD_E_CCPI0:
-		case BDK_RST_BOOT_METHOD_E_CCPI1:
-		case BDK_RST_BOOT_METHOD_E_CCPI2:
-		case BDK_RST_BOOT_METHOD_E_REMOTE_CN8:
-		case BDK_RST_BOOT_METHOD_E_PCIE0:
-			break;
-		case BDK_RST_BOOT_METHOD_E_EMMC_LS:
-		case BDK_RST_BOOT_METHOD_E_EMMC_SS:
-			boot_method_str = bdk_mmc_card_is_sd(node, 0) ?
-				"microSD" : "eMMC";
-			break;
-		case BDK_RST_BOOT_METHOD_E_SPI24:
-		case BDK_RST_BOOT_METHOD_E_SPI32:
-			boot_method_str = "SPI";
-			break;
-	}
-
 	int alt_pkg;
 	int major_pass;
 	int minor_pass;
+
 	BDK_CSR_INIT(mio_fus_dat2, node, BDK_MIO_FUS_DAT2);
 	alt_pkg = (mio_fus_dat2.s.chip_id >> 6) & 1;
 	major_pass = ((mio_fus_dat2.s.chip_id >> 3) & 7) + 1;
@@ -470,9 +452,8 @@ int newport_chip_details(bdk_node_t node, int model)
 	printf("0x%x Pass %d.%d%s ", gicd_iidr.s.productid,
 	       major_pass, minor_pass, package_str);
 	printf("\n");
-	printf("Boot    : %s %strusted %s\n", boot_method_str,
-	       (trust_mode) ? "" : "non-", secure_image);
 
+	/* MMC devices */
 	for (int i = 0; i < cfg->mmc_devs; i++) {
 		int64_t sz = bdk_mmc_initialize(node, i); // sz is wrong
 		bool sd = bdk_mmc_card_is_sd(node, i);
@@ -481,6 +462,29 @@ int newport_chip_details(bdk_node_t node, int model)
 		else
 			printf("MMC%d    : not detected\n", i);
 	}
+
+	/* Boot device */
+	switch ( boot_method )
+	{
+		case BDK_RST_BOOT_METHOD_E_CCPI0:
+		case BDK_RST_BOOT_METHOD_E_CCPI1:
+		case BDK_RST_BOOT_METHOD_E_CCPI2:
+		case BDK_RST_BOOT_METHOD_E_REMOTE_CN8:
+		case BDK_RST_BOOT_METHOD_E_PCIE0:
+			break;
+		case BDK_RST_BOOT_METHOD_E_EMMC_LS:
+		case BDK_RST_BOOT_METHOD_E_EMMC_SS:
+			boot_method_str = bdk_mmc_card_is_sd(node, 0) ?
+				"microSD" : "eMMC";
+			break;
+		case BDK_RST_BOOT_METHOD_E_SPI24:
+		case BDK_RST_BOOT_METHOD_E_SPI32:
+			boot_method_str = "SPI";
+			break;
+	}
+	printf("Boot    : %s %strusted %s\n", boot_method_str,
+	       (trust_mode) ? "" : "non-", secure_image);
+
 
 	return 0;
 }
