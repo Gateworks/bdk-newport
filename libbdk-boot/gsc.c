@@ -7,6 +7,7 @@
 #define MINMAX(n, percent)	((n)*(100-percent)/100), ((n)*(100+percent)/100)
 
 struct newport_board_info board_info;
+int newport_board_model = GW_UNKNOWN;
 
 void
 hexdump(unsigned char *buf, int size)
@@ -641,7 +642,7 @@ menu_gsc(bdk_menu_t *parent, char key, void *arg)
 		if (argc < 1)
 			cmd_usage();
 		else if (strcasecmp(argv[0], "hwmon") == 0) {
-			gsc_hwmon_info(node, gsc_read_eeprom(node, info));
+			gsc_hwmon_info(node, newport_board_model);
 		} else if (strcasecmp(argv[0], "sleep") == 0) {
 			unsigned long secs = 2;
 			if (argc == 2)
