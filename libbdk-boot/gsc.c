@@ -363,9 +363,6 @@ gsc_init(bdk_node_t node)
 		sprintf(revision_str, "%c", rev_pcb);
 	bdk_config_set_str(revision_str, BDK_CONFIG_BOARD_REVISION);
 
-	/* disable boot watchdog */
-	gsc_boot_wd_disable(node, true);
-
 	return 0;
 }
 

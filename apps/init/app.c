@@ -424,6 +424,9 @@ int main(int argc, const char **argv)
 		bdk_wait_usec(10000);
 	}
     }
+
+    /* disable boot watchdog */
+    gsc_boot_wd_disable(node, true);
 #endif
 
     /* Poke the watchdog */
