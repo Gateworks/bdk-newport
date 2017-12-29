@@ -567,6 +567,8 @@ int newport_config(void)
 	bdk_node_t node = bdk_numa_local();
 
 	model = gsc_read_eeprom(node, info);
+	if (model == GW_UNKNOWN)
+		return -1;
 	debug("Newport config: %s\n", info->model);
 
 	/* read U-Boot env */

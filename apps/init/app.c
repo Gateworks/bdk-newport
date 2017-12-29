@@ -418,7 +418,12 @@ int main(int argc, const char **argv)
 	   }	    
     }
 #else
-    newport_config();
+    if (newport_config()) {
+	printf("hang\n");
+	while (1) {
+		bdk_wait_usec(10000);
+	}
+    }
 #endif
 
     /* Poke the watchdog */
