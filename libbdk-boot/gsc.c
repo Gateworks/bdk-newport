@@ -608,15 +608,12 @@ void
 menu_gsc(bdk_menu_t *parent, char key, void *arg)
 {
 	bdk_node_t node = bdk_numa_master();
-	struct newport_board_info *info = &board_info;
 	int argc;
 	char *args[10];
 	char line[64];
 
 	if (key == 'P') {
 		gsc_program(node);
-		bdk_wait_usec(2000000);
-		gsc_hwmon_info(node, gsc_read_eeprom(node, info));
 		return;
 	}
 
