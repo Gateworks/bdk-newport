@@ -108,18 +108,13 @@ gsc_read_eeprom(bdk_node_t node, struct newport_board_info *info)
 	int chksum;
 	int type;
 	unsigned char *buf = (unsigned char *)info;
+	int retries = 3;
 
 	/* read eeprom config section */
+retry:
 	memset(info, 0, sizeof(*info));
 	if (i2c_read(node, 0, GSC_EEPROM_ADDR, 0x00, buf, sizeof(*info))) {
 		bdk_error("EEPROM: Failed to read EEPROM\n");
-		return GW_UNKNOWN;
-	}
-
-	/* sanity checks */
-	if (info->model[0] != 'G' || info->model[1] != 'W') {
-		bdk_error("EEPROM: Invalid Model in EEPROM\n");
-		hexdump(buf, sizeof(*info));
 		return GW_UNKNOWN;
 	}
 
@@ -129,6 +124,15 @@ gsc_read_eeprom(bdk_node_t node, struct newport_board_info *info)
 	if ((info->chksum[0] != chksum>>8) ||
 	    (info->chksum[1] != (chksum&0xff))) {
 		bdk_error("EEPROM: Failed EEPROM checksum\n");
+		hexdump(buf, sizeof(*info));
+		if (retries--)
+			goto retry;
+		return GW_UNKNOWN;
+	}
+
+	/* sanity checks */
+	if (info->model[0] != 'G' || info->model[1] != 'W') {
+		bdk_error("EEPROM: Invalid Model in EEPROM\n");
 		hexdump(buf, sizeof(*info));
 		return GW_UNKNOWN;
 	}
