@@ -206,6 +206,7 @@ retry:
     {
 	/* Check the reason for the failure.  We may need to retry to handle multi-master
 	** configurations.
+	** NAK : 0x38, 0x48
 	** Lost arbitration : 0x38, 0x68, 0xB0, 0x78
 	** Core busy as slave: 0x80, 0x88, 0xA0, 0xA8, 0xB8, 0xC0, 0xC8
 	*/
@@ -218,6 +219,8 @@ retry:
 	    || sw_twsi_val.s.data == 0xA0
 	    || sw_twsi_val.s.data == 0xA8
 	    || sw_twsi_val.s.data == 0xB8
+	    || sw_twsi_val.s.data == 0x30
+	    || sw_twsi_val.s.data == 0x48
 	    || sw_twsi_val.s.data == 0xC8)
 	{
 	    /*
@@ -231,6 +234,8 @@ retry:
 		goto retry;
 	}
 	/* For all other errors, return an error code */
+	bdk_error("N%d.TWSI%d: read failed: 0x%02x\n", node, twsi_id,
+		  sw_twsi_val.s.data);
 	return -1;
     }
 
