@@ -345,16 +345,36 @@ static int probe(bdk_device_t *device)
  */
 static int init(bdk_device_t *device)
 {
+    int i;
+    /* Drive Strength: 4=60ohm 6=40ohm(power-on-default) 7=30ohm */
+    //int drvstr = 7; /* fix issues when a QLM cable */
+    int drvstr = 3;
+
+    /* PHASE: num of coprocessor clock cycles that make of a MDC phase
+     * freq=SCLK/(2*phase)
+     *
+     * for SCLK=350MHz:
+     *   7: 25MHz (max)
+     *  14: 12.5MHz
+     * 100: 1.75MHz (power on default)
+     */
+    //int phase = 100;
+    int phase = 7;
+
     if (bdk_is_platform(BDK_PLATFORM_ASIM))
         return 0;
 
-    /* Change drive strength bits to fix issues when a QLM cable
-       is connected, creating a long spur path */
+    /* drive strength */
     BDK_CSR_MODIFY(c, device->node, BDK_SMI_DRV_CTL,
-        c.s.pctl = 7; /* 30 ohm */
-        c.s.nctl = 7); /* 30 ohm */
+        c.s.pctl = drvstr;
+        c.s.nctl = drvstr);
 
-    for (int i = 0; i < 2; i++)
+    /* frequency */
+    for (i = 0; i < 2; i++)
+        BDK_CSR_MODIFY(c, device->node, BDK_SMI_X_CLK(i), c.s.phase = phase);
+
+    /* enable */
+    for (i = 0; i < 2; i++)
         BDK_BAR_MODIFY(c, device, BDK_SMI_X_EN(i), c.s.en = 1);
 
     return 0;
