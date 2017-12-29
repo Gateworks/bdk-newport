@@ -683,7 +683,7 @@ void setup_mmc(void *fdt, int off, enum mmc_type type, int chipsel)
 	}
 }
 
-void fixup_mmc(void *fdt)
+static void fixup_mmc(void *fdt)
 {
 	int off;
 
