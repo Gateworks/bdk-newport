@@ -519,9 +519,19 @@ static int newport_dram_config(bdk_node_t node, int model)
 	return 0;
 }
 
+void phy_reset(bdk_node_t node)
+{
+	bdk_gpio_initialize(node, 31, 1, 0); // drive low
+	bdk_wait_usec(1000);
+	bdk_gpio_initialize(node, 31, 1, 1); // drive high
+	bdk_wait_usec(1000);
+}
+
 static int newport_phy_setup(bdk_node_t node, int model)
 {
 	int bgx, addr;
+	int detected = 0;
+	int id1;
 
 	/* 81xx has only 2 BGX (BGX0-BGX1); BGX2 is RGMII */
 	for (bgx = 2; bgx >= 0; bgx--) {
@@ -544,24 +554,24 @@ static int newport_phy_setup(bdk_node_t node, int model)
 			}
 
 			/* PHY id */
-			switch (bdk_mdio_read(node, mdio_bus, addr,
-					      BDK_MDIO_PHY_REG_ID1))
-			{
-			case 0x2000: /* TI */
-				ti_phy_setup(node, qlm, mdio_bus, mdio_addr,
-					     model);
-				break;
+			id1 = bdk_mdio_read(node, mdio_bus, addr,
+					    BDK_MDIO_PHY_REG_ID1);
+			if (id1 == 0x2000) { /* TI */
+				ti_phy_setup(node, qlm, mdio_bus, mdio_addr, model);
+				detected++;
 			}
+			else
+				printf("MDIO%d: error: %04x\n", mdio_bus, id1);
 		}
 	}
-	return 0;
+	return detected;
 }
 
 int newport_config(void)
 {
 	struct newport_board_info *info = &board_info;
 	const char *rev = bdk_config_get_str(BDK_CONFIG_BOARD_REVISION);
-	int model;
+	int model, i;
 	char *hwconfig = NULL;
 	bool quiet = false;
 	bdk_node_t node = bdk_numa_local();
@@ -652,8 +662,14 @@ int newport_config(void)
 		gsc_hwmon_info(node, model);
 
 	/* Config PHYs */
-	bdk_boot_mdio();
-	newport_phy_setup(node, model);
+	bdk_boot_mdio(); /* handle MDIO-WRITE's from board dts */
+	for (i = 0; i < 5; i++) {
+		phy_reset(node);
+		if (2 == newport_phy_setup(node, model))
+			break;
+		printf("MDIO retry %d/%d\n", i+1, 5);
+		bdk_wait_usec(500000);
+	}
 
 	return 0;
 }
