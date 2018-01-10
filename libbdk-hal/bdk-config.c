@@ -1817,7 +1817,9 @@ void __bdk_config_init(void)
                     config_node = fdt_path_offset(config_fdt, "/cavium,bdk");
                     if (config_node > 0)
                     {
+/*
                         printf("Using configuration from previous image\n");
+*/
                         goto done;
                     }
                     else
