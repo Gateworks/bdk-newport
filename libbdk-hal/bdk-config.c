@@ -40,6 +40,7 @@
 #include <stdarg.h>
 #include <libfdt.h>
 #include <unistd.h>
+#include <libbdk/gsc.h>
 #include "libbdk-arch/bdk-csrs-mio_fus.h"
 #include "libbdk-arch/bdk-csrs-fus.h"
 
