@@ -49,14 +49,14 @@
 #define crc32(crc, buf, len) bdk_crc32(buf, len, crc);
 
 /* These need to match U-Boot config */
-//#define HAVE_REDUND /* For systems with 2 env sectors */
+#define HAVE_REDUND /* For systems with 2 env sectors */
 #define DEVICE1_NAME      "/boot/"
 #define DEVICE2_NAME      "/boot/"
-#define DEVICE1_OFFSET    0xf00000
+#define DEVICE1_OFFSET    0xff0000
 #define ENV1_SIZE         0x8000
 #define DEVICE1_ESIZE     0x8000
 #define DEVICE1_ENVSECTORS     4
-#define DEVICE2_OFFSET    (0xf00000+ENV1_SIZE)
+#define DEVICE2_OFFSET    (0xff0000+ENV1_SIZE)
 #define ENV2_SIZE         0x8000
 #define DEVICE2_ESIZE     0x8000
 #define DEVICE2_ENVSECTORS     4
