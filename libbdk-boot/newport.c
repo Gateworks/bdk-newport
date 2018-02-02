@@ -31,6 +31,12 @@
 		bdk_gpio_initialize(node, x, 1, y);		\
 	}
 
+#define gpio_input(x);					\
+	{							\
+		debug("gpio_input(gpio%d)\n", x);	\
+		bdk_gpio_initialize(node, x, 0, 0);		\
+	}
+
 #define gpio_pinsel(x, y);						\
 	{								\
 		debug("gpio_select_pin(gpio%d, 0x%03x)\n", x, y);	\
@@ -409,6 +415,8 @@ static int newport_gpio_config(bdk_node_t node, int model, char *hwconfig)
 			gpio_output(14, 0); /* CPU_LEDG# */
 			gpio_output(18, 1); /* HUB_RST# */
 			gpio_output(31, 1); /* GBE_RST# */
+			gpio_output(28, 0); /* MEZZ_PWRDIS */
+			gpio_input(29);     /* MEZZ_IRQ# */
 		}
 		break;
 	}
