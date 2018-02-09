@@ -368,6 +368,26 @@ gsc_init(bdk_node_t node)
 		sprintf(revision_str, "%c", rev_pcb);
 	bdk_config_set_str(revision_str, BDK_CONFIG_BOARD_REVISION);
 
+	/* Enable front-panel GRN LED */
+	int led_grn = -1;
+	int led_red = -1;
+	if (strncmp(info->model, "GW630", 5) == 0) {
+		switch(rev_pcb) {
+		case 'A':
+			led_grn = 19;
+			led_red = 20;
+			break;
+		case 'B':
+			led_grn = 13;
+			led_red = 14;
+			break;
+		}
+	}
+	if (led_grn != -1)
+		bdk_gpio_initialize(node, led_grn, 1, 1);
+	if (led_red != -1)
+		bdk_gpio_initialize(node, led_red, 1, 0);
+
 	return 0;
 }
 
