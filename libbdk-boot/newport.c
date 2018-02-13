@@ -69,6 +69,7 @@ struct board_config
 	/* misc */
 	int gpio_satasel;
 	int gpio_usb3sel;
+	int gpio_phyrst;
 	int mmc_devs;
 };
 
@@ -92,12 +93,13 @@ struct board_config board_configs[] = {
 			{ 2, "J11", "PCI", "USB3" },
 		},
 		/* serial */
-		.gpio_uart_hd = 15,
-		.gpio_uart_term = 16,
-		.gpio_uart_rs485 = 17,
+		.gpio_uart_hd = 21,
+		.gpio_uart_term = 22,
+		.gpio_uart_rs485 = 23,
 		/* misc */
-		.gpio_satasel = 20,
-		.gpio_usb3sel = 19,
+		.gpio_satasel = -1,
+		.gpio_usb3sel = 25,
+		.gpio_phyrst = 14,
 		.mmc_devs = 2,
 	},
 };
@@ -212,11 +214,13 @@ parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
 		/* configure optional mode */
 		if (strcmp(mode, "USB3") == 0) {
 			qlm->mode = BDK_QLM_MODE_DISABLED;
-			gpio_output(cfg->gpio_usb3sel, 1);
+			if (cfg->gpio_usb3sel != -1)
+				gpio_output(cfg->gpio_usb3sel, 1);
 		} else if (strcmp(mode, "SATA") == 0) {
 			qlm->mode = BDK_QLM_MODE_SATA_2X1;
 			qlm->freq = 6000;
-			gpio_output(cfg->gpio_satasel, 1);
+			if (cfg->gpio_satasel != -1)
+				gpio_output(cfg->gpio_satasel, 1);
 		}
 	} else if (strncmp(mode, "DISABLE", 7) == 0) {
 		qlm->mode = BDK_QLM_MODE_DISABLED;
@@ -279,8 +283,10 @@ static int newport_qlm_config(bdk_node_t node, int model, char *hwconfig,
 	}
 
 	/* get QLM configs */
-	gpio_output(cfg->gpio_usb3sel, 0);
-	gpio_output(cfg->gpio_satasel, 0);
+	if (cfg->gpio_usb3sel != -1)
+		gpio_output(cfg->gpio_usb3sel, 0);
+	if (cfg->gpio_satasel != -1)
+		gpio_output(cfg->gpio_satasel, 0);
 	for (i = 0; (i < 4) && cfg->skt[i].socket_name; i++) {
 		const char *s = parse_hwconfig_skt(node, i, hwconfig, cfg);
 		if (!quiet)
@@ -303,7 +309,6 @@ static int newport_qlm_config(bdk_node_t node, int model, char *hwconfig,
 static int newport_serial_config(bdk_node_t node, int model, char *hwconfig)
 {
 	struct board_config *cfg = &board_configs[model];
-	const char *rev = bdk_config_get_str(BDK_CONFIG_BOARD_REVISION);
 	char s[16];
 	const char *p;
 	size_t sz, c;
@@ -313,11 +318,6 @@ static int newport_serial_config(bdk_node_t node, int model, char *hwconfig)
 	bool rs232 = 1;
 	bool rs232_dtr = 0;
 
-	if (rev && *rev == 'A') {
-		cfg->gpio_uart_hd = 21;
-		cfg->gpio_uart_term = 22;
-		cfg->gpio_uart_rs485 = 23;
-	}
 	if (hwconfig_f("serial", hwconfig)) {
 		p = hwconfig_subarg_f("serial", "mode", &sz, hwconfig);
 		if (p) {
@@ -383,9 +383,12 @@ static int newport_serial_config(bdk_node_t node, int model, char *hwconfig)
 	}
 
 	/* serial gpio configuration */
-	gpio_output(cfg->gpio_uart_rs485, rs485);
-	gpio_output(cfg->gpio_uart_term, rs485_term);
-	gpio_output(cfg->gpio_uart_hd, rs485_hd);
+	if (cfg->gpio_uart_rs485 != -1)
+		gpio_output(cfg->gpio_uart_rs485, rs485);
+	if (cfg->gpio_uart_term != -1)
+		gpio_output(cfg->gpio_uart_term, rs485_term);
+	if (cfg->gpio_uart_hd != -1)
+		gpio_output(cfg->gpio_uart_hd, rs485_hd);
 
 	return 0;
 }
@@ -399,17 +402,20 @@ static int newport_gpio_config(bdk_node_t node, int model, char *hwconfig)
 	const char *rev = bdk_config_get_str(BDK_CONFIG_BOARD_REVISION);
 
 	debug("%s hwconfig=%s\n", __func__, hwconfig);
+	if (!rev)
+		rev = "A";
 	switch(model) {
 	case GW630x:
-		/* NB: USBSEL/SATASEL handled in QLM config */
-		if (rev && *rev == 'A') {
+		switch(*rev) {
+		case 'A':
 			debug("GW630x revA\n");
 			gpio_output(14, 1); /* GBE_RST# */
 			gpio_output(16, 1); /* PCIE_WDIS# */
 			gpio_output(19, 1); /* CPU_LEDG# */
 			gpio_output(20, 0); /* CPU_LEDR# */
 			gpio_output(24, 1); /* HUB_RST# */
-		} else {
+			break;
+		case 'B':
 			debug("GW630x revB+\n");
 			gpio_output(13, 1); /* CPU_LEDG# */
 			gpio_output(14, 0); /* CPU_LEDG# */
@@ -417,6 +423,7 @@ static int newport_gpio_config(bdk_node_t node, int model, char *hwconfig)
 			gpio_output(31, 1); /* GBE_RST# */
 			gpio_output(28, 0); /* MEZZ_PWRDIS */
 			gpio_input(29);     /* MEZZ_IRQ# */
+			break;
 		}
 		break;
 	}
@@ -527,11 +534,11 @@ static int newport_dram_config(bdk_node_t node, int model)
 	return 0;
 }
 
-void phy_reset(bdk_node_t node)
+void phy_reset(bdk_node_t node, int gpio)
 {
-	bdk_gpio_initialize(node, 31, 1, 0); // drive low
+	bdk_gpio_initialize(node, gpio, 1, 0); // drive low
 	bdk_wait_usec(1000);
-	bdk_gpio_initialize(node, 31, 1, 1); // drive high
+	bdk_gpio_initialize(node, gpio, 1, 1); // drive high
 	bdk_wait_usec(1000);
 }
 
@@ -606,9 +613,21 @@ int newport_config(void)
 	debug("%s rev='%s' hwconfig=%s\n", __func__, rev, hwconfig);
 	switch(model) {
 	case GW630x:
-		if (*rev == 'A') {
-			cfg->gpio_usb3sel = 25;
-			cfg->gpio_satasel = -1;
+		switch(*rev) {
+		case 'A':
+			info->qlm[0] = 0xff;
+			info->qlm[1] = 0xff;
+			info->qlm[2] = 0xff;
+			info->qlm[3] = 0xff;
+			break;
+		case 'B':
+			cfg->gpio_usb3sel = 19;
+			cfg->gpio_satasel = 20;
+			cfg->gpio_phyrst = 31;
+			cfg->gpio_uart_hd = 15;
+			cfg->gpio_uart_term = 16;
+			cfg->gpio_uart_rs485 = 17;
+			break;
 		}
 		break;
 	}
@@ -672,7 +691,8 @@ int newport_config(void)
 	/* Config PHYs */
 	bdk_boot_mdio(); /* handle MDIO-WRITE's from board dts */
 	for (i = 0; i < 5; i++) {
-		phy_reset(node);
+		if (cfg->gpio_phyrst != -1)
+			phy_reset(node, cfg->gpio_phyrst);
 		if (2 == newport_phy_setup(node, model))
 			break;
 		printf("MDIO retry %d/%d\n", i+1, 5);
