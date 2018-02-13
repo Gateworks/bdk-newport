@@ -25,19 +25,19 @@
 #define debug(...)
 #endif
 
-#define gpio_output(x, y);					\
+#define gpio_output(x, y)					\
 	{							\
 		debug("gpio_output(gpio%d, %d)\n", x, y);	\
 		bdk_gpio_initialize(node, x, 1, y);		\
 	}
 
-#define gpio_input(x);					\
+#define gpio_input(x)						\
 	{							\
-		debug("gpio_input(gpio%d)\n", x);	\
+		debug("gpio_input(gpio%d)\n", x);		\
 		bdk_gpio_initialize(node, x, 0, 0);		\
 	}
 
-#define gpio_pinsel(x, y);						\
+#define gpio_pinsel(x, y)						\
 	{								\
 		debug("gpio_select_pin(gpio%d, 0x%03x)\n", x, y);	\
 		bdk_gpio_select_pin(node, x, y);			\
