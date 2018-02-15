@@ -381,6 +381,10 @@ gsc_init(bdk_node_t node)
 			led_grn = 13;
 			led_red = 14;
 			break;
+		case 'C':
+			led_grn = 31;
+			led_red = 14;
+			break;
 		}
 	}
 	if (led_grn != -1)
