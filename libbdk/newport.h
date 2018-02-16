@@ -4,6 +4,30 @@
 #include <bdk.h>
 #include <gsc.h>
 
+#ifdef DEBUG
+#define debug(...)	printf(__VA_ARGS__)
+#else
+#define debug(...)
+#endif
+
+#define gpio_output(x, y)					\
+	{							\
+		debug("gpio_output(gpio%d, %d)\n", x, y);	\
+		bdk_gpio_initialize(node, x, 1, y);		\
+	}
+
+#define gpio_input(x)						\
+	{							\
+		debug("gpio_input(gpio%d)\n", x);		\
+		bdk_gpio_initialize(node, x, 0, 0);		\
+	}
+
+#define gpio_pinsel(x, y)						\
+	{								\
+		debug("gpio_select_pin(gpio%d, 0x%03x)\n", x, y);	\
+		bdk_gpio_select_pin(node, x, y);			\
+	}
+
 struct newport_board_info {
 	uint8_t mac[6];		/* 0x00: MAC base */
 	uint8_t res0[18];	/* 0x06: reserved */
@@ -66,11 +90,43 @@ enum {
 	EECONFIG_GPS,
 };
 
-extern struct newport_board_info board_info;
-
 enum baseboard {
 	GW630x,
 	GW_UNKNOWN,
+};
+
+struct qlm_config
+{
+	int mode;
+	int freq;
+	int clk;
+};
+
+struct skt_config
+{
+	int qlm;		/* QLM index: 0-3 */
+	char *socket_name;	/* ie J9, J10 */
+	char *def_mode;		/* default mode (PCI|SATA|USB) */
+	char *opt_mode;		/* optional mode (PCI|SATA|USB) */
+};
+
+struct newport_board_config
+{
+	struct qlm_config qlm[4];
+	struct skt_config skt[4];
+	/* serial */
+	int gpio_uart_rs485;
+	int gpio_uart_hd;
+	int gpio_uart_term;
+	/* LEDs */
+	int gpio_ledgrn;
+	int gpio_ledred;
+	/* misc */
+	int gpio_satasel;
+	int gpio_usb3sel;
+	int gpio_phyrst;
+	int gpio_phyrst_pol;
+	int mmc_devs;
 };
 
 int newport_config(void);

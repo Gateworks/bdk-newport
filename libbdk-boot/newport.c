@@ -19,100 +19,6 @@
 
 #include "hwconfig.h"
 
-#ifdef DEBUG
-#define debug(...)	printf(__VA_ARGS__)
-#else
-#define debug(...)
-#endif
-
-#define gpio_output(x, y)					\
-	{							\
-		debug("gpio_output(gpio%d, %d)\n", x, y);	\
-		bdk_gpio_initialize(node, x, 1, y);		\
-	}
-
-#define gpio_input(x)						\
-	{							\
-		debug("gpio_input(gpio%d)\n", x);		\
-		bdk_gpio_initialize(node, x, 0, 0);		\
-	}
-
-#define gpio_pinsel(x, y)						\
-	{								\
-		debug("gpio_select_pin(gpio%d, 0x%03x)\n", x, y);	\
-		bdk_gpio_select_pin(node, x, y);			\
-	}
-
-struct qlm_config
-{
-	int mode;
-	int freq;
-	int clk;
-};
-
-struct skt_config
-{
-	int qlm;		/* QLM index: 0-3 */
-	char *socket_name;	/* ie J9, J10 */
-	char *def_mode;		/* default mode (PCI|SATA|USB) */
-	char *opt_mode;		/* optional mode (PCI|SATA|USB) */
-};
-
-struct board_config
-{
-	struct qlm_config qlm[4];
-	struct skt_config skt[4];
-	/* serial */
-	int gpio_uart_rs485;
-	int gpio_uart_hd;
-	int gpio_uart_term;
-	/* LEDs */
-	int gpio_ledgrn;
-	int gpio_ledred;
-	/* misc */
-	int gpio_satasel;
-	int gpio_usb3sel;
-	int gpio_phyrst;
-	int gpio_phyrst_pol;
-	int mmc_devs;
-};
-
-struct board_config board_configs[] = {
-	/* GW630x */
-	{
-		.qlm = {
-			/* PCIe Gen2 */
-			{ BDK_QLM_MODE_PCIE_1X1, 5000, BDK_QLM_CLK_COMMON_1 },
-			/* SGMII 1Gb/s */
-			{ BDK_QLM_MODE_SGMII_1X1, 1250, BDK_QLM_CLK_COMMON_1 },
-			/* PCIe Gen2 (default) or USB3.0 */
-			{ BDK_QLM_MODE_PCIE_1X1, 5000, BDK_QLM_CLK_COMMON_1 },
-			/* PCIe Gen2 (default) or SATA */
-			{ BDK_QLM_MODE_PCIE_1X1, 5000, BDK_QLM_CLK_COMMON_1 },
-		},
-		.skt = {
-			/* qlm, skt, defmode, optmode */
-			{ 0, "J9", "PCI", NULL },
-			{ 3, "J10", "PCI", "SATA" },
-			{ 2, "J11", "PCI", "USB3" },
-		},
-		/* serial */
-		.gpio_uart_hd = 21,
-		.gpio_uart_term = 22,
-		.gpio_uart_rs485 = 23,
-		/* LED */
-		.gpio_ledgrn = 19,
-		.gpio_ledred = 20,
-		/* misc */
-		.gpio_satasel = -1,
-		.gpio_usb3sel = 25,
-		.gpio_phyrst = 14,
-		.gpio_phyrst_pol = 0,
-		.mmc_devs = 2,
-	},
-};
-
-int board_model = GW_UNKNOWN;
 
 /* PHY registers */
 #define REG_BMCR	0x0
@@ -200,7 +106,7 @@ static int ti_phy_setup(bdk_node_t node, int qlm, int bus, int addr)
 
 static const char*
 parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
-		   struct board_config *cfg)
+		   struct newport_board_config *cfg)
 {
 	struct qlm_config *qlm;
 	size_t sz, c;
@@ -247,8 +153,8 @@ parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
 static int newport_qlm_config(bdk_node_t node, char *hwconfig,
 			      bool quiet)
 {
-	struct board_config *cfg = &board_configs[board_model];
-	struct newport_board_info *info = &board_info;
+	struct newport_board_info *info = gsc_get_board_info();
+	struct newport_board_config *cfg = gsc_get_board_config();
 	struct qlm_config *qlm;
 	int i;
 
@@ -318,7 +224,7 @@ static int newport_qlm_config(bdk_node_t node, char *hwconfig,
 
 static int newport_serial_config(bdk_node_t node, char *hwconfig)
 {
-	struct board_config *cfg = &board_configs[board_model];
+	struct newport_board_config *cfg = gsc_get_board_config();
 	char s[16];
 	const char *p;
 	size_t sz, c;
@@ -414,7 +320,7 @@ static int newport_gpio_config(bdk_node_t node, char *hwconfig)
 	debug("%s hwconfig=%s\n", __func__, hwconfig);
 	if (!rev)
 		rev = "A";
-	switch(board_model) {
+	switch(gsc_get_board_model()) {
 	case GW630x:
 		switch(*rev) {
 		case 'A':
@@ -443,7 +349,7 @@ static int newport_gpio_config(bdk_node_t node, char *hwconfig)
 
 int newport_chip_details(bdk_node_t node)
 {
-	struct board_config *cfg = &board_configs[board_model];
+	struct newport_board_config *cfg = gsc_get_board_config();
 	BDK_CSR_INIT(gicd_iidr, node, BDK_GICD_IIDR);
 	BDK_CSR_INIT(gpio_strap, node, BDK_GPIO_STRAP);
 	const char *boot_method_str = "Unknown";
@@ -516,7 +422,7 @@ int newport_chip_details(bdk_node_t node)
 
 static int newport_dram_config(bdk_node_t node)
 {
-	struct newport_board_info *info = &board_info;
+	struct newport_board_info *info = gsc_get_board_info();
 	int spd_size;
 	uint8_t *spd_data = (uint8_t *)bdk_config_get_blob(&spd_size,
 					BDK_CONFIG_DDR_SPD_DATA, 0, 0, node);
@@ -544,7 +450,7 @@ static int newport_dram_config(bdk_node_t node)
 	return 0;
 }
 
-void phy_reset(bdk_node_t node, struct board_config *cfg)
+void phy_reset(bdk_node_t node, struct newport_board_config *cfg)
 {
 	if (cfg->gpio_phyrst == -1)
 		return;
@@ -594,19 +500,21 @@ static int newport_phy_setup(bdk_node_t node)
 	return detected;
 }
 
+/* newport_config:
+ *  - read EEPROM and identify board
+ */
 int newport_config(void)
 {
-	struct newport_board_info *info = &board_info;
-	const char *rev = bdk_config_get_str(BDK_CONFIG_BOARD_REVISION);
-	int i;
+	struct newport_board_config *cfg;
+	int i, board_model;
 	char *hwconfig = NULL;
 	bool quiet = false;
 	bdk_node_t node = bdk_numa_local();
 
-	board_model = gsc_read_eeprom(node, info);
+	board_model = gsc_read_eeprom(node);
 	if (board_model == GW_UNKNOWN)
 		return -1;
-	debug("Newport config: %s\n", info->model);
+	cfg = gsc_get_board_config();
 
 	/* read U-Boot env */
 	if (!fw_env_open(NULL)) {
@@ -617,46 +525,6 @@ int newport_config(void)
 		fw_env_close(NULL);
 	} else
 		printf("failed opening U-Boot env\n");
-
-	/* Revision specific adjustments to board config */
-	struct board_config *cfg = &board_configs[board_model];
-	if (!rev)
-		rev = "A";
-	debug("%s rev='%s' hwconfig=%s\n", __func__, rev, hwconfig);
-	switch(board_model) {
-	case GW630x:
-		switch(*rev) {
-		case 'A':
-			info->qlm[0] = 0xff;
-			info->qlm[1] = 0xff;
-			info->qlm[2] = 0xff;
-			info->qlm[3] = 0xff;
-			break;
-		case 'B':
-			cfg->gpio_usb3sel = 19;
-			cfg->gpio_satasel = 20;
-			cfg->gpio_phyrst = 31;
-			cfg->gpio_phyrst_pol = 0;
-			cfg->gpio_uart_hd = 15;
-			cfg->gpio_uart_term = 16;
-			cfg->gpio_uart_rs485 = 17;
-			cfg->gpio_ledgrn = 13;
-			cfg->gpio_ledred = 14;
-			break;
-		case 'C':
-			cfg->gpio_usb3sel = 19;
-			cfg->gpio_satasel = 20;
-			cfg->gpio_phyrst = 23;
-			cfg->gpio_phyrst_pol = 1;
-			cfg->gpio_uart_hd = 15;
-			cfg->gpio_uart_term = 16;
-			cfg->gpio_uart_rs485 = 17;
-			cfg->gpio_ledgrn = 31;
-			cfg->gpio_ledred = 14;
-			break;
-		}
-		break;
-	}
 
 	bdk_watchdog_poke();
 	/* display chip details */
@@ -803,7 +671,7 @@ static int set_gpio(void *fdt, const char *path, int gpio)
 
 static void fixup_leds(void *fdt)
 {
-	struct board_config *cfg = &board_configs[board_model];
+	struct newport_board_config *cfg = gsc_get_board_config();
 
 	set_gpio(fdt, "/leds/user1", cfg->gpio_ledgrn);
 	set_gpio(fdt, "/leds/user2", cfg->gpio_ledred);

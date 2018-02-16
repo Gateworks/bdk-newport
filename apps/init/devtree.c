@@ -39,7 +39,7 @@
 #include <bdk.h>
 #include <stdarg.h>
 #include <libfdt.h>
-#include <gsc.h>
+#include <newport.h>
 #include "libbdk-arch/bdk-csrs-bgx.h"
 #include "libbdk-arch/bdk-csrs-gic.h"
 #include "libbdk-arch/bdk-csrs-pcierc.h"

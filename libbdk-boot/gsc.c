@@ -2,12 +2,62 @@
 #include <ctype.h>
 #include <gsc.h>
 #include <newport.h>
+#include <libbdk-arch/bdk-csrs-gpio.h>
 
 #define ARRAY_SIZE(arr) (int)(sizeof(arr) / sizeof((arr)[0]))
 #define MINMAX(n, percent)	((n)*(100-percent)/100), ((n)*(100+percent)/100)
 
 struct newport_board_info board_info;
-int newport_board_model = GW_UNKNOWN;
+int board_model = GW_UNKNOWN;
+
+struct newport_board_config board_configs[] = {
+	/* GW630x */
+	{
+		.qlm = {
+			/* PCIe Gen2 */
+			{ BDK_QLM_MODE_PCIE_1X1, 5000, BDK_QLM_CLK_COMMON_1 },
+			/* SGMII 1Gb/s */
+			{ BDK_QLM_MODE_SGMII_1X1, 1250, BDK_QLM_CLK_COMMON_1 },
+			/* PCIe Gen2 (default) or USB3.0 */
+			{ BDK_QLM_MODE_PCIE_1X1, 5000, BDK_QLM_CLK_COMMON_1 },
+			/* PCIe Gen2 (default) or SATA */
+			{ BDK_QLM_MODE_PCIE_1X1, 5000, BDK_QLM_CLK_COMMON_1 },
+		},
+		.skt = {
+			/* qlm, skt, defmode, optmode */
+			{ 0, "J9", "PCI", NULL },
+			{ 3, "J10", "PCI", "SATA" },
+			{ 2, "J11", "PCI", "USB3" },
+		},
+		/* serial */
+		.gpio_uart_hd = 21,
+		.gpio_uart_term = 22,
+		.gpio_uart_rs485 = 23,
+		/* LED */
+		.gpio_ledgrn = 19,
+		.gpio_ledred = 20,
+		/* misc */
+		.gpio_satasel = -1,
+		.gpio_usb3sel = 25,
+		.gpio_phyrst = 14,
+		.gpio_phyrst_pol = 0,
+		.mmc_devs = 2,
+	},
+};
+
+struct newport_board_config *gsc_get_board_config(void) {
+	if (board_model != GW_UNKNOWN)
+		return &board_configs[board_model];
+	return NULL;
+}
+
+struct newport_board_info *gsc_get_board_info(void) {
+	return &board_info;
+}
+
+int gsc_get_board_model(void) {
+	return board_model;
+}
 
 void
 hexdump(unsigned char *buf, int size)
@@ -100,14 +150,24 @@ i2c_write(bdk_node_t node, int bus, uint8_t addr, int reg, unsigned char *buf,
 	return 0;
 }
 
-/* read EEPROM, check for validity, and return baseboard type */
+/* read EEPROM:
+ * - read EEPROM and check for EEPROM validity
+ * - init BDK variables (BDK_CONFIG_BOARD_MODEL, BDK_CONFIG_BOARD_SERIAL,
+ *   and BDK_CONFIG_BOARD_REVISION)
+ * - return baseboard type
+ */
 int
-gsc_read_eeprom(bdk_node_t node, struct newport_board_info *info)
+gsc_read_eeprom(bdk_node_t node)
 {
+	struct newport_board_info *info = &board_info;
 	int i;
 	int chksum;
 	int type;
 	unsigned char *buf = (unsigned char *)info;
+	char serial_str[8];
+	char revision_str[8] = { 0 };
+	char rev_pcb = 'A'; /* PCB revision */
+	int  rev_bom = 0; /* BOM revision */
 	int retries = 3;
 
 	/* read eeprom config section */
@@ -146,6 +206,85 @@ retry:
 		bdk_error("EEPROM: Failed model identification\n");
 		hexdump(buf, sizeof(*info));
 	}
+
+	/* store board/serial */
+	bdk_config_set_str(info->model, BDK_CONFIG_BOARD_MODEL);
+	sprintf(serial_str, "%d", info->serial);
+	bdk_config_set_str(serial_str, BDK_CONFIG_BOARD_SERIAL);
+
+	/* store MAC addr */
+	int macno = (info->macno == 0xff) ? 2 : info->macno;
+	bdk_config_set_int(macno, BDK_CONFIG_MAC_ADDRESS_NUM);
+	uint64_t mac = 0;
+	for (i = 5; i >= 0; i--)
+		mac |= (uint64_t)info->mac[i] << ((5-i)*8);
+	bdk_config_set_int(mac, BDK_CONFIG_MAC_ADDRESS);
+
+	/* determine BOM revision from model */
+	for (i = strlen(info->model) - 1; i > 0; i--) {
+		if (info->model[i] == '-')
+			break;
+		if (info->model[i] >= '1' && info->model[i] <= '9') {
+			rev_bom = info->model[i] - '0';
+			break;
+		}
+	}
+
+	/* determine PCB revision from model */
+	for (i = strlen(info->model) - 1; i > 0; i--) {
+		if (info->model[i] == '-')
+			break;
+		if (info->model[i] >= 'A') {
+			rev_pcb = info->model[i];
+			break;
+		}
+	}
+	if (rev_bom)
+		sprintf(revision_str, "%c.%d", rev_pcb, rev_bom);
+	else
+		sprintf(revision_str, "%c", rev_pcb);
+	bdk_config_set_str(revision_str, BDK_CONFIG_BOARD_REVISION);
+
+	/* board revision specific changes */
+	board_model = type;
+	struct newport_board_config *cfg = gsc_get_board_config();
+
+	/* modify board info and board config based on model and revision */
+	switch(type) {
+	case GW630x:
+		switch(rev_pcb) {
+		case 'A':
+			info->qlm[0] = 0xff;
+			info->qlm[1] = 0xff;
+			info->qlm[2] = 0xff;
+			info->qlm[3] = 0xff;
+			break;
+		case 'B':
+			cfg->gpio_usb3sel = 19;
+			cfg->gpio_satasel = 20;
+			cfg->gpio_phyrst = 31;
+			cfg->gpio_phyrst_pol = 0;
+			cfg->gpio_uart_hd = 15;
+			cfg->gpio_uart_term = 16;
+			cfg->gpio_uart_rs485 = 17;
+			cfg->gpio_ledgrn = 13;
+			cfg->gpio_ledred = 14;
+			break;
+		case 'C':
+			cfg->gpio_usb3sel = 19;
+			cfg->gpio_satasel = 20;
+			cfg->gpio_phyrst = 23;
+			cfg->gpio_phyrst_pol = 1;
+			cfg->gpio_uart_hd = 15;
+			cfg->gpio_uart_term = 16;
+			cfg->gpio_uart_rs485 = 17;
+			cfg->gpio_ledgrn = 31;
+			cfg->gpio_ledred = 14;
+			break;
+		}
+		break;
+	}
+
 	return type;
 }
 
@@ -270,15 +409,16 @@ gsc_hwmon_info(bdk_node_t node, int model)
 	return 0;
 }
 
+/* gsc_init:
+ *   This is called from early init (boot stub) to determine board model
+ *   and perform any critical early init.
+ */
 int
 gsc_init(bdk_node_t node)
 {
 	struct newport_board_info *info = &board_info;
+	struct newport_board_config *cfg;
 	unsigned char buf[16];
-	char serial_str[8];
-	char revision_str[8] = { 0 };
-	char rev_pcb = 'A'; /* PCB revision */
-	int  rev_bom = 0; /* BOM revision */
 	int i;
 
 	/*
@@ -320,8 +460,7 @@ gsc_init(bdk_node_t node)
 			buf[0] | buf[1]<<8 | buf[2]<<16 | buf[3]<<24);
 	}
 
-	int model = gsc_read_eeprom(node, info);
-	if (GW_UNKNOWN == model)
+	if (GW_UNKNOWN == gsc_read_eeprom(node))
 		return -2;
 
 	printf("Model   : %s\n", info->model);
@@ -330,67 +469,15 @@ gsc_init(bdk_node_t node)
 		info->mfgdate[2], info->mfgdate[3]);
 	printf("Serial  : %d\n", info->serial);
 
-	/* store board/serial */
-	bdk_config_set_str(info->model, BDK_CONFIG_BOARD_MODEL);
-	sprintf(serial_str, "%d", info->serial);
-	bdk_config_set_str(serial_str, BDK_CONFIG_BOARD_SERIAL);
-
-	/* store MAC addr */
-	int macno = (info->macno == 0xff) ? 2 : info->macno;
-	bdk_config_set_int(macno, BDK_CONFIG_MAC_ADDRESS_NUM);
-	uint64_t mac = 0;
-	for (i = 5; i >= 0; i--)
-		mac |= (uint64_t)info->mac[i] << ((5-i)*8);
-	bdk_config_set_int(mac, BDK_CONFIG_MAC_ADDRESS);
-
-	/* determine BOM revision from model */
-	for (i = strlen(info->model) - 1; i > 0; i--) {
-		if (info->model[i] == '-')
-			break;
-		if (info->model[i] >= '1' && info->model[i] <= '9') {
-			rev_bom = info->model[i] - '0';
-			break;
-		}
-	}
-
-	/* determine PCB revision from model */
-	for (i = strlen(info->model) - 1; i > 0; i--) {
-		if (info->model[i] == '-')
-			break;
-		if (info->model[i] >= 'A') {
-			rev_pcb = info->model[i];
-			break;
-		}
-	}
-	if (rev_bom)
-		sprintf(revision_str, "%c.%d", rev_pcb, rev_bom);
-	else
-		sprintf(revision_str, "%c", rev_pcb);
-	bdk_config_set_str(revision_str, BDK_CONFIG_BOARD_REVISION);
-
+	/*
+	 * Configure early GPIO
+	 */
+	cfg = gsc_get_board_config();
 	/* Enable front-panel GRN LED */
-	int led_grn = -1;
-	int led_red = -1;
-	if (strncmp(info->model, "GW630", 5) == 0) {
-		switch(rev_pcb) {
-		case 'A':
-			led_grn = 19;
-			led_red = 20;
-			break;
-		case 'B':
-			led_grn = 13;
-			led_red = 14;
-			break;
-		case 'C':
-			led_grn = 31;
-			led_red = 14;
-			break;
-		}
-	}
-	if (led_grn != -1)
-		bdk_gpio_initialize(node, led_grn, 1, 1);
-	if (led_red != -1)
-		bdk_gpio_initialize(node, led_red, 1, 0);
+	if (cfg->gpio_ledgrn != -1)
+		bdk_gpio_initialize(node, cfg->gpio_ledgrn, 1, 1);
+	if (cfg->gpio_ledred != -1)
+		bdk_gpio_initialize(node, cfg->gpio_ledred, 1, 0);
 
 	return 0;
 }
@@ -667,7 +754,7 @@ menu_gsc(bdk_menu_t *parent, char key, void *arg)
 		if (argc < 1)
 			cmd_usage();
 		else if (strcasecmp(argv[0], "hwmon") == 0) {
-			gsc_hwmon_info(node, newport_board_model);
+			gsc_hwmon_info(node, board_model);
 		} else if (strcasecmp(argv[0], "sleep") == 0) {
 			unsigned long secs = 2;
 			if (argc == 2)
