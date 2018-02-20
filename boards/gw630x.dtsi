@@ -89,39 +89,5 @@ cavium,bdk {
 	/* BGX2 P0=RGMII  */
 	BGX-ENABLE.N0.BGX2.P0 = "1";
 	PHY-ADDRESS.N0.BGX2.P0 = "0xff000000"; /* MDIO0 addr0 */
-
-	/*
-	 * GPIO Configuration
-	 */
-	/* GBE_RST# SW GPIO (output high) */
-	GPIO-PIN-SELECT-GPIO14 = "0";
-	/* PCIE_WDIS# SW GPIO (output high) */
-	GPIO-PIN-SELECT-GPIO16 = "0";
-	/* PCIE_DIO0 SW GPIO (input) */
-	GPIO-PIN-SELECT-GPIO17 = "0";
-	/* PCIE_DIO1 SW GPIO (input) */
-	GPIO-PIN-SELECT-GPIO18 = "0";
-	/* CPU_LEDG# SW GPIO (output high) */
-	GPIO-PIN-SELECT-GPIO19 = "0";
-	/* CPU_LEDR# SW GPIO (output low) */
-	GPIO-PIN-SELECT-GPIO20 = "0";
-	/* UART_HALF SW GPIO (output low) */
-	GPIO-PIN-SELECT-GPIO21 = "0";
-	/* UART_TERM SW GPIO (output low) */
-	GPIO-PIN-SELECT-GPIO22 = "0";
-	/* UART_RS485 SW GPIO (output low) */
-	GPIO-PIN-SELECT-GPIO23 = "0";
-	/* USB_HUB_RST# (output high) */
-	GPIO-PIN-SELECT-GPIO24 = "0";
-	/* PCIE_USBSEL SW GPIO (output low) */
-	GPIO-PIN-SELECT-GPIO25 = "0";
-	/* CPU_DIO0-3 SW GPIO (input) */
-	GPIO-PIN-SELECT-GPIO26 = "0";
-	GPIO-PIN-SELECT-GPIO27 = "0";
-	GPIO-PIN-SELECT-GPIO28 = "0";
-	GPIO-PIN-SELECT-GPIO29 = "0";
-	/* GSC_IRQ# SW GPIO (input) */
-	GPIO-PIN-SELECT-GPIO31 = "0";
-
 }; /* cavium,bdk */
 }; /* / */
