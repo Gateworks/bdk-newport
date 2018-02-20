@@ -473,6 +473,9 @@ gsc_init(bdk_node_t node)
 	 * Configure early GPIO
 	 */
 	cfg = gsc_get_board_config();
+	/* put PHY's into reset */
+	if (cfg->gpio_phyrst != -1)
+		gpio_output(cfg->gpio_phyrst, cfg->gpio_phyrst_pol);
 	/* Enable front-panel GRN LED */
 	if (cfg->gpio_ledgrn != -1)
 		bdk_gpio_initialize(node, cfg->gpio_ledgrn, 1, 1);
