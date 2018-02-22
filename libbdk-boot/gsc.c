@@ -37,6 +37,7 @@ struct newport_board_config board_configs[] = {
 		.gpio_ledgrn = 19,
 		.gpio_ledred = 20,
 		/* misc */
+		.gpio_usben = 24,
 		.gpio_satasel = -1,
 		.gpio_usb3sel = 25,
 		.gpio_phyrst = 14,
@@ -260,6 +261,7 @@ retry:
 			info->qlm[3] = 0xff;
 			break;
 		case 'B':
+			cfg->gpio_usben = 18;
 			cfg->gpio_usb3sel = 19;
 			cfg->gpio_satasel = 20;
 			cfg->gpio_phyrst = 31;
@@ -270,7 +272,8 @@ retry:
 			cfg->gpio_ledgrn = 13;
 			cfg->gpio_ledred = 14;
 			break;
-		case 'C':
+		default:
+			cfg->gpio_usben = 18;
 			cfg->gpio_usb3sel = 19;
 			cfg->gpio_satasel = 20;
 			cfg->gpio_phyrst = 23;
@@ -473,6 +476,9 @@ gsc_init(bdk_node_t node)
 	 * Configure early GPIO
 	 */
 	cfg = gsc_get_board_config();
+	/* enable USB HUB */
+	if (cfg->gpio_usben != -1)
+		gpio_output(cfg->gpio_usben, 1);
 	/* put PHY's into reset */
 	if (cfg->gpio_phyrst != -1)
 		gpio_output(cfg->gpio_phyrst, cfg->gpio_phyrst_pol);

@@ -122,6 +122,7 @@ struct newport_board_config
 	int gpio_ledgrn;
 	int gpio_ledred;
 	/* misc */
+	int gpio_usben;
 	int gpio_satasel;
 	int gpio_usb3sel;
 	int gpio_phyrst;
