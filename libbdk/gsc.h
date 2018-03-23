@@ -19,12 +19,13 @@ int gsc_program(bdk_node_t node);
 int gsc_watchdog_config(bdk_node_t node, int timeout);
 int gsc_sleep(bdk_node_t node, unsigned long secs);
 int gsc_boot_wd_disable(bdk_node_t node, bool leave_enabled);
-int gsc_hwmon_info(bdk_node_t node, int model);
+int gsc_hwmon_reg(bdk_node_t node, const char *name, int reg);
 const char *gsc_get_dtb_name(bdk_node_t node, int level);
 void menu_gsc(bdk_menu_t *parent, char key, void *arg);
 void hexdump(unsigned char *buf, int size);
 struct newport_board_config *gsc_get_board_config(void);
 struct newport_board_info *gsc_get_board_info(void);
 int gsc_get_board_model(void);
+int gsc_get_fwver(void);
 
 #endif

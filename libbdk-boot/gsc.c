@@ -322,94 +322,15 @@ gsc_eeprom_update(bdk_node_t node)
 	return 0;
 }
 
-/* Hardware Monitor registers */
-struct hwmon {
-	uint8_t reg;
-	const char *name;
-	uint32_t low;
-	uint32_t high;
-};
-
-static struct hwmon hwmon_regs[] = {
-	{ 0x00, "temp", 0, 9000 },
-	{ 0x02, "vin", 8000, 60000 },
-	{ 0x05, "3p3", MINMAX(3300, 10) },
-	{ 0x08, "bat", 0, 3300 },
-	{ 0x0b, "5p0", MINMAX(5000, 10) },
-	{ 0x0e, "core", MINMAX(860, 10) },
-	{ 0x11, "cpu1", MINMAX(900, 10) },
-	{ 0x14, "cpu2", 0, 0xffffff },
-	{ 0x17, "dram", MINMAX(1200, 10) },
-	{ 0x1a, "ext_bat", 0, 0xffffff },
-	{ 0x1d, "io1", MINMAX(2500, 10) },
-	{ 0x20, "io2", MINMAX(1000, 10) },
-	{ 0x23, "pcie", MINMAX(1500, 10) },
-	{ 0x26, "io3", MINMAX(1800, 10) },
-	{ 0x29, "io4", 0, 5000 },
-	{ 0, 0, 0, 0 },
-};
-
-static struct hwmon hwmon_regs_gw630x[] = {
-	{ 0x00, "temp", 0, 9000 },
-	{ 0x02, "vin", 8000, 60000 },
-	{ 0x05, "3p3", MINMAX(3300, 10) },
-	{ 0x0b, "5p0", MINMAX(5000, 10) },
-	{ 0x11, "0p9", MINMAX(900, 10) },
-	{ 0x0e, "core", MINMAX(860, 10) },
-	{ 0x17, "1p2", MINMAX(1200, 10) },
-	{ 0x1d, "2p5", MINMAX(2500, 10) },
-	{ 0x20, "1p0", MINMAX(1000, 10) },
-	{ 0x23, "1p5", MINMAX(1500, 10) },
-	{ 0x26, "1p8", MINMAX(1800, 10) },
-	{ 0x29, "anl", 0, 5000 },
-	{ 0, 0, 0, 0 },
-};
-
 int
-gsc_hwmon_info(bdk_node_t node, int model)
+gsc_hwmon_reg(bdk_node_t node, const char *name, int reg)
 {
-	uint8_t buf[3];
-	uint32_t val;
-	struct hwmon *r;
+	uint8_t buf[2];
 
-	switch (model) {
-	case GW630x:
-		r = hwmon_regs_gw630x;
-		break;
-	default:
-		r = hwmon_regs;
-		break;
-	}
-
-	for (; r->name; r++) {
-		printf("%-8s: ", r->name);
-		memset(buf, 0, sizeof(buf));
-		if (i2c_read(node, 0, GSC_HWMON_ADDR, r->reg, buf,
-		    3))
-		{
-			printf("fRD\n");
-			continue;
-		}
-		if (r->reg == 0) {
-			val = buf[0] | buf[1]<<8;
-			if (val > 0x8000)
-				val -= 0xffff;
-		} else
-			val = buf[0] | (buf[1]<<8) | (buf[2]<<16);
-		if (val == 0xffffff)
-			printf("invalid\n");
-		else if (val < r->low)
-			printf("%d - Failed Low: %d\n", val, r->low);
-		else if (val > r->high)
-			printf("%d - Failed High: %d\n", val, r->high);
-		else {
-			if (r->reg == 0)
-				printf("%d.%dC\n", val / 10, val % 10);
-			else
-				printf("%d.%03dV\n", val / 1000, val % 1000);
-		}
-	}
-	return 0;
+	memset(buf, 0, sizeof(buf));
+	if (i2c_read(node, 0, GSC_HWMON_ADDR, reg, buf, sizeof(buf)))
+		return -1;
+	return buf[0] | buf[1]<<8;
 }
 
 /* gsc_init:
@@ -422,6 +343,7 @@ gsc_init(bdk_node_t node)
 	struct newport_board_info *info = &board_info;
 	struct newport_board_config *cfg;
 	unsigned char buf[16];
+	int reg_temp;
 	int i;
 
 	/*
@@ -449,7 +371,11 @@ gsc_init(bdk_node_t node)
 	if (buf[GSC_SC_STATUS] & (1 << GSC_SC_IRQ_WATCHDOG)) {
 		printf(" WDT_RESET");
 	}
-	if (!i2c_read(node, 0, GSC_HWMON_ADDR, 0, buf, 2)) {
+	reg_temp = 0;
+	/* GSC v51+ has board temp at register offset 0 */
+	if (buf[GSC_SC_FWVER] > 50)
+		reg_temp = 0x6;
+	if (!i2c_read(node, 0, GSC_HWMON_ADDR, reg_temp, buf, 2)) {
 		int ui = buf[0] | buf[1]<<8;
 		if (ui > 0x8000)
 			ui -= 0xffff;
@@ -655,6 +581,16 @@ gsc_watchdog_config(bdk_node_t node, int timeout)
 	return 0;
 }
 
+int
+gsc_get_fwver(void) {
+	bdk_node_t node = bdk_numa_master();
+	unsigned char fw_ver;
+
+	if (i2c_read(node, 0, GSC_SC_ADDR, GSC_SC_FWVER, &fw_ver, 1))
+		return -1;
+	return fw_ver;
+};
+
 static int
 parse_args(const char *str, char **argv, int maxargs)
 {
@@ -678,7 +614,6 @@ cmd_usage(void)
 {
 	printf("gsc sleep [seconds] - sleep num of secs (defaults to 2)\n");
 	printf("gsc wd [enable|disable] [timeout] - configure watchdog\n");
-	printf("gsc hwmon\n");
 	printf("exit|quit - exit menu\n\n");
 }
 
@@ -762,9 +697,7 @@ menu_gsc(bdk_menu_t *parent, char key, void *arg)
 		argv++;
 		if (argc < 1)
 			cmd_usage();
-		else if (strcasecmp(argv[0], "hwmon") == 0) {
-			gsc_hwmon_info(node, board_model);
-		} else if (strcasecmp(argv[0], "sleep") == 0) {
+		else if (strcasecmp(argv[0], "sleep") == 0) {
 			unsigned long secs = 2;
 			if (argc == 2)
 				secs = strtoull(argv[1], 0, 0);

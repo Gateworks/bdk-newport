@@ -578,10 +578,6 @@ int newport_config(void)
 		}
 	}
 
-	/* hwmon */
-	if (!quiet)
-		gsc_hwmon_info(node, board_model);
-
 	/* Config PHYs */
 	bdk_boot_mdio(); /* handle MDIO-WRITE's from board dts */
 	for (i = 0; i < 5; i++) {
@@ -677,9 +673,107 @@ static void fixup_leds(void *fdt)
 	set_gpio(fdt, "/leds/user2", cfg->gpio_ledred);
 }
 
+static const char *
+fdt_get_string(void *fdt, int offset, const char *prop, const char *def)
+{
+	int len;
+	const char *val;
+
+	val = fdt_getprop(fdt, offset, prop, &len);
+	if (val)
+		return val;
+	return def;
+}
+
+static int
+fdt_get_int(void *fdt, int offset, const char *prop, int def)
+{
+	int len;
+	const uint32_t *val;
+
+	val = fdt_getprop(fdt, offset, prop, &len);
+	if (val && (len == sizeof(uint32_t)))
+		return fdt32_to_cpu(*val);
+	return def;
+}
+
+static int
+show_hwmon(void *fdt)
+{
+	int len, off, reg, val;
+	int vref, res, offset;
+	const char *label, *type;
+	bdk_node_t node = bdk_numa_local();
+
+	/* GSC firmware v51 required */
+        if (gsc_get_fwver() < 51)
+		return -1;
+
+	off = fdt_node_offset_by_compatible(fdt, -1, "gw,gsc-hwmon");
+	if (off <= 0)
+		return -1;
+	vref = fdt_get_int(fdt, off, "gw,reference-voltage", 0);
+	res = fdt_get_int(fdt, off, "gw,resolution", 0);
+	if (!vref || !res)
+		return -1;
+
+	/* iterate over hwmon nodes */
+	off = fdt_first_subnode(fdt, off);
+	while (off >= 0) {
+		type = fdt_get_string(fdt, off, "type", NULL);
+		reg = fdt_get_int(fdt, off, "reg", -1);
+		offset = fdt_get_int(fdt, off, "gw,voltage-offset", 0);
+		label = fdt_get_string(fdt, off, "label", NULL);
+		val = gsc_hwmon_reg(node, label, reg);
+
+		if (label && !strcasecmp(type, "gw,hwmon-temperature")) {
+			if (val > 0x8000)
+				val -= 0xffff;
+			printf("%-8s: %d.%dC\n", label, val / 10, val % 10);
+		}
+
+		else if (label && !strcasecmp(type, "gw,hwmon-voltage")) {
+			printf("%-8s: %d.%03dV\n", label,
+				val / 1000, val % 1000);
+		}
+
+		else if (label && !strcasecmp(type, "gw,hwmon-voltage-raw")) {
+			/* scale based on ref volt and resolution */
+			val *= vref;
+			val /= res;
+
+			/* apply pre-scaler voltage divider */
+			const uint32_t *div;
+			int r[2];
+			div  = fdt_getprop(fdt, off, "gw,voltage-divider",
+					   &len);
+			if (div && (len == sizeof(uint32_t) * 2)) {
+				r[0] = fdt32_to_cpu(div[0]);
+				r[1] = fdt32_to_cpu(div[1]);
+				if (r[0] && r[1]) {
+					val *= (r[0] + r[1]);
+					val /= r[1];
+				}
+			}
+
+			/* adjust by offset */
+			val += offset;
+
+			printf("%-8s: %d.%03dV\n", label,
+				val / 1000, val % 1000);
+		}
+
+		off = fdt_next_subnode(fdt, off);
+	}
+	return 0;
+}
+
 int newport_devtree_fixups(void *fdt)
 {
 	const char *str;
+
+	/* hwmon inputs */
+	show_hwmon(fdt);
 
 	/* board serial number */
 	str = bdk_config_get_str(BDK_CONFIG_BOARD_SERIAL);
