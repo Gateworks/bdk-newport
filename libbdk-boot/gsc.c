@@ -97,6 +97,7 @@ enum {
 	GSC_SC_STATUS		= 10,
 	GSC_SC_FWCRC		= 12,
 	GSC_SC_FWVER		= 14,
+	GSC_SC_WP		= 15,
 };
 
 /* System Controller Control1 bits */
@@ -117,6 +118,14 @@ enum {
 	GSC_SC_IRQ_WATCHDOG	= 6, /* Watchdog trip */
 	GSC_SC_IRQ_PBLONG	= 7, /* Pushbutton long hold */
 };
+
+/* System Controller WP bits */
+enum {
+	GSC_SC_WP_ALL		= 0, /* Write Protect All EEPROM regions */
+	GSC_SC_WP_BOARDINFO	= 1, /* Write Protect Board Info region */
+};
+#define GSC_WP_PASSWD		0x58
+#define GSC_WP_PASSWD_MASK	0xF8
 
 static int
 i2c_read(bdk_node_t node, int bus, int addr, int reg, uint8_t *buf, int sz)
@@ -627,6 +636,7 @@ gsc_program(bdk_node_t node)
 	int i, j;
 	struct newport_board_info *info = &board_info;
 	unsigned char *buf = (unsigned char *)info;
+	unsigned char reg, wp;
 
 	printf("***\n");
 	printf("*** GATEWORKS MANUFACTURING MODE\n");
@@ -654,9 +664,30 @@ gsc_program(bdk_node_t node)
 		return -2;
 	}
 
+	/* get WP */
+	if (i2c_read(node, 0, GSC_SC_ADDR, GSC_SC_WP, &reg, 1)) {
+		bdk_error("EEPROM: Failed to read GSC_SC_WP\n");
+		return -1;
+	}
+	wp = reg & ~GSC_WP_PASSWD_MASK;
+
+	/* disable WP */
+	reg = GSC_WP_PASSWD;
+	if (i2c_write(node, 0, GSC_SC_ADDR, GSC_SC_WP, &reg, 1)) {
+		bdk_error("EEPROM: Failed to write GSC_SC_WP\n");
+		return -1;
+	}
+
 	/* write */
 	if (i2c_write(node, 0, GSC_EEPROM_ADDR, 0x00, buf, sizeof(*info))) {
 		bdk_error("EEPROM: Failed to write EEPROM\n");
+		return -1;
+	}
+
+	/* re-enable WP */
+	reg = wp | GSC_WP_PASSWD;
+	if (i2c_write(node, 0, GSC_SC_ADDR, GSC_SC_WP, &reg, 1)) {
+		bdk_error("EEPROM: Failed to write GSC_SC_WP\n");
 		return -1;
 	}
 
