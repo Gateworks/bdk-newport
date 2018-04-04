@@ -351,10 +351,10 @@ int newport_chip_details(bdk_node_t node)
 {
 	struct newport_board_config *cfg = gsc_get_board_config();
 	BDK_CSR_INIT(gicd_iidr, node, BDK_GICD_IIDR);
+	BDK_CSR_INIT(rst_boot, node, BDK_RST_BOOT);
 	BDK_CSR_INIT(gpio_strap, node, BDK_GPIO_STRAP);
 	const char *boot_method_str = "Unknown";
-	int trust_mode = bdk_extract(gpio_strap.u,
-				     BDK_GPIO_STRAP_PIN_E_TRUSTED_MODE, 1);
+	int trust_mode = rst_boot.s.trusted_mode;
 	int boot_method = bdk_extract(gpio_strap.u, 0, 4);
 	int alt_pkg;
 	int major_pass;
