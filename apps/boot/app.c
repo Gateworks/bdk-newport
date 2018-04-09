@@ -240,7 +240,7 @@ int main(int argc, const char **argv)
     bdk_boot_status(BDK_BOOT_STATUS_BOOT_STUB_WAITING_FOR_KEY);
 
     int boot_timeout = bdk_config_get_int(BDK_CONFIG_BOOT_MENU_TIMEOUT);
-#if 0
+#ifndef ALLOW_DIAGNOSTICS
     printf("\nPress 'B' within %d seconds for boot menu\n", boot_timeout);
     int key;
     do
