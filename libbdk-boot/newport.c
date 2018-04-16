@@ -712,10 +712,6 @@ show_hwmon(void *fdt)
 	off = fdt_node_offset_by_compatible(fdt, -1, "gw,gsc-hwmon");
 	if (off <= 0)
 		return -1;
-	vref = fdt_get_int(fdt, off, "gw,reference-voltage", 0);
-	res = fdt_get_int(fdt, off, "gw,resolution", 0);
-	if (!vref || !res)
-		return -1;
 
 	/* iterate over hwmon nodes */
 	off = fdt_first_subnode(fdt, off);
@@ -733,14 +729,16 @@ show_hwmon(void *fdt)
 		}
 
 		else if (label && !strcasecmp(type, "gw,hwmon-voltage")) {
-			printf("%-8s: %d.%03dV\n", label,
-				val / 1000, val % 1000);
+			if (val != 0xffff) {
+				printf("%-8s: %d.%03dV\n", label,
+					val / 1000, val % 1000);
+			}
 		}
 
 		else if (label && !strcasecmp(type, "gw,hwmon-voltage-raw")) {
 			/* scale based on ref volt and resolution */
-			val *= vref;
-			val /= res;
+			val *= 2500;
+			val /= 1<<12;
 
 			/* apply pre-scaler voltage divider */
 			const uint32_t *div;
