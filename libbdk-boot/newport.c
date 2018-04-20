@@ -618,7 +618,9 @@ void setup_mmc(void *fdt, int off, enum mmc_type type, int chipsel)
 
 static void fixup_mmc(void *fdt)
 {
-	int off;
+	int off, sd;
+	bdk_node_t node = bdk_numa_local();
+	int64_t sz;
 
 	/*
 	 * Swap dt nodes for emmc/microsd slot such that:
@@ -629,7 +631,9 @@ static void fixup_mmc(void *fdt)
 	off = fdt_node_offset_by_compatible(fdt, -1, "mmc-slot");
 	if (off <= 0)
 		return;
-	if (bdk_mmc_card_is_sd(0, 0))
+	sd = bdk_mmc_card_is_sd(node, 0);
+	sz = bdk_mmc_initialize(node, 0);
+	if (sd)
 		setup_mmc(fdt, off, MMC_MICROSD, 0);
 	else
 		setup_mmc(fdt, off, MMC_EMMC, 0);
@@ -638,10 +642,15 @@ static void fixup_mmc(void *fdt)
 	off = fdt_node_offset_by_compatible(fdt, off, "mmc-slot");
 	if (off <= 0)
 		return;
-	if (bdk_mmc_card_is_sd(0, 0))
-		setup_mmc(fdt, off, MMC_EMMC, 1);
-	else
-		setup_mmc(fdt, off, MMC_MICROSD, 1);
+	sd = bdk_mmc_card_is_sd(node, 1);
+	sz = bdk_mmc_initialize(node, 1);
+	if (sz > 0) {
+		if (sd)
+			setup_mmc(fdt, off, MMC_MICROSD, 1);
+		else
+			setup_mmc(fdt, off, MMC_EMMC, 1);
+	} else
+		fdt_del_node(fdt, off);
 }
 
 static int set_gpio(void *fdt, const char *path, int gpio)
