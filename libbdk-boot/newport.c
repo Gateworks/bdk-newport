@@ -710,7 +710,7 @@ static int
 show_hwmon(void *fdt)
 {
 	int len, off, reg, val;
-	int vref, res, offset;
+	int offset;
 	const char *label, *type;
 	bdk_node_t node = bdk_numa_local();
 
