@@ -44,6 +44,39 @@ struct newport_board_config board_configs[] = {
 		.gpio_phyrst_pol = 0,
 		.mmc_devs = 2,
 	},
+
+	/* GW640x */
+	{
+		.qlm = {
+			/* PCIe Gen2 */
+			{ BDK_QLM_MODE_PCIE_1X1, 5000, BDK_QLM_CLK_COMMON_1 },
+			/* SGMII 1Gb/s */
+			{ BDK_QLM_MODE_QSGMII_4X1, 5000, BDK_QLM_CLK_COMMON_1 },
+			/* PCIe Gen2 */
+			{ BDK_QLM_MODE_PCIE_1X1, 5000, BDK_QLM_CLK_COMMON_1 },
+			/* PCIe Gen2 (default) or SATA */
+			{ BDK_QLM_MODE_PCIE_1X1, 5000, BDK_QLM_CLK_COMMON_1 },
+		},
+		.skt = {
+			/* qlm, skt, defmode, optmode */
+			{ 0, "J9", "PCI", NULL },
+			{ 3, "J10", "PCI", "SATA" },
+			{ 2, "J11", "PCI", NULL },
+		},
+		/* serial */
+		.gpio_uart_hd = 15,
+		.gpio_uart_term = 16,
+		.gpio_uart_rs485 = 17,
+		/* LED */
+		.gpio_ledgrn = 31,
+		.gpio_ledred = 14,
+		/* misc */
+		.gpio_satasel = 20,
+		.gpio_usb3sel = -1,
+		.gpio_phyrst = 23,
+		.gpio_phyrst_pol = 1,
+		.mmc_devs = 2,
+	},
 };
 
 struct newport_board_config *gsc_get_board_config(void) {
@@ -211,6 +244,9 @@ retry:
 	case '3':
 		type = GW630x;
 		break;
+	case '4':
+		type = GW640x;
+		break;
 	default:
 		type = GW_UNKNOWN;
 		bdk_error("EEPROM: Failed model identification\n");
@@ -294,6 +330,17 @@ retry:
 			cfg->gpio_ledred = 14;
 			break;
 		}
+		break;
+	case GW640x:
+		cfg->gpio_usben = 18;
+		cfg->gpio_satasel = 20;
+		cfg->gpio_phyrst = 23;
+		cfg->gpio_phyrst_pol = 1;
+		cfg->gpio_uart_hd = 15;
+		cfg->gpio_uart_term = 16;
+		cfg->gpio_uart_rs485 = 17;
+		cfg->gpio_ledgrn = 31;
+		cfg->gpio_ledred = 14;
 		break;
 	}
 

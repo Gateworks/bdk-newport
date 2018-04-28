@@ -1,0 +1,92 @@
+/ {
+cavium,bdk {
+	BDK-BOOT-MENU-TIMEOUT = "2";
+
+	/*
+	 * DRAM Configuration
+	 */
+	DDR-CONFIG-CUSTOM-MODE32B.LMC0.N0 = "1"; /* only 32 DQ's used */
+	DDR-TEST-BOOT = "0";
+	/* Speed grade to use for DRAM in MT/s */
+	DDR-SPEED.N0 = "1333"; /* 666|800|1066|1333|1600|1866|2133 */
+        DDR-CONFIG-SPD-DATA.DIMM0.LMC0.N0 = [
+	 23 11 0C 02 44 19 00 08 00 60 00 03 02 02 80 00
+         00 00 07 0D F0 1F 00 00 6E 6E 6E 11 00 6E F0 0A
+         20 08 00 05 00 A8 1B 28 28 00 9C B5 00 00 00 00
+	 E7 D6 57 26 23 05 80 B3 30 00 00 00 00 00 00 00
+
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	];
+
+	/* Determine how multi-node is supported for this system:
+	    0 = Multi-node is not supported
+	    1 = Multi-node is supported and booting requires two nodes
+	    2 = Multi-node is auto detected. Two nodes are used if
+	        if available, otherwise fall back to single node. */
+	MULTI-NODE = "0";
+
+	/* QLM */
+	QLM-AUTO-CONFIG = "0";
+	/* PCIE 1x: Gen2 */
+	QLM-MODE.N0.QLM0 = "PCIE_1X1";
+	QLM-FREQ.N0.QLM0 = "5000"; /* Gen1:2500 Gen2:5000 Gen3:8000 */
+	QLM-CLK.N0.QLM0 = "1"; /* Common clock 1 */
+	/* QSGMII */
+	QLM-MODE.N0.QLM1 = "QSGMII_4X1";
+	QLM-FREQ.N0.QLM1 = "5000"; /* 5Gb/s */
+	QLM-CLK.N0.QLM1 = "1"; /* Common clock 1 */
+	/* PCIE 1x: Gen2 */
+	QLM-MODE.N0.QLM2 = "PCIE_1X1";
+	QLM-FREQ.N0.QLM2 = "5000"; /* Gen1:2500 Gen2:5000 Gen3:8000 */
+	QLM-CLK.N0.QLM2 = "1"; /* Common clock 1 */
+	/* PCIE 1x: Gen2 */
+	QLM-MODE.N0.QLM3 = "PCIE_1X1";
+	QLM-FREQ.N0.QLM3 = "5000"; /* Gen1:2500 Gen2:5000 Gen3:8000 */
+	QLM-CLK.N0.QLM3 = "1"; /* Common clock 1 */
+
+	/*
+	 * USB 3.0 Configuration
+	 */
+	/* Specify reference clock source for SuperSpeed and HighSpeed PLL */
+	USB-REFCLK-SRC.N0.PORT0 = "2"; /* DLMC_REF_CLK1 */
+	USB-REFCLK-SRC.N0.PORT1 = "2"; /* DLMC_REF_CLK1 */
+
+	/*
+	 * BGX Configuration
+	 */
+	/* General settings */
+	BDK-NUM-PACKET-BUFFERS = "0x1000";
+	BDK-PACKET-BUFFER-SIZE = "0x400";
+	BDK-SHOW-LINK-STATUS = "1";
+	/* BGX0 - QGMII-4x1 */
+	BGX-ENABLE.N0.BGX0.P0 = "1";
+	BGX-ENABLE.N0.BGX0.P1 = "1";
+	BGX-ENABLE.N0.BGX0.P2 = "1";
+	BGX-ENABLE.N0.BGX0.P3 = "1";
+        PHY-ADDRESS.N0.BGX0.P0 = "0xff000100"; /* MDIO1 addr 0 */
+        PHY-ADDRESS.N0.BGX0.P1 = "0xff000101"; /* MDIO1 addr 1 */
+        PHY-ADDRESS.N0.BGX0.P2 = "0xff000102"; /* MDIO1 addr 2 */
+        PHY-ADDRESS.N0.BGX0.P3 = "0xff000103"; /* MDIO1 addr 3 */
+	/* BGX1 unused */
+	BGX-ENABLE.N0.BGX1.P0 = "0";
+	BGX-ENABLE.N0.BGX1.P1 = "0";
+	BGX-ENABLE.N0.BGX1.P2 = "0";
+	BGX-ENABLE.N0.BGX1.P3 = "0";
+	/* BGX2 P0=RGMII  */
+	BGX-ENABLE.N0.BGX2.P0 = "1";
+	PHY-ADDRESS.N0.BGX2.P0 = "0xff000000"; /* MDIO0 addr0 */
+}; /* cavium,bdk */
+}; /* / */

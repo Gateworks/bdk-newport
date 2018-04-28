@@ -104,6 +104,26 @@ static int ti_phy_setup(bdk_node_t node, int qlm, int bus, int addr)
 	return 0;
 }
 
+/* vt_phy_setup - setup VSC8574 PHY */
+static int vt_phy_setup(bdk_node_t n, int qlm, int b, int a)
+{
+	int reg;
+
+	/* Check if the PHY is TI PHY we expect */
+	reg = bdk_mdio_read(n, b, a, BDK_MDIO_PHY_REG_ID2);
+
+	/* VSC8475-04 */
+	if (reg != 0x04a2)
+		return -1;
+
+	printf("MDIO%d   : VSC8574 (QSGMII)\n", b);
+
+	/* same as the VSC8475-01 used on sff8104: use that setup */
+	bdk_if_phy_vetesse_setup(n, qlm, b, a);
+
+	return 0;
+}
+
 static const char*
 parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
 		   struct newport_board_config *cfg)
@@ -457,7 +477,7 @@ void phy_reset(bdk_node_t node, struct newport_board_config *cfg)
 	bdk_gpio_initialize(node, cfg->gpio_phyrst, 1, cfg->gpio_phyrst_pol);
 	bdk_wait_usec(1000);
 	bdk_gpio_initialize(node, cfg->gpio_phyrst, 1, !cfg->gpio_phyrst_pol);
-	bdk_wait_usec(1000);
+	bdk_wait_usec(110000);
 }
 
 static int newport_phy_setup(bdk_node_t node)
@@ -487,10 +507,14 @@ static int newport_phy_setup(bdk_node_t node)
 			}
 
 			/* PHY id */
-			id1 = bdk_mdio_read(node, mdio_bus, addr,
+			id1 = bdk_mdio_read(node, mdio_bus, mdio_addr,
 					    BDK_MDIO_PHY_REG_ID1);
 			if (id1 == 0x2000) { /* TI */
 				ti_phy_setup(node, qlm, mdio_bus, mdio_addr);
+				detected++;
+			}
+			else if (id1 == 0x0007) { /* Vitesse */
+				vt_phy_setup(node, qlm, mdio_bus, mdio_addr);
 				detected++;
 			}
 			else
