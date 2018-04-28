@@ -59,13 +59,13 @@ static void if_phy_ti_write(bdk_node_t node, int bus, int addr, int reg,
 
 static int ti_phy_setup(bdk_node_t node, int qlm, int bus, int addr)
 {
-	int reg, status;
+	int reg, id2;
 
 	/* Check if the PHY is TI PHY we expect */
-	status = bdk_mdio_read(node, bus, addr, BDK_MDIO_PHY_REG_ID1);
+	id2 = bdk_mdio_read(node, bus, addr, BDK_MDIO_PHY_REG_ID2);
 
 	/* DP83867 */
-	if (status != 0x2000)
+	if (id2 != 0xa231)
 		return -1;
 
 	printf("MDIO%d   : DP83867 (%s)\n", bus,
