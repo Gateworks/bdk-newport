@@ -239,17 +239,18 @@ int main(int argc, const char **argv)
 
     bdk_boot_status(BDK_BOOT_STATUS_BOOT_STUB_WAITING_FOR_KEY);
 
+    int key = -1;
+    FRESULT res= FR_OK;
+    FILINFO info;
+    res = f_stat("diagnostics.bin.lzma", &info);
+if (res == FR_OK) {
     int boot_timeout = bdk_config_get_int(BDK_CONFIG_BOOT_MENU_TIMEOUT);
-#ifndef ALLOW_DIAGNOSTICS
     printf("\nPress 'B' within %d seconds for boot menu\n", boot_timeout);
-    int key;
     do
     {
         key = bdk_readline_getkey(boot_timeout * 1000000);
     } while ((key != -1) && (key != 'B') && (key != 'b'));
-#else
-    int key = -1;
-#endif
+}
 
     const char *board = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
     if (!strcmp(board, "unknown"))
