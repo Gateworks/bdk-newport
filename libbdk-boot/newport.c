@@ -540,7 +540,7 @@ static int newport_phy_setup(bdk_node_t node)
 int newport_config(void)
 {
 	struct newport_board_config *cfg;
-	int i, board_model;
+	int board_model;
 	char *hwconfig = NULL;
 	bool quiet = false;
 	bdk_node_t node = bdk_numa_local();
@@ -614,13 +614,8 @@ int newport_config(void)
 
 	/* Config PHYs */
 	bdk_boot_mdio(); /* handle MDIO-WRITE's from board dts */
-	for (i = 0; i < 5; i++) {
-		phy_reset(node, cfg);
-		if (2 == newport_phy_setup(node))
-			break;
-		printf("MDIO retry %d/%d\n", i+1, 5);
-		bdk_wait_usec(500000);
-	}
+	phy_reset(node, cfg);
+	newport_phy_setup(node);
 
 	return 0;
 }
