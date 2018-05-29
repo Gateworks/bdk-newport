@@ -446,26 +446,36 @@ static int newport_dram_config(bdk_node_t node)
 	int spd_size;
 	uint8_t *spd_data = (uint8_t *)bdk_config_get_blob(&spd_size,
 					BDK_CONFIG_DDR_SPD_DATA, 0, 0, node);
+	int width = 8 << info->sdram_width;
+	int size_mb = 16 << info->sdram_size;
+	int model = atoi(info->model + 2);
 
-	debug("%s model=%s\n", __func__, info->model);
-	if (spd_data && spd_size) {
-		if (strncmp(info->model, "GW6300", 6) == 0) {
+	debug("%s: %s model=%d width=%d size_mb=%d\n", __func__, info->model,
+	      model, width, size_mb);
+	if (!spd_data || !spd_size) {
+		printf("DRAM:  missing configuration\n");
+		return -1;
+	}
+
+	switch (width) {
+	case 32:
+		switch (size_mb) {
+		case 1024:
 			/* SDRAM Density / Banks: 2 bank groups, 4 banks 4Gb */
 			spd_data[4] = 0x44;
 			/* Addressing: 256Mbx16 15 Row x 10 Column */
 			spd_data[5] = 0x19;
-		} else if (strncmp(info->model, "GW6304", 6) == 0) {
+			break;
+		case 2048:
 			/* SDRAM Density / Banks: 2 bank groups, 4 banks 8Gb */
 			spd_data[4] = 0x45;
 			/* Addressing: 512Mbx16 16 Row x 10 Column */
 			spd_data[5] = 0x21;
+			break;
 		}
-		bdk_config_set_blob(spd_size, spd_data,
-				    BDK_CONFIG_DDR_SPD_DATA);
-	} else {
-		printf("DRAM:  missing configuration\n");
-		return -1;
+		break;
 	}
+	bdk_config_set_blob(spd_size, spd_data, BDK_CONFIG_DDR_SPD_DATA);
 
 	return 0;
 }
