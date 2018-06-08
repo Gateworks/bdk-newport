@@ -91,6 +91,7 @@ enum {
 };
 
 enum baseboard {
+	GW610x,
 	GW630x,
 	GW640x,
 	GW_UNKNOWN,

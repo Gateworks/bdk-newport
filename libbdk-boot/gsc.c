@@ -11,6 +11,35 @@ struct newport_board_info board_info;
 int board_model = GW_UNKNOWN;
 
 struct newport_board_config board_configs[] = {
+	/* GW610x */
+	{
+		.qlm = {
+			{ BDK_QLM_MODE_DISABLED, 0, BDK_QLM_CLK_COMMON_1 },
+			{ BDK_QLM_MODE_DISABLED, 0, BDK_QLM_CLK_COMMON_1 },
+			{ BDK_QLM_MODE_DISABLED, 0, BDK_QLM_CLK_COMMON_1 },
+			/* PCIe Gen2 (default) or SATA */
+			{ BDK_QLM_MODE_PCIE_1X1, 5000, BDK_QLM_CLK_COMMON_1 },
+		},
+		.skt = {
+			/* qlm, skt, defmode, optmode */
+			{ 3, "J6", "PCI", "SATA" },
+		},
+		/* serial */
+		.gpio_uart_hd = -1,
+		.gpio_uart_term = -1,
+		.gpio_uart_rs485 = -1,
+		/* LED */
+		.gpio_ledgrn = 31,
+		.gpio_ledred = 14,
+		/* misc */
+		.gpio_usben = -1,
+		.gpio_satasel = -1,
+		.gpio_usb3sel = -1,
+		.gpio_phyrst = 23,
+		.gpio_phyrst_pol = 1,
+		.mmc_devs = 2,
+	},
+
 	/* GW630x */
 	{
 		.qlm = {
@@ -241,6 +270,9 @@ retry:
 	}
 
 	switch (info->model[3]) {
+	case '1':
+		type = GW610x;
+		break;
 	case '3':
 		type = GW630x;
 		break;
@@ -297,6 +329,17 @@ retry:
 
 	/* modify board info and board config based on model and revision */
 	switch(type) {
+	case GW610x:
+		cfg->gpio_usben = -1;
+		cfg->gpio_satasel = -1;
+		cfg->gpio_phyrst = 23;
+		cfg->gpio_phyrst_pol = 1;
+		cfg->gpio_uart_hd = -1;
+		cfg->gpio_uart_term = -1;
+		cfg->gpio_uart_rs485 = -1;
+		cfg->gpio_ledgrn = 31;
+		cfg->gpio_ledred = 14;
+		break;
 	case GW630x:
 		switch(rev_pcb) {
 		case 'A':
