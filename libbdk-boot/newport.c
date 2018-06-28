@@ -763,7 +763,8 @@ show_hwmon(void *fdt)
 		if (label && !strcasecmp(type, "gw,hwmon-temperature")) {
 			if (val > 0x8000)
 				val -= 0xffff;
-			printf("%-8s: %d.%dC\n", label, val / 10, val % 10);
+			printf("%-8s: %d.%dC\n", label, val / 10,
+				abs(val % 10));
 		}
 
 		else if (label && !strcasecmp(type, "gw,hwmon-voltage")) {
