@@ -130,6 +130,7 @@ struct newport_board_config
 	int gpio_phyrst;
 	int gpio_phyrst_pol;
 	int mmc_devs;
+	int ext_temp;
 };
 
 int newport_config(void);

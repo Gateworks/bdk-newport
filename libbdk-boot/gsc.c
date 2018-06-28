@@ -38,6 +38,7 @@ struct newport_board_config board_configs[] = {
 		.gpio_phyrst = 23,
 		.gpio_phyrst_pol = 1,
 		.mmc_devs = 2,
+		.ext_temp = 1,
 	},
 
 	/* GW630x */
@@ -72,6 +73,7 @@ struct newport_board_config board_configs[] = {
 		.gpio_phyrst = 14,
 		.gpio_phyrst_pol = 0,
 		.mmc_devs = 2,
+		.ext_temp = 1,
 	},
 
 	/* GW640x */
@@ -105,6 +107,7 @@ struct newport_board_config board_configs[] = {
 		.gpio_phyrst = 23,
 		.gpio_phyrst_pol = 1,
 		.mmc_devs = 2,
+		.ext_temp = 1,
 	},
 };
 
@@ -363,6 +366,7 @@ retry:
 			info->qlm[1] = 0xff;
 			info->qlm[2] = 0xff;
 			info->qlm[3] = 0xff;
+			cfg->ext_temp = 0;
 			break;
 		case 'B':
 			cfg->gpio_usben = 18;
@@ -375,6 +379,10 @@ retry:
 			cfg->gpio_uart_rs485 = 17;
 			cfg->gpio_ledgrn = 13;
 			cfg->gpio_ledred = 14;
+			cfg->ext_temp = 0;
+			break;
+		case 'C':
+			cfg->ext_temp = 0;
 			break;
 		default:
 			cfg->gpio_usben = 18;
@@ -400,6 +408,11 @@ retry:
 		cfg->gpio_uart_rs485 = 17;
 		cfg->gpio_ledgrn = 31;
 		cfg->gpio_ledred = 14;
+		switch(rev_pcb) {
+		case 'A':
+			cfg->ext_temp = 0;
+			break;
+		}
 		break;
 	}
 
@@ -485,6 +498,55 @@ gsc_get_rst_cause(bdk_node_t node)
 	return str;
 }
 
+int
+gsc_board_temp(bdk_node_t node)
+{
+	int reg, ui;
+
+	/* GSC v51+ has board temp at register offset 0 */
+	reg = (gsc_get_fwver() > 50) ? 6 : 0;
+	ui = gsc_hwmon_reg(node, reg);
+	if (ui > 0x8000)
+		ui -= 0xffff;
+	return ui;
+}
+
+/* update MAX6642 remote threshold per CN80XXI-AD-1.0 */
+static int init_max6642(bdk_node_t node)
+{
+	int tj_max, reg, i;
+
+	/*
+	 * CN80XX industrial temp max Junction Temp (Tj):
+	 *  800MHz: 100C
+	 * 1000MHz: 100C
+	 * 1200MHz: 100C
+	 * 1500MHz: 95C
+	 */
+	tj_max = 100;
+	if ( (bdk_clock_get_rate(node, BDK_CLOCK_RCLK) / 1000000) >= 1500)
+		tj_max -= 5;
+
+	/* set new limits:
+	 *  Note disabling local sense keeps you from ever being able to
+	 *  clear the alert if it has tripped so instead we just set the
+	 *  local limit to the remote limit so remote will always trip first.
+	 */
+	i2c_write_byte(node, 0, MAX6642_SLAVE, MAX6642_W_CONFIG, 0x10);
+	i2c_write_byte(node, 0, MAX6642_SLAVE, MAX6642_W_LIMIT_LOCAL, tj_max);
+	i2c_write_byte(node, 0, MAX6642_SLAVE, MAX6642_W_LIMIT_REMOTE, tj_max);
+
+	/* loop over status until clear */
+	for (i = 0; i < 20; i++) {
+		reg = i2c_read_byte(node, 0, MAX6642_SLAVE, MAX6642_R_STATUS);
+		if (!(reg & 0x50))
+			break;
+		bdk_wait_usec(500000);
+	}
+
+	return 0;
+}
+
 /* gsc_init:
  *   This is called from early init (boot stub) to determine board model
  *   and perform any critical early init.
@@ -495,8 +557,7 @@ gsc_init(bdk_node_t node)
 	struct newport_board_info *info = &board_info;
 	struct newport_board_config *cfg;
 	unsigned char buf[16];
-	int reg_temp;
-	int i;
+	int i, t;
 
 	/*
 	 * On a board with a missing/depleted backup battery for GSC, the
@@ -519,17 +580,29 @@ gsc_init(bdk_node_t node)
 	printf("GSC     : v%d 0x%04x", buf[GSC_SC_FWVER],
 		buf[GSC_SC_FWCRC] | buf[GSC_SC_FWCRC+1]<<8);
 	printf(" RST:%s", gsc_get_rst_cause(node));
-	reg_temp = 0;
-	/* GSC v51+ has board temp at register offset 0 */
-	if (buf[GSC_SC_FWVER] > 50)
-		reg_temp = 0x6;
-	if (!i2c_read(node, 0, GSC_HWMON_ADDR, reg_temp, buf, 2)) {
-		int ui = buf[0] | buf[1]<<8;
-		if (ui > 0x8000)
-			ui -= 0xffff;
-		printf(" board temp:%dC", ui / 10);
-	}
 	printf("\n");
+
+	if (GW_UNKNOWN == gsc_read_eeprom(node))
+		return -2;
+
+	cfg = gsc_get_board_config();
+	/* Display/Configure temperature */
+	t = gsc_board_temp(node);
+	if (cfg->ext_temp) {
+		init_max6642(node);
+		printf("Temp    : Board:%dC/86C CPU:%dC/%dC\n", t / 10,
+		       i2c_read_byte(node, 0, MAX6642_SLAVE,
+				     MAX6642_R_TEMP_REMOTE),
+		       i2c_read_byte(node, 0, MAX6642_SLAVE,
+				     MAX6642_R_LIMIT_REMOTE));
+	}
+	else
+		printf("Temp    : Board:%dC/86C\n", t / 10);
+	printf("Model   : %s\n", info->model);
+	printf("MFGDate : %02x-%02x-%02x%02x\n",
+		info->mfgdate[0], info->mfgdate[1],
+		info->mfgdate[2], info->mfgdate[3]);
+	printf("Serial  : %d\n", info->serial);
 
 	/* Display RTC */
 	if (!i2c_read(node, 0, GSC_RTC_ADDR, 0, buf, 6)) {
@@ -537,19 +610,9 @@ gsc_init(bdk_node_t node)
 			buf[0] | buf[1]<<8 | buf[2]<<16 | buf[3]<<24);
 	}
 
-	if (GW_UNKNOWN == gsc_read_eeprom(node))
-		return -2;
-
-	printf("Model   : %s\n", info->model);
-	printf("MFGDate : %02x-%02x-%02x%02x\n",
-		info->mfgdate[0], info->mfgdate[1],
-		info->mfgdate[2], info->mfgdate[3]);
-	printf("Serial  : %d\n", info->serial);
-
 	/*
 	 * Configure early GPIO
 	 */
-	cfg = gsc_get_board_config();
 	/* enable USB HUB */
 	if (cfg->gpio_usben != -1)
 		gpio_output(cfg->gpio_usben, 1);
