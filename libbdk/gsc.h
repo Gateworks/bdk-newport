@@ -21,6 +21,7 @@ int gsc_sleep(bdk_node_t node, unsigned long secs);
 int gsc_boot_wd_disable(bdk_node_t node, bool leave_enabled);
 int gsc_hwmon_reg(bdk_node_t node, int reg);
 const char *gsc_get_dtb_name(bdk_node_t node, int level);
+const char *gsc_get_rst_cause(bdk_node_t node);
 void menu_gsc(bdk_menu_t *parent, char key, void *arg);
 void hexdump(unsigned char *buf, int size);
 struct newport_board_config *gsc_get_board_config(void);

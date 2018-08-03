@@ -160,6 +160,7 @@ enum {
 	GSC_SC_FWCRC		= 12,
 	GSC_SC_FWVER		= 14,
 	GSC_SC_WP		= 15,
+	GSC_SC_RST_CAUSE	= 16,
 };
 
 /* System Controller Control1 bits */
@@ -188,6 +189,21 @@ enum {
 };
 #define GSC_WP_PASSWD		0x58
 #define GSC_WP_PASSWD_MASK	0xF8
+
+/* System Controller Reset Cause */
+enum {
+	GSC_SC_RST_CAUSE_VIN		= 0,
+	GSC_SC_RST_CAUSE_PB		= 1,
+	GSC_SC_RST_CAUSE_WDT		= 2,
+	GSC_SC_RST_CAUSE_CPU		= 3,
+	GSC_SC_RST_CAUSE_TEMP_LOCAL	= 4,
+	GSC_SC_RST_CAUSE_TEMP_REMOTE	= 5,
+	GSC_SC_RST_CAUSE_SLEEP		= 6,
+	GSC_SC_RST_CAUSE_BOOT_WDT	= 7,
+	GSC_SC_RST_CAUSE_BOOT_WDT_MAN	= 8,
+	GSC_SC_RST_CAUSE_SOFT_PWR	= 9,
+	GSC_SC_RST_CAUSE_MAX		= 10,
+};
 
 static int
 i2c_read(bdk_node_t node, int bus, int addr, int reg, uint8_t *buf, int sz)
@@ -432,6 +448,43 @@ gsc_hwmon_reg(bdk_node_t node, int reg)
 	return buf[0] | buf[1]<<8;
 }
 
+const char *
+gsc_get_rst_cause(bdk_node_t node)
+{
+	static char str[32];
+	const char *names[] = {
+		"VIN",
+		"PB",
+		"WDT",
+		"CPU",
+		"TEMP_L",
+		"TEMP_R",
+		"SLEEP",
+		"BOOT_WDT1",
+		"BOOT_WDT2",
+		"SOFT_PWR",
+	};
+	unsigned char reg;
+
+	/* GSC v53 adds reset cause register */
+	if (gsc_get_fwver() > 52)
+		i2c_read(node, 0, GSC_SC_ADDR, GSC_SC_RST_CAUSE, &reg, 1);
+	else {
+		i2c_read(node, 0, GSC_SC_ADDR, GSC_SC_STATUS, &reg, 1);
+		if (reg & (1 << GSC_SC_IRQ_WATCHDOG))
+			reg = GSC_SC_RST_CAUSE_WDT;
+		else
+			reg = GSC_SC_RST_CAUSE_VIN;
+	}
+
+	if (reg < ARRAY_SIZE(names))
+		sprintf(str, "%s", names[reg]);
+	else
+		printf("0x%02x", reg);
+
+	return str;
+}
+
 /* gsc_init:
  *   This is called from early init (boot stub) to determine board model
  *   and perform any critical early init.
@@ -463,13 +516,9 @@ gsc_init(bdk_node_t node)
 	/* Default color, Reset scroll region and goto bottom */
 	printf("\33[0m\33[1;r\33[100;1H\n\n\n");
 	printf("Gateworks Newport SPL (%s)\n\n", bdk_version_string());
-	printf("GSC     : v%d", buf[GSC_SC_FWVER]);
-	printf(" 0x%04x", buf[GSC_SC_FWCRC] | buf[GSC_SC_FWCRC+1]<<8);
-	printf(" WDT:%sabled", (buf[GSC_SC_CTRL1] & (1<<GSC_SC_CTRL1_WDEN))
-		? "en" : "dis");
-	if (buf[GSC_SC_STATUS] & (1 << GSC_SC_IRQ_WATCHDOG)) {
-		printf(" WDT_RESET");
-	}
+	printf("GSC     : v%d 0x%04x", buf[GSC_SC_FWVER],
+		buf[GSC_SC_FWCRC] | buf[GSC_SC_FWCRC+1]<<8);
+	printf(" RST:%s", gsc_get_rst_cause(node));
 	reg_temp = 0;
 	/* GSC v51+ has board temp at register offset 0 */
 	if (buf[GSC_SC_FWVER] > 50)
