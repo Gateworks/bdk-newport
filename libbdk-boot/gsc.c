@@ -422,7 +422,7 @@ gsc_eeprom_update(bdk_node_t node)
 }
 
 int
-gsc_hwmon_reg(bdk_node_t node, const char *name, int reg)
+gsc_hwmon_reg(bdk_node_t node, int reg)
 {
 	uint8_t buf[2];
 

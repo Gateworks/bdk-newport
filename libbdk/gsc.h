@@ -19,7 +19,7 @@ int gsc_program(bdk_node_t node);
 int gsc_watchdog_config(bdk_node_t node, int timeout);
 int gsc_sleep(bdk_node_t node, unsigned long secs);
 int gsc_boot_wd_disable(bdk_node_t node, bool leave_enabled);
-int gsc_hwmon_reg(bdk_node_t node, const char *name, int reg);
+int gsc_hwmon_reg(bdk_node_t node, int reg);
 const char *gsc_get_dtb_name(bdk_node_t node, int level);
 void menu_gsc(bdk_menu_t *parent, char key, void *arg);
 void hexdump(unsigned char *buf, int size);

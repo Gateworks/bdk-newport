@@ -758,7 +758,7 @@ show_hwmon(void *fdt)
 		reg = fdt_get_int(fdt, off, "reg", -1);
 		offset = fdt_get_int(fdt, off, "gw,voltage-offset", 0);
 		label = fdt_get_string(fdt, off, "label", NULL);
-		val = gsc_hwmon_reg(node, label, reg);
+		val = gsc_hwmon_reg(node, reg);
 
 		if (label && !strcasecmp(type, "gw,hwmon-temperature")) {
 			if (val > 0x8000)
