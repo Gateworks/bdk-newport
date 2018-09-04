@@ -448,10 +448,9 @@ static int newport_dram_config(bdk_node_t node)
 					BDK_CONFIG_DDR_SPD_DATA, 0, 0, node);
 	int width = 8 << info->sdram_width;
 	int size_mb = 16 << info->sdram_size;
-	int model = atoi(info->model + 2);
 
 	debug("%s: %s model=%d width=%d size_mb=%d\n", __func__, info->model,
-	      model, width, size_mb);
+	      atoi(info->model + 2), width, size_mb);
 	if (!spd_data || !spd_size) {
 		printf("DRAM:  missing configuration\n");
 		return -1;
