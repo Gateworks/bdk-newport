@@ -807,6 +807,7 @@ show_hwmon(void *fdt)
 
 int newport_devtree_fixups(void *fdt)
 {
+	struct newport_board_config *cfg = gsc_get_board_config();
 	const char *str;
 
 	/* hwmon inputs */
@@ -819,6 +820,15 @@ int newport_devtree_fixups(void *fdt)
 	/* board model */
 	str = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
 	fdt_setprop(fdt, 0, "board", str, strlen(str) + 1);
+
+	/* max6642 */
+	if (!cfg->ext_temp) {
+		int off;
+
+		off = fdt_node_offset_by_compatible(fdt, -1, "maxim,max6642");
+		if (off > 0)
+			fdt_del_node(fdt, off);
+	}
 
 	/* MMC slot definitions */
 	fixup_mmc(fdt);
