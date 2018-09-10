@@ -4611,11 +4611,36 @@ int init_octeon3_ddr3_interface(bdk_node_t node,
 
         comp_ctl2.s.rodt_ctl = default_rodt_ctl;
 
-	// if DDR4, force CK_CTL to 26 ohms if it is currently 34 ohms, and DCLK speed is 1 GHz or more...
-	if ((ddr_type == DDR4_DRAM) && (comp_ctl2.s.ck_ctl == ddr4_driver_34_ohm) && (ddr_hertz >= 1000000000)) {
+	// if DDR4, force CK_CTL to 26 ohms if it is currently the default, and DCLK speed is 1 GHz or more...
+        // but allow no override if the custom setting is not the default.
+	if ((ddr_type == DDR4_DRAM)   &&
+            (ddr_hertz >= 1000000000) &&
+            (custom_lmc_config->ck_ctl == 0))
+        {
 	    comp_ctl2.s.ck_ctl = ddr4_driver_26_ohm; // lowest for DDR4 is 26 ohms
 	    ddr_print("Forcing DDR4 COMP_CTL2[CK_CTL] to %d, %d ohms\n", comp_ctl2.s.ck_ctl,
 		      imp_values->drive_strength[comp_ctl2.s.ck_ctl]);
+	}
+
+	// if DDR4, 2DPC, UDIMM, force CONTROL_CTL and CMD_CTL to 26 ohms, if DCLK speed is 1 GHz or more...
+        // but allow no override if the custom setting is not the default.
+	if ((ddr_type == DDR4_DRAM)
+            && (dimm_count == 2)
+            && ((spd_dimm_type == 2) || (spd_dimm_type == 6))
+            && (ddr_hertz >= 1000000000))
+        {
+            if (custom_lmc_config->ctl_ctl == 0) { // allow override if default
+                comp_ctl2.s.control_ctl = ddr4_driver_26_ohm; // lowest for DDR4 is 26 ohms
+                ddr_print("N%d.LMC%d: Forcing DDR4 COMP_CTL2[CONTROL_CTL] to %d, %d ohms\n",
+                          node, ddr_interface_num, ddr4_driver_26_ohm,
+                          imp_values->drive_strength[ddr4_driver_26_ohm]);
+            }
+            if (custom_lmc_config->cmd_ctl == 0) { // allow override if default
+                comp_ctl2.s.cmd_ctl = ddr4_driver_26_ohm; // lowest for DDR4 is 26 ohms
+                ddr_print("N%d.LMC%d: Forcing DDR4 COMP_CTL2[CMD_CTL] to %d, %d ohms\n",
+                          node, ddr_interface_num, ddr4_driver_26_ohm,
+                          imp_values->drive_strength[ddr4_driver_26_ohm]);
+            }
 	}
 
         if ((s = lookup_env_parameter("ddr_ck_ctl")) != NULL) {
@@ -7508,11 +7533,6 @@ int init_octeon3_ddr3_interface(bdk_node_t node,
             sw_wlevel_hw_default = !!strtoul(s, NULL, 0);
         }
 
-         // cannot use hw-assist when doing 32-bit
-        if (! ddr_interface_64b) {
-            sw_wlevel_hw_default = 0;
-        }
-
         if ((s = lookup_env_parameter("ddr_software_wlevel")) != NULL) {
             sw_wlevel_enable = strtoul(s, NULL, 0);
         }
@@ -7731,13 +7751,11 @@ int init_octeon3_ddr3_interface(bdk_node_t node,
 			uint64_t bytemask;
 			int bytes_todo;
 
-                        if (ddr_interface_64b) {
-                            bytes_todo = (sw_wlevel_hw) ? ddr_interface_bytemask : 0xFF;
-                            bytemask = ~0ULL;
-                        } else { // 32-bit, must be using SW algo, only data bytes
-                            bytes_todo = 0x0f;
-                            bytemask = 0x00000000ffffffffULL;
-                        }
+                        bytes_todo = (sw_wlevel_hw)
+                            ? ddr_interface_bytemask
+                            : ((ddr_interface_64b) ? 0xFF : 0x0F);
+
+                        bytemask = ~0ULL; // start testing all 64-bits
 
 			for (byte = 0; byte < 9; ++byte) {
 			    if (!(bytes_todo & (1 << byte))) {
@@ -8167,19 +8185,22 @@ int init_octeon3_ddr3_interface(bdk_node_t node,
 		//        so we need to enable ECC for this test!!!
 		// if there are any errors, claim SW WL failure
 		{
-		    uint64_t datamask = (ddr_interface_64b) ? 0xffffffffffffffffULL : 0x00000000ffffffffULL;
+                    int bytes_todo = (sw_wlevel_hw)
+                        ? ddr_interface_bytemask
+                        : ((ddr_interface_64b) ? 0xFF : 0x0F);
 
                     // do the test
                     if (sw_wlevel_hw) {
                         errors = run_best_hw_patterns(node, ddr_interface_num, rank_addr, 
-                                                      DBTRAIN_TEST, NULL) & 0x0ff;
+                                                      DBTRAIN_TEST, NULL);
                     } else {
 #if USE_ORIG_TEST_DRAM_BYTE
-                        errors = test_dram_byte(node, ddr_interface_num, rank_addr, datamask, NULL);
+                        errors = test_dram_byte(node, ddr_interface_num, rank_addr, ~0ULL, NULL);
 #else
-                        errors = dram_tuning_mem_xor(node, ddr_interface_num, rank_addr, datamask, NULL);
+                        errors = dram_tuning_mem_xor(node, ddr_interface_num, rank_addr, ~0ULL, NULL);
 #endif
                     }
+                    errors &= bytes_todo;
 
 		    if (errors) {
 			ddr_print("N%d.LMC%d.R%d: Wlevel Rank Final Test errors 0x%x\n",
