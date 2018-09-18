@@ -94,18 +94,18 @@ struct newport_board_config board_configs[] = {
 			{ 2, "J11", "PCI", "USB3" },
 		},
 		/* serial */
-		.gpio_uart_hd = 21,
-		.gpio_uart_term = 22,
-		.gpio_uart_rs485 = 23,
+		.gpio_uart_hd = 15,
+		.gpio_uart_term = 16,
+		.gpio_uart_rs485 = 17,
 		/* LED */
-		.gpio_ledgrn = 19,
-		.gpio_ledred = 20,
+		.gpio_ledgrn = 31,
+		.gpio_ledred = 14,
 		/* misc */
-		.gpio_usben = 24,
+		.gpio_usben = 18,
 		.gpio_satasel = -1,
-		.gpio_usb3sel = 25,
-		.gpio_phyrst = 14,
-		.gpio_phyrst_pol = 0,
+		.gpio_usb3sel = 19,
+		.gpio_phyrst = 23,
+		.gpio_phyrst_pol = 1,
 		.mmc_devs = 2,
 		.ext_temp = 1,
 	},
@@ -136,6 +136,7 @@ struct newport_board_config board_configs[] = {
 		.gpio_ledgrn = 31,
 		.gpio_ledred = 14,
 		/* misc */
+		.gpio_usben = 18,
 		.gpio_satasel = 20,
 		.gpio_usb3sel = -1,
 		.gpio_phyrst = 23,
@@ -383,29 +384,11 @@ retry:
 	board_model = type;
 	struct newport_board_config *cfg = gsc_get_board_config();
 
-	/* modify board info and board config based on model and revision */
+	/* modify board info from the default struct based on model/revision */
 	switch(type) {
 	case GW610x:
-		cfg->gpio_usben = -1;
-		cfg->gpio_satasel = -1;
-		cfg->gpio_phyrst = 23;
-		cfg->gpio_phyrst_pol = 1;
-		cfg->gpio_uart_hd = -1;
-		cfg->gpio_uart_term = -1;
-		cfg->gpio_uart_rs485 = -1;
-		cfg->gpio_ledgrn = 31;
-		cfg->gpio_ledred = 14;
 		break;
 	case GW620x:
-		cfg->gpio_usben = 18;
-		cfg->gpio_satasel = -1;
-		cfg->gpio_phyrst = 23;
-		cfg->gpio_phyrst_pol = 1;
-		cfg->gpio_uart_hd = 15;
-		cfg->gpio_uart_term = 16;
-		cfg->gpio_uart_rs485 = 17;
-		cfg->gpio_ledgrn = 31;
-		cfg->gpio_ledred = 14;
 		break;
 	case GW630x:
 		switch(rev_pcb) {
@@ -414,48 +397,35 @@ retry:
 			info->qlm[1] = 0xff;
 			info->qlm[2] = 0xff;
 			info->qlm[3] = 0xff;
+			cfg->gpio_usben = 24;
+			cfg->gpio_usb3sel = 25;
+			cfg->gpio_satasel = -1;
+			cfg->gpio_phyrst = 14;
+			cfg->gpio_phyrst_pol = 0;
+			cfg->gpio_uart_hd = 21;
+			cfg->gpio_uart_term = 22;
+			cfg->gpio_uart_rs485 = 23;
+			cfg->gpio_ledgrn = 19;
+			cfg->gpio_ledred = 20;
 			cfg->ext_temp = 0;
 			break;
 		case 'B':
-			cfg->gpio_usben = 18;
-			cfg->gpio_usb3sel = 19;
-			cfg->gpio_satasel = 20;
 			cfg->gpio_phyrst = 31;
 			cfg->gpio_phyrst_pol = 0;
-			cfg->gpio_uart_hd = 15;
-			cfg->gpio_uart_term = 16;
-			cfg->gpio_uart_rs485 = 17;
+			cfg->gpio_satasel = 20;
 			cfg->gpio_ledgrn = 13;
-			cfg->gpio_ledred = 14;
 			cfg->ext_temp = 0;
 			break;
 		case 'C':
+			cfg->gpio_satasel = 20;
 			cfg->ext_temp = 0;
 			break;
-		default:
-			cfg->gpio_usben = 18;
-			cfg->gpio_usb3sel = 19;
-			cfg->gpio_satasel = 20;
-			cfg->gpio_phyrst = 23;
-			cfg->gpio_phyrst_pol = 1;
-			cfg->gpio_uart_hd = 15;
-			cfg->gpio_uart_term = 16;
-			cfg->gpio_uart_rs485 = 17;
-			cfg->gpio_ledgrn = 31;
-			cfg->gpio_ledred = 14;
+		case 'D':
+			cfg->gpio_satasel = -1;
 			break;
 		}
 		break;
 	case GW640x:
-		cfg->gpio_usben = 18;
-		cfg->gpio_satasel = 20;
-		cfg->gpio_phyrst = 23;
-		cfg->gpio_phyrst_pol = 1;
-		cfg->gpio_uart_hd = 15;
-		cfg->gpio_uart_term = 16;
-		cfg->gpio_uart_rs485 = 17;
-		cfg->gpio_ledgrn = 31;
-		cfg->gpio_ledred = 14;
 		switch(rev_pcb) {
 		case 'A':
 			cfg->ext_temp = 0;
