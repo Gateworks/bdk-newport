@@ -137,7 +137,7 @@ struct newport_board_config board_configs[] = {
 		.gpio_ledred = 14,
 		/* misc */
 		.gpio_usben = 18,
-		.gpio_satasel = 20,
+		.gpio_satasel = -1,
 		.gpio_usb3sel = -1,
 		.gpio_phyrst = 23,
 		.gpio_phyrst_pol = 1,
@@ -429,6 +429,7 @@ retry:
 		switch(rev_pcb) {
 		case 'A':
 			cfg->ext_temp = 0;
+			cfg->gpio_satasel = 20;
 			break;
 		}
 		break;
