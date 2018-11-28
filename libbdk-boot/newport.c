@@ -104,12 +104,68 @@ static int ti_phy_setup(bdk_node_t node, int qlm, int bus, int addr)
 	return 0;
 }
 
-/* vt_phy_setup - setup VSC8574 PHY */
-static int vt_phy_setup(bdk_node_t n, int qlm, int b, int a)
+enum vt_led_modes {
+	VT_LED_LINK_ACT	= 0,
+	VT_LED_LINK1000_ACT,
+	VT_LED_LINK100_ACT,
+	VT_LED_LINK10_ACT,
+	VT_LED_LINK100_1000_ACT,
+	VT_LED_LINK10_1000_ACT,
+	VT_LED_LINK10_100_ACT,
+	VT_LED_LINK100BASEFX_1000BASEX_ACT,
+	VT_LED_DUPLEX_COLLISION,
+	VT_LED_COLLISION,
+	VT_LED_ACT,
+	VT_LED_1000BASEFX_1000BASE_X_ACT,
+	VT_LED_AUTONEG_FAULT,
+	VT_LED_SERIAL,
+	VT_LED_OFF,
+	VT_LED_ON,
+	VT_LED_LINK1000BASEX_ACT,
+	VT_LED_LINK100BASEFX_ACT,
+	VT_LED_100BASEX_ACT,
+	VT_LED_100BASEFX_ACT,
+	VT_LED_OFF1,
+	VT_LED_ON1,
+	VT_LED_FAST_LINK_FAIL,
+};
+
+/*
+ *  LED2 (Amber)
+ *  LED3 (Green)
+ *
+ * P3 PHY5
+ * P2 PHY4 D8-Green (LED3) D7-Amber (LED2)
+ */
+static int vt_set_port_led(bdk_node_t node, int bus, int addr, int port,
+			   int led, int mode)
 {
 	int reg;
 
-	/* Check if the PHY is TI PHY we expect */
+	debug("%s: mdio%d 0x%02x port%d led%d mode=%d\n", __func__,
+	      bus, addr, port, led, mode);
+	// Select page 1 registers
+	bdk_mdio_write(node, bus, addr + port, 0x1f, 1);
+	reg = bdk_mdio_read(node, bus, addr + port, 0x13);
+	// LED0-3 extended mode: R29[12]
+	reg = bdk_insert(reg, mode / 0xf, 12 + led, 1);
+	bdk_mdio_write(node, bus, addr + port, 0x13, reg);
+
+	// Select main registers
+	bdk_mdio_write(node, bus, addr + port, 0x1f, 0);
+	reg = bdk_mdio_read(node, bus, addr + port, 0x1d);
+	reg = bdk_insert(reg, mode & 0xf, led * 4, 4);
+	bdk_mdio_write(node, bus, addr + port, 0x1d, reg);
+
+	return 0;
+}
+
+/* vt_phy_setup - setup VSC8574 PHY */
+static int vt_phy_setup(bdk_node_t n, int qlm, int b, int a)
+{
+	int reg, p;
+
+	debug("%s QLM%d MDIO%d 0x%02x\n", __func__, qlm, b, a);
 	reg = bdk_mdio_read(n, b, a, BDK_MDIO_PHY_REG_ID2);
 
 	/* VSC8475-04 */
@@ -120,6 +176,57 @@ static int vt_phy_setup(bdk_node_t n, int qlm, int b, int a)
 
 	/* same as the VSC8475-01 used on sff8104: use that setup */
 	bdk_if_phy_vetesse_setup(n, qlm, b, a);
+
+	/* GPIO configuration
+	 * GPIO0: IN SFP4_PRES#
+	 * GPIO1: IN SFP5_PRES#
+	 * GPIO2: IN SFP4_LOS
+	 * GPIO3: IN SFP5_LOS
+	 * GPIO4: OUT SFP4_TXDIS
+	 * GPIO5: OUT SFP5_TXDIS
+	 * GPIO6: OUT SFP4_SCL
+	 * GPIO7: OUT SFP5_SCL
+	 * GPIO8: I/O SFP45_SDA
+	 * Drive LED states vs drive low and tristate high
+	 */
+	// Reg 13G GPIO0-GPIO7 control
+	//   GPIO0-5 GPIO GPIO6=PHY2_SCL GPIO7=PHY3_SCL
+	bdk_mdio_write(n, b, a, 0x1f, 0x10);
+	reg = 0x0fff;
+	bdk_mdio_write(n, b, a, 13, reg);
+	// Reg 14G GPIO control: GPIO0-5 GPIO GPIO6=PHY2_SCL GPIO7=PHY3_SCL
+	reg = bdk_mdio_read(n, b, a, 14);
+	reg &= ~0x3; // GPIO8 I2C_SDA
+	reg &= ~(1 << 9); // drive LED bus output low
+	bdk_mdio_write(n, b, a, 14, reg);
+	// Reg 17G: GPIO Pin Config
+	reg = bdk_mdio_read(n, b, a, 17);
+	reg &= ~0x3fff; // clear bits 13:0
+	reg |= 0x01f0; // GPIO0-3 input, GPIO4-8 output
+	bdk_mdio_write(n, b, a, 17, reg);
+	// Select main registers
+	bdk_mdio_write(n, b, a, 0x1f, 0);
+
+	/* Port specific config */
+	for (p = 0; p < 4; p++) {
+		// set 17e2(0x11) bit 11:10 to invert LED0/LED1
+		bdk_mdio_write(n, b, a + p, 0x1f, 2);
+		reg = bdk_mdio_read(n, b, a + p, 0x11);
+		reg = bdk_insert(reg, 0x3, 10, 2);
+		bdk_mdio_write(n, b, a + p, 0x11, reg);
+		bdk_mdio_write(n, b, a + p, 0x1f, 0);
+
+		// LED0 (Green) link/activity
+		vt_set_port_led(n, b, a, p, 0, VT_LED_LINK_ACT);
+		// LED1 (Yellow) speed
+		vt_set_port_led(n, b, a, p, 1, VT_LED_LINK1000_ACT);
+		reg = bdk_mdio_read(n, b, a + p, 0x1e);
+		reg = bdk_insert(reg, 0x1, 1, 1); // disable LED1 activity
+		bdk_mdio_write(n, b, a + p, 0x1e, reg);
+		// LED2/LED3 off
+		vt_set_port_led(n, b, a, p, 2, VT_LED_OFF);
+		vt_set_port_led(n, b, a, p, 3, VT_LED_OFF);
+	}
 
 	return 0;
 }
