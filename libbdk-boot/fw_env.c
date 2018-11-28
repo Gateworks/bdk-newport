@@ -143,11 +143,9 @@ static int env_aes_cbc_crypt(char *data, const int enc, uint8_t *key);
 
 static int HaveRedundEnv = 0;
 
-#ifdef ENV_FLAGS
 static unsigned char active_flag = 1;
 /* obsolete_flag must be 0 to efficiently set it on NOR flash without erasing */
 static unsigned char obsolete_flag = 0;
-#endif
 
 #define DEFAULT_ENV_INSTANCE_STATIC
 #if 0
@@ -387,11 +385,7 @@ int fw_env_write(char *name, char *value)
 	int len;
 	char *env, *nxt;
 	char *oldval = NULL;
-#ifdef ENV_FLAGS
 	int deleting, creating, overwriting;
-#else
-	int deleting, overwriting;
-#endif
 
 	/*
 	 * search if variable with this name already exists
@@ -410,10 +404,10 @@ int fw_env_write(char *name, char *value)
 	}
 
 	deleting = (oldval && !(value && strlen(value)));
-	overwriting = (oldval && (value && strlen(value)));
-#ifdef ENV_FLAGS
 	creating = (!oldval && (value && strlen(value)));
+	overwriting = (oldval && (value && strlen(value)));
 
+#if 0
 	/* check for permission */
 	if (deleting) {
 		if (env_flags_validate_varaccess(name,
@@ -540,7 +534,7 @@ int fw_setenv(int argc, char *argv[], struct env_opts *opts)
 	valv = argv + 1;
 	valc = argc - 1;
 
-#ifdef ENV_FLAGS
+#if 0
 	if (env_flags_validate_env_set_params(name, valv, valc) < 0) {
 		fw_env_close(opts);
 		return -1;
@@ -675,7 +669,7 @@ int fw_parse_script(char *fname, struct env_opts *opts)
 			name, val ? val : " removed");
 #endif
 
-#ifdef ENV_FLAGS
+#if 0
 		if (env_flags_validate_type(name, val) < 0) {
 			ret = -1;
 			break;
@@ -1096,7 +1090,6 @@ static int flash_write (int fd_current, int fd_target, int dev_target)
 {
 	int rc;
 
-#ifdef ENV_FLAGS
 	switch (environment.flag_scheme) {
 	case FLAG_NONE:
 		break;
@@ -1111,7 +1104,6 @@ static int flash_write (int fd_current, int fd_target, int dev_target)
 			 environment.flag_scheme);
 		return -1;
 	}
-#endif
 
 #ifdef DEBUG
 	fprintf(stderr, "Writing new environment at 0x%llx on %s\n",
@@ -1123,7 +1115,7 @@ static int flash_write (int fd_current, int fd_target, int dev_target)
 	if (rc < 0)
 		return rc;
 
-#ifdef ENV_FLAGS
+#if 0
 	if (environment.flag_scheme == FLAG_BOOLEAN) {
 		/* Have to set obsolete flag */
 		off_t offset = DEVOFFSET (dev_current) +
@@ -1216,15 +1208,11 @@ exit:
 int fw_env_open(struct env_opts *opts)
 {
 	uint32_t crc0, crc0_ok;
-#ifdef ENV_FLAGS
 	unsigned char flag0;
-#endif
 	void *addr0 = NULL;
 
 	uint32_t crc1, crc1_ok;
-#ifdef ENV_FLAGS
 	unsigned char flag1;
-#endif
 	void *addr1 = NULL;
 
 	int ret;
@@ -1285,9 +1273,7 @@ int fw_env_open(struct env_opts *opts)
 			memcpy(environment.data, default_environment, sizeof default_environment);
 		}
 	} else {
-#ifdef ENV_FLAGS
 		flag0 = *environment.flags;
-#endif
 
 		dev_current = 1;
 		addr1 = calloc(1, CUR_ENVSIZE);
@@ -1310,7 +1296,7 @@ int fw_env_open(struct env_opts *opts)
 			goto open_cleanup;
 		}
 
-#ifdef ENV_FLAGS
+#if 0
 		/* Check flag scheme compatibility */
 		if (DEVTYPE(dev_current) == MTD_NORFLASH &&
 		    DEVTYPE(!dev_current) == MTD_NORFLASH) {
@@ -1332,6 +1318,8 @@ int fw_env_open(struct env_opts *opts)
 			ret = -EINVAL;
 			goto open_cleanup;
 		}
+#else
+		environment.flag_scheme = FLAG_INCREMENTAL;
 #endif
 
 		crc1 = crc32 (0, (uint8_t *) redundant->data, ENV_SIZE);
@@ -1344,9 +1332,7 @@ int fw_env_open(struct env_opts *opts)
 		}
 
 		crc1_ok = (crc1 == redundant->crc);
-#ifdef ENV_FLAGS
 		flag1 = redundant->flags;
-#endif
 
 		if (crc0_ok && !crc1_ok) {
 			dev_current = 0;
@@ -1359,7 +1345,6 @@ int fw_env_open(struct env_opts *opts)
 				sizeof default_environment);
 			dev_current = 0;
 		} else {
-#ifdef ENV_FLAGS
 			switch (environment.flag_scheme) {
 			case FLAG_BOOLEAN:
 				if (flag0 == active_flag &&
@@ -1392,7 +1377,6 @@ int fw_env_open(struct env_opts *opts)
 					 environment.flag_scheme);
 				return -1;
 			}
-#endif
 		}
 
 		/*
@@ -1412,7 +1396,8 @@ int fw_env_open(struct env_opts *opts)
 			free (addr1);
 		}
 #ifdef DEBUG
-		fprintf(stderr, "Selected env in %s\n", DEVNAME(dev_current));
+		fprintf(stderr, "Selected env%d in %s@0x%llx\n", dev_current,
+			DEVNAME(dev_current), DEVOFFSET(dev_current));
 #endif
 	}
 	return 0;
