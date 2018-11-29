@@ -18,6 +18,7 @@
 #include "hwconfig.h"
 
 #define min(a, b) ((a) < (b)) ? (a) : (b)
+#define BIT(x) (1 << (x))
 
 /* PHY registers */
 #define REG_BMCR	0x0
@@ -38,6 +39,89 @@
 /* indirect register access */
 #define REG_REGCR	13
 #define REG_ADDAR	14
+
+/* Vitesse PHY Registers
+ */
+#define MSCC_EXT_PAGE_ACCESS			31
+#define MSCC_PHY_PAGE_STANDARD			0x0000 /* Standard registers */
+#define MSCC_PHY_PAGE_EXTENDED			0x0001 /* Extended registers */
+#define MSCC_PHY_PAGE_EXTENDED_2		0x0002 /* Extended reg - page 2 */
+#define MSCC_PHY_PAGE_EXTENDED_3		0x0003 /* Extended reg - page 3 */
+#define MSCC_PHY_PAGE_EXTENDED_4		0x0004 /* Extended reg - page 4 */
+#define MSCC_PHY_PAGE_EXTENDED_GPIO		0x0010 /* Extended reg - GPIO */
+
+/* extended regs */
+#define MSCC_PHY_EXT_PHY_CNTL_1			23
+#define MAC_IF_SELECTION_MASK			0x1000
+#define MAC_IF_SELECTION_SGMII			0
+#define MAC_IF_SELECTION_1000BASEX		1
+#define MAC_IF_SELECTION_POS			12
+#define MEDIA_OP_MODE_MASK			0x0700
+#define MEDIA_OP_MODE_COPPER			0
+#define MEDIA_OP_MODE_SERDES			1
+#define MEDIA_OP_MODE_1000BASEX			2
+#define MEDIA_OP_MODE_100BASEFX			3
+#define MEDIA_OP_MODE_AMS_COPPER_SERDES		5
+#define MEDIA_OP_MODE_AMS_COPPER_1000BASEX	6
+#define MEDIA_OP_MODE_AMS_COPPER_100BASEFX	7
+#define MEDIA_OP_MODE_POS			8
+
+/* Extended page GPIO Registers */
+#define MSCC_PHY_GPIO_INPUT			15
+
+#define MSCC_PHY_GPIO_OUTPUT			16
+
+#define MSCC_PHY_GPIO_CONFIG			17
+
+#define MSCC_PHY_PROC_CMD			18
+#define PROC_CMD_NCOMPLETED			0x8000
+#define PROC_CMD_FAILED				0x4000
+#define PROC_CMD_SGMII_PORT(x)			((x) << 8)
+#define PROC_CMD_FIBER_PORT(x)			(0x0100 << (x) % 4)
+#define PROC_CMD_QSGMII_PORT			0x0c00
+#define PROC_CMD_RST_CONF_PORT			0x0080
+#define PROC_CMD_RECONF_PORT			0x0000
+#define PROC_CMD_READ_MOD_WRITE_PORT		0x0040
+#define PROC_CMD_WRITE				0x0040
+#define PROC_CMD_READ				0x0000
+#define PROC_CMD_FIBER_DISABLE			0x0020
+#define PROC_CMD_FIBER_100BASE_FX		0x0010
+#define PROC_CMD_FIBER_1000BASE_X		0x0000
+#define PROC_CMD_SGMII_MAC			0x0030
+#define PROC_CMD_QSGMII_MAC			0x0020
+#define PROC_CMD_NO_MAC_CONF			0x0000
+#define PROC_CMD_1588_DEFAULT_INIT		0x0010
+#define PROC_CMD_NOP				0x000f
+#define PROC_CMD_PHY_INIT			0x000a
+#define PROC_CMD_CRC16				0x0008
+#define PROC_CMD_FIBER_MEDIA_CONF		0x0001
+#define PROC_CMD_MCB_ACCESS_MAC_CONF		0x0000
+#define PROC_CMD_NCOMPLETED_TIMEOUT_MS		500
+
+#define MSCC_PHY_MAC_CFG_FASTLINK		19
+#define MAC_CFG_MASK				0xc000
+#define MAC_CFG_SGMII				0x0000
+#define MAC_CFG_QSGMII				0x4000
+#define MAC_CFG_RGMII				0x8000
+
+#define MSCC_PHY_TWS_MUX_CTRL1			20
+#define TWS_MUX_CTRL1_MASK			0x003f
+#define TWS_MUX_CTRL1_50KHZ			0x0000
+#define TWS_MUX_CTRL1_100KHZ			0x0010
+#define TWS_MUX_CTRL1_400KHZ			0x0020
+#define TWS_MUX_CTRL1_2MHZ			0x0030
+#define TWS_MUX_CTRL1_PORT_EN(x)		(0x0001 << (x) % 4)
+
+#define MSCC_PHY_TWS_MUX_CTRL2			21
+#define TWS_MUX_CTRL2_MASK			0x0fff
+#define TWS_MUX_CTRL2_READY			BIT(15)
+#define TWS_MUX_CTRL2_PORT_SEL(x)		((x) << 10)
+#define TWS_MUX_CTRL2_EXECUTE			BIT(9)
+#define TWS_MUX_CTRL2_READ			BIT(8)
+#define TWS_MUX_CTRL2_ADDR(x)			((x) & 0xff)
+#define TWS_NCOMPLETED_TIMEOUT_MS		10
+
+#define MSCC_PHY_TWS_DATA			22
 
 static int if_phy_ti_read(bdk_node_t node, int bus, int addr, int reg)
 {
@@ -101,6 +185,170 @@ static int ti_phy_setup(bdk_node_t node, int qlm, int bus, int addr)
 	return 0;
 }
 
+/*
+ * Vitesse PHY support
+ */
+enum if_mode {
+	MEDIA_CAT5_COPPER = 0,
+	MEDIA_SFP_COPPER = 1,
+	MEDIA_1000BASE_X = 2,
+	MEDIA_100BASE_FX = 3,
+};
+const char *if_modes[] = {
+	"Cat5 Copper",
+	"SFP Copper",
+	"1000BASE-X",
+	"100BASE-FX",
+};
+enum mac_mode {
+	MAC_QSGMII,
+	MAC_SGMII,
+};
+const char *mac_modes[] = {
+	"QSGMII",
+	"SGMII",
+};
+
+/* See SFF-8472 */
+#define u8 unsigned char
+struct sfp_msa {
+	/* Basic ID fields */
+	u8	identifier;		// 0
+	u8	ext_identifier;		// 1
+	u8	connector;		// 2
+	// see Table 3.4
+	u8	transceiver_b3;		// 3
+	u8	transceiver_b4;		// 4
+	u8	transceiver_b5;		// 5
+
+	// GBe compliance codes
+	u8	e1000_base_sx:1;	// 6.0
+	u8	e1000_base_lx:1;	// 6.1
+	u8	e1000_base_cx:1;	// 6.2
+	u8	e1000_base_t:1;		// 6.3
+	u8	e100_base_lx:1;		// 6.4
+	u8	e100_base_fx:1;		// 6.5
+	u8	e_base_bx10:1;		// 6.6
+	u8	e_base_px:1;		// 6.7
+
+	u8	trans_tech_el1:1;	// 7.0
+	u8	trans_tech_lc:1;	// 7.1
+	u8	trans_tech_b7_2:1;	// 7.2
+	u8	trans_tech_b7_3:1;	// 7.3
+	u8	link_len_l:1;		// 7.4
+	u8	link_len_i:1;		// 7.5
+	u8	link_len_s:1;		// 7.6
+	u8	link_len_v:1;		// 7.7
+
+	u8	trans_tech_b8_0:1;	// 8.0
+	u8	trans_tech_b8_1:1;	// 8.1
+	u8	trans_tech_b8_2:1;	// 8.2
+	u8	trans_tech_b8_3:1;	// 8.3
+	u8	trans_tech_ll:1;	// 8.4
+	u8	trans_tech_sn2:1;	// 8.5
+	u8	trans_tech_sn1:1;	// 8.6
+	u8	trans_tech_el2:1;	// 8.7
+
+	u8	trans_media_sm:1;	// 9.0
+	u8	trans_media_b9_1:1;	// 9.1
+	u8	trans_media_m5:1;	// 9.2
+	u8	trans_media_m6:1;	// 9.3
+	u8	trans_media_tv:1;	// 9.4
+	u8	trans_media_mi:1;	// 9.5
+	u8	trans_media_tp:1;	// 9.6
+	u8	trans_media_tw:1;	// 9.7
+
+	u8	speed_100MBps:1;	// 10.0
+	u8	speed_b10_1:1;		// 10.1
+	u8	speed_200MBps:1;	// 10.2
+	u8	speed_b10_3:1;		// 10.3
+	u8	speed_400MBps:1;	// 10.4
+	u8	speed_1600MBps:1;	// 10.5
+	u8	speed_800MBps:1;	// 10.6
+	u8	speed_1200MBps:1;	// 10.7
+
+	u8	encoding;		// 11
+	u8	br_nominal;		// 12
+	u8	rate_identifier;	// 13
+	u8	length_smf_km;		// 14
+	u8	length_smf;		// 15
+	u8	length_om2;		// 16
+	u8	length_om1;		// 17
+	u8	length_om4;		// 18
+	u8	length_om3;		// 19
+	u8	vendor_name[16];	// 20
+	u8	transceiver2;
+	u8	vendor_oui[3];
+	u8	vendor_pn[16];
+	u8	vendor_rev[4];
+	u8	wavelength[2];
+	u8	resv1;
+	u8	cc_base;
+
+	/* extended id fields */
+	u8	option_b64_0:1;		// 64.0
+	u8	option_b64_1:1;		// 64.1
+	u8	option_b64_2:1;		// 64.2
+	u8	option_b64_3:1;		// 64.3
+	u8	option_b64_4:1;		// 64.4
+	u8	option_b64_5:1;		// 64.5
+	u8	option_b64_6:1;		// 64.6
+	u8	option_b64_7:1;		// 64.7
+
+	u8	option_b65_0:1;		// 65.0
+	u8	option_los:1;		// 65.1
+	u8	option_losn:1;		// 65.2
+	u8	option_tx_fault:1;	// 65.3
+	u8	option_tx_dis:1;	// 65.4
+	u8	option_rate_sel:1;	// 65.5
+	u8	option_b65_6:1;		// 65.6
+	u8	option_b65_7:1;		// 65.7
+
+	u8	br_max;
+	u8	br_min;
+	u8	vendor_sn[16];
+	u8	date_code[8];
+	u8	diags_type;
+	u8	enhanced_options;
+	u8	sff8472_compliance;
+	u8	cc_ext;
+
+	/* Vendor specific ID fields */
+	u8	vendor_data[32];
+	u8	sff8079[128];
+};
+
+enum identifier {
+	UNKNOWN,
+	GBIC,
+	SFF,
+	SFP,
+	XBI,
+	XENPACK,
+	XFP,
+	XFF,
+	XFP_E,
+	XPAK,
+	X2,
+	DWDM_SFP,
+	QSFP,
+	MAX_ID,
+};
+
+const char *id_names[] = {
+	"UNKNOWN",
+	"GBIC",
+	"SFF",
+	"SFP",
+	NULL,
+};
+
+#define STRING_APPEND(str, src)				\
+	strncat((char*)str, (const char*)src,(int)sizeof(src));		\
+	for (i = 1; i < (int)sizeof(str); i++)		\
+		if (str[i-1] == ' ' && str[i] == ' ')	\
+			str[i] = 0;
+
 enum vt_led_modes {
 	VT_LED_LINK_ACT	= 0,
 	VT_LED_LINK1000_ACT,
@@ -142,19 +390,366 @@ static int vt_set_port_led(bdk_node_t node, int bus, int addr, int port,
 	debug("%s: mdio%d 0x%02x port%d led%d mode=%d\n", __func__,
 	      bus, addr, port, led, mode);
 	// Select page 1 registers
-	bdk_mdio_write(node, bus, addr + port, 0x1f, 1);
+	bdk_mdio_write(node, bus, addr + port, MSCC_EXT_PAGE_ACCESS,
+		       MSCC_PHY_PAGE_EXTENDED);
 	reg = bdk_mdio_read(node, bus, addr + port, 0x13);
 	// LED0-3 extended mode: R29[12]
 	reg = bdk_insert(reg, mode / 0xf, 12 + led, 1);
 	bdk_mdio_write(node, bus, addr + port, 0x13, reg);
 
 	// Select main registers
-	bdk_mdio_write(node, bus, addr + port, 0x1f, 0);
+	bdk_mdio_write(node, bus, addr + port, MSCC_EXT_PAGE_ACCESS,
+		       MSCC_PHY_PAGE_STANDARD);
 	reg = bdk_mdio_read(node, bus, addr + port, 0x1d);
 	reg = bdk_insert(reg, mode & 0xf, led * 4, 4);
 	bdk_mdio_write(node, bus, addr + port, 0x1d, reg);
 
 	return 0;
+}
+
+/* 3.17: I2C Mux
+ */
+/* helper to wait for SFP I2C to be ready - assumes page 'G' selected */
+static int i2c_sfp_ready(bdk_node_t node, int bus, int addr, int port)
+{
+	int i, reg;
+
+	for (i = 0; i < TWS_NCOMPLETED_TIMEOUT_MS; i++) {
+		reg = bdk_mdio_read(node, bus, addr + port, MSCC_PHY_TWS_MUX_CTRL2);
+		if (reg & TWS_MUX_CTRL2_READY)
+			return 0;
+		bdk_wait_usec(1000);
+	}
+
+	return -ETIMEDOUT;
+}
+
+/* vt_phy_read_sfp: read and parse the SFP EEPROM
+ * populates msa struct and returns if_mode or error
+ */
+static int vt_phy_read_sfp(bdk_node_t n, int bus, int addr, int p, struct sfp_msa *msa)
+{
+	int reg, r, i;
+	u8 crc;
+	char sfp_id[128];
+	char *buf = (char *)msa;
+	char *desc;
+	enum if_mode if_mode;
+
+	debug("%s MDIO%d addr=%d P%d\n", __func__, bus, addr, p);
+	memset(msa, 0, sizeof(*msa));
+
+	// Select "G" registers
+	bdk_mdio_write(n, bus, addr + p, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_EXTENDED_GPIO);
+
+	// 20G: I2C mux control 1
+	reg = bdk_mdio_read(n, bus, addr + p, MSCC_PHY_TWS_MUX_CTRL1);
+	reg &= ~TWS_MUX_CTRL1_MASK;
+	reg |= TWS_MUX_CTRL1_100KHZ;
+	reg |= TWS_MUX_CTRL1_PORT_EN(p);
+	bdk_mdio_write(n, bus, addr + p, MSCC_PHY_TWS_MUX_CTRL1, reg);
+
+	// 21G: Mux control 2
+	r = 0;
+	for (r = 0; r < (int)sizeof(*msa); r++) {
+		// setup transaction
+		reg = bdk_mdio_read(n, bus, addr + p, MSCC_PHY_TWS_MUX_CTRL2);
+		reg &= ~TWS_MUX_CTRL2_MASK;
+		reg |= TWS_MUX_CTRL2_PORT_SEL(p);
+		reg |= TWS_MUX_CTRL2_ADDR(r);
+		reg |= TWS_MUX_CTRL2_EXECUTE;
+		reg |= TWS_MUX_CTRL2_READ;
+		bdk_mdio_write(n, bus, addr + p, MSCC_PHY_TWS_MUX_CTRL2, reg);
+
+		// wait for ready
+		if (i2c_sfp_ready(n, bus, addr, p)) {
+			printf("MDIO%d P%d: SFP i2c timeout\n", bus, p);
+			return -ETIMEDOUT;
+		}
+
+		// read data:
+		reg = bdk_mdio_read(n, bus, addr + p, MSCC_PHY_TWS_DATA);
+		buf[r] = (reg >> 8) & 0xff;
+	}
+
+	// Select main registers
+	bdk_mdio_write(n, bus, addr + p, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
+
+	// verify CRC
+	for (crc = 0, i = 0; i < 63; i++)
+		crc += buf[i];
+	if (crc != msa->cc_base) {
+		printf("MDIO%d P%d: SFP base CRC invalid (0x%02x != 0x%02x)\n",
+		       bus, p, crc, msa->cc_base);
+		return -EINVAL;
+	}
+	for (crc = 0, i = 64; i < 95; i++)
+		crc += buf[i];
+	if (crc != msa->cc_ext) {
+		printf("MDIO%d P%d: SFP ext CRC invalid (0x%02x != 0x%02x)\n",
+		       bus, p, crc, msa->cc_ext);
+		return -EINVAL;
+	}
+
+	// determine interface mode
+	if (msa->e1000_base_sx) {
+		if_mode = MEDIA_1000BASE_X;
+		desc = "1000Base-SX (Fiber)";
+	} else if (msa->e1000_base_lx) {
+		if_mode = MEDIA_1000BASE_X;
+		desc = "1000Base-LX (Fiber)";
+	} else if (msa->e1000_base_cx) {
+		if_mode = MEDIA_1000BASE_X;
+		desc = "1000Base-CX (Copper)";
+	} else if (msa->e1000_base_t) {
+		if_mode = MEDIA_SFP_COPPER;
+		desc = "1000Base-T (Copper)";
+	} else if (msa->e100_base_lx) {
+		if_mode = MEDIA_100BASE_FX;
+		desc = "100Base-LX (Fiber)";
+	} else if (msa->e100_base_fx) {
+		if_mode = MEDIA_100BASE_FX;
+		desc = "100Base-FX (Fiber)";
+	} else if (msa->e_base_bx10) {
+		if_mode = MEDIA_1000BASE_X;
+		desc = "1000Base-BX10 (Fiber)";
+	} else if (msa->e_base_px) {
+		desc = "1000Base-PX (Fiber)";
+		if_mode = MEDIA_1000BASE_X;
+	} else {
+		if_mode = -EINVAL;
+		desc = "unknown interface type";
+	}
+
+	sfp_id[0] = 0;
+	for (i = 0; id_names[i]; i++) {
+		if (msa->identifier == i) {
+			sprintf(sfp_id, "%s: ", id_names[i]);
+			break;
+		}
+	}
+	STRING_APPEND(sfp_id, msa->vendor_oui);
+	STRING_APPEND(sfp_id, msa->vendor_name);
+	STRING_APPEND(sfp_id, msa->vendor_pn);
+	STRING_APPEND(sfp_id, msa->vendor_rev);
+	STRING_APPEND(sfp_id, msa->vendor_sn);
+	printf("MDIO%d P%d: %s %s\n", bus, p, sfp_id, desc);
+	if (msa->identifier != SFP) {
+		printf("MDIO%d P%d: unsupported module type\n", bus, p);
+		return -EINVAL;
+	}
+
+	debug("MDIO%d P%d: RATE_SEL=%d TX_DIS=%d TX_FAULT=%d LOS=%d LOS#=%d\n",
+		bus, p,
+		msa->option_rate_sel,
+		msa->option_tx_dis,
+		msa->option_tx_fault,
+		msa->option_los,
+		msa->option_losn
+	);
+
+	return if_mode;
+}
+
+static int vt_mcu_cmd(bdk_node_t n, int bus, int addr, int p, int val)
+{
+	int reg, i;
+
+	// 18G: Send microprocessor command
+	bdk_mdio_write(n, bus, addr + p, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_EXTENDED_GPIO);
+	reg = PROC_CMD_NCOMPLETED | val;
+	debug("MDIO%d P%d: %02dG=>0x%04x\n", bus, p, MSCC_PHY_PROC_CMD, reg);
+	bdk_mdio_write(n, bus, addr + p, MSCC_PHY_PROC_CMD, reg);
+
+	for (i = 0; i < PROC_CMD_NCOMPLETED_TIMEOUT_MS; i++) {
+		reg = bdk_mdio_read(n, bus, addr + p, MSCC_PHY_PROC_CMD);
+		if (reg & PROC_CMD_FAILED) {
+			printf("MDIO%d P%d: cmd failed\n", bus, p);
+			return -EIO;
+		}
+		if (!(reg & PROC_CMD_NCOMPLETED))
+			return 0;
+		bdk_wait_usec(1000);
+	}
+	printf("MDIO%d P%d: cmd timeout\n", bus, p);
+
+	return -ETIMEDOUT;
+}
+
+/* vt_set_port_mode: configure a port for a specific mode
+ *
+ * Configuration is described in the VSC8574-01 datasheet section 3.21.
+ * We have already performed steps 1-7 so now we perform steps 8-11
+ *
+ */
+static int vt_set_port_mode(bdk_node_t n, int bus, int addr, int p,
+			    enum mac_mode mac_mode, enum if_mode if_mode)
+{
+	int reg, ret;
+	bool autoneg = false;
+	bool ams = true;
+	bool ams_pref_cat5 = false;
+	bool r23_b12 = 0;
+	int mcu_mac = 0;
+	int mcu_init = 0;
+
+	switch (mac_mode) {
+	case MAC_SGMII:
+		mcu_mac	= 0xf0;
+		break;
+	case MAC_QSGMII:
+		mcu_mac	= 0xe0;
+		break;
+	}
+
+	switch (if_mode) {
+	case MEDIA_CAT5_COPPER:
+		autoneg = 1;
+		mcu_init = 0;
+		r23_b12 = 0;
+		break;
+	case MEDIA_SFP_COPPER:
+		autoneg = 1;
+		mcu_init = 0;
+		r23_b12 = 0;
+		break;
+	case MEDIA_1000BASE_X:
+		autoneg = 1;
+		mcu_init = 0xc1;
+		r23_b12 = 0;
+		break;
+	case MEDIA_100BASE_FX:
+		autoneg = 0; // autoneg not supported
+		mcu_init = 0xd1;
+		r23_b12 = 0;
+		break;
+	}
+	debug("MDIO%d P%d: %s %s %s autoneg=%d r23_b12=%d "
+	      "mcu_mac=0x%02x mcu_init=0x%02x ams=%d ams_pref_cat5=%d\n",
+	      bus, p, __func__, mac_modes[mac_mode], if_mode[if_mode],
+	      autoneg, r23_b12, mcu_mac, mcu_init, ams, ams_pref_cat5);
+
+	/* 8. Configure register 18G for MAC: SGMII vs QSGMII */
+	ret = vt_mcu_cmd(n, bus, addr, p, mcu_mac);
+	if (ret < 0)
+		return ret;
+
+	/* 9/10. If Fiber Media configure register 18G for Media Mode */
+	if (mcu_init) {
+		ret = vt_mcu_cmd(n, bus, addr, p, BIT(p + 8) | mcu_init);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* 11: Configure register 23 for MAC and Media mode */
+	bdk_mdio_write(n, bus, addr + p, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_STANDARD);
+	reg = bdk_mdio_read(n, bus, addr + p, 23);
+	debug("MDIO%d P%d: R23=>0x%04x\n", bus, p, reg);
+	reg = bdk_insert(reg, if_mode, 8, 3);
+
+	/* R23[12]: MAC interface mode: 0=QSGMII/SGMII, 1=1000BASE-X
+	 * This configures the MAC side between QSGMII/SGMII (0)
+	 * and SerDes 1000BASE-X. For us its always 0
+	 */
+	reg = bdk_insert(reg, r23_b12, 12, 1);
+	/* Automatic Media Sense (AMS):
+	 *  This is used when you have both Cat5 and SFP
+	 *  connected to ports. You can set the preference (R23[11]) between
+	 *  Cat5(1) and SerDes/SFP(0).
+	 *  Media selected by AMS can be read from 0x20e1[7:6]
+	 */
+	if (ams) {
+		reg = bdk_insert(reg, ams, 10, 1);
+		reg = bdk_insert(reg, ams_pref_cat5, 11, 1);
+	}
+	debug("MDIO%d P%d: R23=>0x%04x\n", bus, p, reg);
+	bdk_mdio_write(n, bus, addr + p, 23, reg);
+
+	/* 12. Software reset and autonegotiation */
+	reg = bdk_mdio_read(n, bus, addr + p, 0);
+	reg = bdk_insert(reg, autoneg, 12, 1);
+
+	reg |= BIT(15);
+	debug("MDIO%d P%d: R0=>0x%04x\n", bus, p, reg);
+	bdk_mdio_write(n, bus, addr + p, 0, reg);
+
+	return 0;
+}
+
+/* configure PHY port for detected SFP */
+static int vt_config_for_sfp(bdk_node_t n, int bus, int addr, int p,
+			     struct sfp_msa *msa, int los, enum if_mode if_mode)
+{
+	int reg;
+
+	/* currently we only support 1000BASE-X */
+	if (if_mode != MEDIA_1000BASE_X) {
+		printf("MDIO%d P%d: %s: unsupported interface type\n", bus, p, if_modes[if_mode]);
+		return -EINVAL;
+	}
+
+	/* Disable TXEN if not present or LOS */
+	if (msa->option_tx_dis && msa->option_los) {
+		debug("MDIO%d P%d: los=%d - TXDIS=%d\n", bus, p, los, los);
+		// Reg 16G: GPIO Output
+		bdk_mdio_write(n, bus, addr + p, MSCC_EXT_PAGE_ACCESS,
+			       MSCC_PHY_PAGE_EXTENDED_GPIO);
+		reg = bdk_mdio_read(n, bus, addr + p, 16);
+		reg = bdk_insert(reg, los, p + 2, 1);
+		bdk_mdio_write(n, bus, addr + p, 16, reg);
+	}
+
+	/* SFP LED's
+	 *  LED0 (RJ-45 Grn) off
+	 *  LED1 (RJ-45 Amber) off
+	 *  LED2 (SFP Amber) Speed
+	 *  LED3 (SFP Green) Activity
+	 */
+	vt_set_port_led(n, bus, addr, p, 0, VT_LED_OFF);
+	vt_set_port_led(n, bus, addr, p, 1, VT_LED_OFF);
+	if (if_mode == MEDIA_SFP_COPPER) {
+		/* Copper */
+		debug("MDIO%d P%d: SFP Copper configuring LED2/LED3\n", bus, p);
+		vt_set_port_led(n, bus, addr, p, 2, VT_LED_LINK1000_ACT);
+		vt_set_port_led(n, bus, addr, p, 3, VT_LED_AUTONEG_FAULT);
+	} else {
+		/* Fiber */
+		debug("MDIO%d P%d: SFP Fiber configuring LED2/LED3\n", bus, p);
+		vt_set_port_led(n, bus, addr, p, 2, VT_LED_LINK1000_ACT);
+		reg = bdk_mdio_read(n, bus, addr + p, 0x1e);
+		reg = bdk_insert(reg, 0x1, 2, 1); // disable LED2 activity
+		bdk_mdio_write(n, bus, addr + p, 0x1e, reg);
+		vt_set_port_led(n, bus, addr, p, 3,
+				VT_LED_1000BASEFX_1000BASE_X_ACT);
+	}
+
+	return 0;
+}
+
+static int vt_sfp_detect(bdk_node_t node, int bus, int addr, int port)
+{
+	int reg;
+	int pres, los;
+
+	// Reg 15G: GPIO Input
+	bdk_mdio_write(node, bus, addr + port, MSCC_EXT_PAGE_ACCESS,
+		       MSCC_PHY_PAGE_EXTENDED_GPIO);
+	reg = bdk_mdio_read(node, bus, addr + port, 15);
+
+	/*
+	 * GPIO0: IN SFP4_PRES#
+	 * GPIO1: IN SFP5_PRES#
+	 * GPIO2: IN SFP4_LOS
+	 * GPIO3: IN SFP5_LOS
+	 */
+	pres = (reg & BIT(port - 2)) ? 0 : 1;
+	los = (reg & BIT(port)) ? 1 : 0;
+	debug("MDIO%d P%d: 15G<=0x%04x pres=%d los=%d SFP %spresent %s\n",
+		bus, port, reg, pres, los,
+		pres ? "" : "not ",
+		los ? "LOS" : "");
+
+	return pres | los << 1;
 }
 
 /* vt_phy_setup - setup VSC8574 PHY */
@@ -188,7 +783,7 @@ static int vt_phy_setup(bdk_node_t n, int qlm, int b, int a)
 	 */
 	// Reg 13G GPIO0-GPIO7 control
 	//   GPIO0-5 GPIO GPIO6=PHY2_SCL GPIO7=PHY3_SCL
-	bdk_mdio_write(n, b, a, 0x1f, 0x10);
+	bdk_mdio_write(n, b, a, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_EXTENDED_GPIO);
 	reg = 0x0fff;
 	bdk_mdio_write(n, b, a, 13, reg);
 	// Reg 14G GPIO control: GPIO0-5 GPIO GPIO6=PHY2_SCL GPIO7=PHY3_SCL
@@ -202,16 +797,18 @@ static int vt_phy_setup(bdk_node_t n, int qlm, int b, int a)
 	reg |= 0x01f0; // GPIO0-3 input, GPIO4-8 output
 	bdk_mdio_write(n, b, a, 17, reg);
 	// Select main registers
-	bdk_mdio_write(n, b, a, 0x1f, 0);
+	bdk_mdio_write(n, b, a, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_EXTENDED_GPIO);
 
 	/* Port specific config */
 	for (p = 0; p < 4; p++) {
 		// set 17e2(0x11) bit 11:10 to invert LED0/LED1
-		bdk_mdio_write(n, b, a + p, 0x1f, 2);
+		bdk_mdio_write(n, b, a + p, MSCC_EXT_PAGE_ACCESS,
+			       MSCC_PHY_PAGE_EXTENDED_2);
 		reg = bdk_mdio_read(n, b, a + p, 0x11);
 		reg = bdk_insert(reg, 0x3, 10, 2);
 		bdk_mdio_write(n, b, a + p, 0x11, reg);
-		bdk_mdio_write(n, b, a + p, 0x1f, 0);
+		bdk_mdio_write(n, b, a + p, MSCC_EXT_PAGE_ACCESS,
+			       MSCC_PHY_PAGE_STANDARD);
 
 		// LED0 (Green) link/activity
 		vt_set_port_led(n, b, a, p, 0, VT_LED_LINK_ACT);
@@ -223,6 +820,23 @@ static int vt_phy_setup(bdk_node_t n, int qlm, int b, int a)
 		// LED2/LED3 off
 		vt_set_port_led(n, b, a, p, 2, VT_LED_OFF);
 		vt_set_port_led(n, b, a, p, 3, VT_LED_OFF);
+	}
+
+	/* Detect SFP modules and configure appropriately */
+	for (p = 2; p < 4; p++) {
+		int pres, los;
+
+		reg = vt_sfp_detect(n, b, a, p);
+		pres = !!(reg & 1);
+		los = !!(reg & 2);
+		if (pres) {
+			struct sfp_msa msa;
+			enum if_mode if_mode = vt_phy_read_sfp(n, b, a, p, &msa);
+			if (!vt_config_for_sfp(n, b, a, p, &msa, los, if_mode))
+				if (!vt_set_port_mode(n, b, a, p, MAC_QSGMII, if_mode))
+					continue;
+		}
+		vt_set_port_mode(n, b, a, p, MAC_QSGMII, MEDIA_CAT5_COPPER);
 	}
 
 	return 0;
