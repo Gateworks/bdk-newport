@@ -127,6 +127,7 @@ struct newport_board_config
 	/* misc */
 	int gpio_usben;
 	int gpio_satasel;
+	int gpio_usb2sel;
 	int gpio_usb3sel;
 	int gpio_phyrst;
 	int gpio_phyrst_pol;

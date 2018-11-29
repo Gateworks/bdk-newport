@@ -231,50 +231,82 @@ static int vt_phy_setup(bdk_node_t n, int qlm, int b, int a)
 	return 0;
 }
 
-static const char*
+int
 parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
-		   struct newport_board_config *cfg)
+		   struct newport_board_config *cfg, bool quiet)
 {
-	struct qlm_config *qlm;
+	struct qlm_config *qlm = &cfg->qlm[cfg->skt[i].qlm];
 	size_t sz, c;
 	const char *p;
 	const char *opt;
-	static char mode[16];
+	char *mode;
+	static char arg[16];
 
-	/* adjust board qlm config based on hwconfig socket options */
 	opt = cfg->skt[i].socket_name;
-	p = hwconfig_arg_f(opt, &sz, hwconfig);
-	if (!p)
-		return cfg->skt[i].def_mode;
+	if (!quiet)
+		printf("%-8s: ", opt);
 
-	qlm = &cfg->qlm[cfg->skt[i].qlm];
-	for (c = 0; (c < sz) && (c < sizeof(mode)); c++)
-		mode[c] = toupper((unsigned char)p[c]);
-	mode[sz] = 0;
-	debug("%s: %s:QLM%d:%s\n", __func__, opt,
-	      cfg->skt[i].qlm, mode);
-	if (strcmp(mode, cfg->skt[i].opt_mode) == 0) {
-		/* configure optional mode */
+	/* get socket option string */
+	p = hwconfig_arg_f(opt, &sz, hwconfig);
+	if (!p || sz == 0) {
+		p = cfg->skt[i].def_mode;
+		sz = strlen(p);
+	}
+
+	/* upercase and terminate mode str */
+	for (c = 0; (c < sz) && (c < sizeof(arg)); c++)
+		arg[c] = toupper((unsigned char)p[c]);
+	arg[sz] = 0;
+	debug("%s: socket=%s QLM%d mode=%s default=%s opts=%s\n", __func__, opt,
+	      cfg->skt[i].qlm, arg, cfg->skt[i].def_mode, cfg->skt[i].opt_mode);
+
+	/* adjust board qlm/gpio config based on hwconfig socket options */
+	mode = strtok(arg, ",");
+	while (mode) {
+		if (strncmp(mode, "DISABLE", 7) == 0) {
+			qlm->mode = BDK_QLM_MODE_DISABLED;
+			if (!quiet)
+				printf("DISABLED\n");
+			return 0;
+		}
+		else if (strcmp(mode, cfg->skt[i].def_mode) == 0) {
+			if (!quiet)
+				printf("%s ", mode);
+		}
+		else if (strstr(cfg->skt[i].opt_mode, mode)) {
+			if (!quiet)
+				printf("%s ", mode);
+		}
+		else {
+			qlm->mode = BDK_QLM_MODE_DISABLED;
+			if (quiet)
+				printf("%-8s: ", opt);
+			printf("DISABLED: invalid mode '%s'\n", mode);
+			return 0;
+		}
+
 		if (strcmp(mode, "USB3") == 0) {
 			qlm->mode = BDK_QLM_MODE_DISABLED;
 			if (cfg->gpio_usb3sel != -1)
 				gpio_output(cfg->gpio_usb3sel, 1);
-		} else if (strcmp(mode, "SATA") == 0) {
+		}
+		else if (strcmp(mode, "USB2") == 0) {
+			if (cfg->gpio_usb2sel != -1)
+				gpio_output(cfg->gpio_usb2sel, 1);
+		}
+		else if (strcmp(mode, "SATA") == 0) {
 			qlm->mode = BDK_QLM_MODE_SATA_2X1;
 			qlm->freq = 6000;
 			if (cfg->gpio_satasel != -1)
 				gpio_output(cfg->gpio_satasel, 1);
 		}
-	} else if (strncmp(mode, "DISABLE", 7) == 0) {
-		qlm->mode = BDK_QLM_MODE_DISABLED;
-		return "DISABLED";
-	} else if (strcmp(mode, cfg->skt[i].def_mode)) {
-		printf("%s: invalid mode '%s'\n", opt, mode);
-		qlm->mode = BDK_QLM_MODE_DISABLED;
-		return "DISABLED";
-	}
 
-	return mode;
+		mode = strtok(NULL, ",");
+	}
+	if (!quiet)
+		printf("\n");
+
+	return 0;
 }
 
 static int newport_qlm_config(bdk_node_t node, char *hwconfig,
@@ -326,15 +358,14 @@ static int newport_qlm_config(bdk_node_t node, char *hwconfig,
 	}
 
 	/* get QLM configs */
+	if (cfg->gpio_usb2sel != -1)
+		gpio_output(cfg->gpio_usb2sel, 0);
 	if (cfg->gpio_usb3sel != -1)
 		gpio_output(cfg->gpio_usb3sel, 0);
 	if (cfg->gpio_satasel != -1)
 		gpio_output(cfg->gpio_satasel, 0);
-	for (i = 0; (i < 4) && cfg->skt[i].socket_name; i++) {
-		const char *s = parse_hwconfig_skt(node, i, hwconfig, cfg);
-		if (!quiet)
-			printf("%-8s: %s\n", cfg->skt[i].socket_name, s);
-	}
+	for (i = 0; (i < 4) && cfg->skt[i].socket_name; i++)
+		parse_hwconfig_skt(node, i, hwconfig, cfg, quiet);
 	/* configure */
 	for (i = 0; i < 4; i++) {
 		bdk_qlm_set_clock(node, i, cfg->qlm[i].clk);

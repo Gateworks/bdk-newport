@@ -34,6 +34,7 @@ struct newport_board_config board_configs[] = {
 		/* misc */
 		.gpio_usben = -1,
 		.gpio_satasel = -1,
+		.gpio_usb2sel = -1,
 		.gpio_usb3sel = -1,
 		.gpio_phyrst = 23,
 		.gpio_phyrst_pol = 1,
@@ -68,6 +69,7 @@ struct newport_board_config board_configs[] = {
 		/* misc */
 		.gpio_usben = 18,
 		.gpio_satasel = -1,
+		.gpio_usb2sel = -1,
 		.gpio_usb3sel = 19,
 		.gpio_phyrst = 23,
 		.gpio_phyrst_pol = 1,
@@ -103,6 +105,7 @@ struct newport_board_config board_configs[] = {
 		/* misc */
 		.gpio_usben = 18,
 		.gpio_satasel = -1,
+		.gpio_usb2sel = -1,
 		.gpio_usb3sel = 19,
 		.gpio_phyrst = 23,
 		.gpio_phyrst_pol = 1,
@@ -125,7 +128,7 @@ struct newport_board_config board_configs[] = {
 		.skt = {
 			/* qlm, skt, defmode, optmode */
 			{ 0, "J9", "PCI", NULL },
-			{ 3, "J10", "PCI", "SATA" },
+			{ 3, "J10", "PCI", "SATA,USB2" },
 			{ 2, "J11", "PCI", NULL },
 		},
 		/* serial */
@@ -138,6 +141,7 @@ struct newport_board_config board_configs[] = {
 		/* misc */
 		.gpio_usben = 18,
 		.gpio_satasel = -1,
+		.gpio_usb2sel = 20,
 		.gpio_usb3sel = -1,
 		.gpio_phyrst = 23,
 		.gpio_phyrst_pol = 1,
@@ -430,6 +434,7 @@ retry:
 		case 'A':
 			cfg->ext_temp = 0;
 			cfg->gpio_satasel = 20;
+			cfg->gpio_usb2sel = -1;
 			break;
 		}
 		break;
