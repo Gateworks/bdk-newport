@@ -22,7 +22,7 @@ struct newport_board_config board_configs[] = {
 		},
 		.skt = {
 			/* qlm, skt, defmode, optmode */
-			{ 3, "J6", "PCI", "SATA" },
+			{ 3, "J6", "PCI", "SATA,USB3" },
 		},
 		/* serial */
 		.gpio_uart_hd = -1,
@@ -35,7 +35,8 @@ struct newport_board_config board_configs[] = {
 		.gpio_usben = -1,
 		.gpio_satasel = -1,
 		.gpio_usb2sel = -1,
-		.gpio_usb3sel = -1,
+		.gpio_usb3sel = 5,
+		.gpio_usb3sel_pol = 1,
 		.gpio_phyrst = 23,
 		.gpio_phyrst_pol = 1,
 		.mmc_devs = 2,

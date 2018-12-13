@@ -288,7 +288,8 @@ parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
 		if (strcmp(mode, "USB3") == 0) {
 			qlm->mode = BDK_QLM_MODE_DISABLED;
 			if (cfg->gpio_usb3sel != -1)
-				gpio_output(cfg->gpio_usb3sel, 1);
+				gpio_output(cfg->gpio_usb3sel,
+					    cfg->gpio_usb3sel_pol ? 0 : 1);
 		}
 		else if (strcmp(mode, "USB2") == 0) {
 			if (cfg->gpio_usb2sel != -1)
@@ -361,7 +362,8 @@ static int newport_qlm_config(bdk_node_t node, char *hwconfig,
 	if (cfg->gpio_usb2sel != -1)
 		gpio_output(cfg->gpio_usb2sel, 0);
 	if (cfg->gpio_usb3sel != -1)
-		gpio_output(cfg->gpio_usb3sel, 0);
+		gpio_output(cfg->gpio_usb3sel,
+			    cfg->gpio_usb3sel_pol ? 1 : 0);
 	if (cfg->gpio_satasel != -1)
 		gpio_output(cfg->gpio_satasel, 0);
 	for (i = 0; (i < 4) && cfg->skt[i].socket_name; i++)

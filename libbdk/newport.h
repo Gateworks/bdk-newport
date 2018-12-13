@@ -129,6 +129,7 @@ struct newport_board_config
 	int gpio_satasel;
 	int gpio_usb2sel;
 	int gpio_usb3sel;
+	int gpio_usb3sel_pol;
 	int gpio_phyrst;
 	int gpio_phyrst_pol;
 	int mmc_devs;
