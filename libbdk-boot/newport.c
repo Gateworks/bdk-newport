@@ -265,6 +265,7 @@ parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
 	while (mode) {
 		if (strncmp(mode, "DISABLE", 7) == 0) {
 			qlm->mode = BDK_QLM_MODE_DISABLED;
+			qlm->freq = 0;
 			if (!quiet)
 				printf("DISABLED\n");
 			return 0;
@@ -279,6 +280,7 @@ parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
 		}
 		else {
 			qlm->mode = BDK_QLM_MODE_DISABLED;
+			qlm->freq = 0;
 			if (quiet)
 				printf("%-8s: ", opt);
 			printf("DISABLED: invalid mode '%s'\n", mode);
@@ -287,6 +289,7 @@ parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
 
 		if (strcmp(mode, "USB3") == 0) {
 			qlm->mode = BDK_QLM_MODE_DISABLED;
+			qlm->freq = 0;
 			if (cfg->gpio_usb3sel != -1)
 				gpio_output(cfg->gpio_usb3sel,
 					    cfg->gpio_usb3sel_pol ? 0 : 1);
@@ -324,6 +327,7 @@ static int newport_qlm_config(bdk_node_t node, char *hwconfig,
 		switch(info->qlm[i]) {
 			case QLM_MODE_DISABLED:	/* QLM is disabled */
 				qlm->mode = BDK_QLM_MODE_DISABLED;
+				qlm->freq = 0;
 				break;
 			case QLM_MODE_PCIE_1X1:	/* 1 PCIe, 1 lane */
 				qlm->mode = BDK_QLM_MODE_PCIE_1X1;
@@ -374,9 +378,12 @@ static int newport_qlm_config(bdk_node_t node, char *hwconfig,
 		bdk_qlm_set_mode(node, i, cfg->qlm[i].mode,
 				 cfg->qlm[i].freq, 0);
 		if (!quiet) {
-			printf("QLM%d    : %s@%dMHz\n", i,
-			       bdk_qlm_mode_to_cfg_str(cfg->qlm[i].mode),
-			       cfg->qlm[i].freq);
+			if (cfg->qlm[i].mode == BDK_QLM_MODE_DISABLED)
+				printf("QLM%d    : DISABLED\n", i);
+			else
+				printf("QLM%d    : %s@%dMHz\n", i,
+				       bdk_qlm_mode_to_cfg_str(cfg->qlm[i].mode),
+				       cfg->qlm[i].freq);
 		}
 	}
 	return 0;
