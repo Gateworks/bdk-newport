@@ -204,6 +204,7 @@ enum {
 	GSC_SC_FWVER		= 14,
 	GSC_SC_WP		= 15,
 	GSC_SC_RST_CAUSE	= 16,
+	GSC_SC_THERM_PROTECT	= 19,
 };
 
 /* System Controller Control1 bits */
@@ -489,7 +490,7 @@ gsc_hwmon_reg(bdk_node_t node, int reg)
 const char *
 gsc_get_rst_cause(bdk_node_t node)
 {
-	static char str[32];
+	static char str[64];
 	const char *names[] = {
 		"VIN",
 		"PB",
@@ -518,7 +519,15 @@ gsc_get_rst_cause(bdk_node_t node)
 	if (reg < ARRAY_SIZE(names))
 		sprintf(str, "%s", names[reg]);
 	else
-		printf("0x%02x", reg);
+		sprintf(str, "0x%02x", reg);
+
+	/* GSC v53 adds thermal protection which we will enable always */
+	if (gsc_get_fwver() > 52) {
+		i2c_read(node, 0, GSC_SC_ADDR, GSC_SC_THERM_PROTECT, &reg, 1);
+		reg |= 1;
+		i2c_write(node, 0, GSC_SC_ADDR, GSC_SC_THERM_PROTECT, &reg, 1);
+		strcat(str, " Thermal Protection Enabled");
+	}
 
 	return str;
 }
