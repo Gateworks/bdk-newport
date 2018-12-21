@@ -241,6 +241,7 @@ parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
 	const char *opt;
 	char *mode;
 	static char arg[16];
+	int err;
 
 	opt = cfg->skt[i].socket_name;
 	if (!quiet)
@@ -262,13 +263,14 @@ parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
 
 	/* adjust board qlm/gpio config based on hwconfig socket options */
 	mode = strtok(arg, ",");
+	err = 0;
 	while (mode) {
 		if (strncmp(mode, "DISABLE", 7) == 0) {
 			qlm->mode = BDK_QLM_MODE_DISABLED;
 			qlm->freq = 0;
 			if (!quiet)
-				printf("DISABLED\n");
-			return 0;
+				printf("DISABLED ");
+			goto out;
 		}
 		else if (strcmp(mode, cfg->skt[i].def_mode) == 0) {
 			if (!quiet)
@@ -284,7 +286,8 @@ parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
 			if (quiet)
 				printf("%-8s: ", opt);
 			printf("DISABLED: invalid mode '%s'\n", mode);
-			return 0;
+			err = 1;
+			goto out;
 		}
 
 		if (strcmp(mode, "USB3") == 0) {
@@ -307,10 +310,31 @@ parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
 
 		mode = strtok(NULL, ",");
 	}
-	if (!quiet)
-		printf("\n");
 
-	return 0;
+out:
+	if (!quiet) {
+		/* show available configuration modes */
+		if (cfg->skt[i].opt_mode) {
+			printf("(hwconfig options:%s,%s)",
+				cfg->skt[i].def_mode, cfg->skt[i].opt_mode);
+		}
+		printf("\n");
+	}
+
+	return err;
+}
+
+static const char *
+socket_name_for_qlm(struct newport_board_config *cfg, int qlm)
+{
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		if (cfg->skt[i].socket_name && cfg->skt[i].qlm == qlm)
+			return cfg->skt[i].socket_name;
+	}
+
+	return "";
 }
 
 static int newport_qlm_config(bdk_node_t node, char *hwconfig,
@@ -380,10 +404,12 @@ static int newport_qlm_config(bdk_node_t node, char *hwconfig,
 		if (!quiet) {
 			if (cfg->qlm[i].mode == BDK_QLM_MODE_DISABLED)
 				printf("QLM%d    : DISABLED\n", i);
-			else
-				printf("QLM%d    : %s@%dMHz\n", i,
-				       bdk_qlm_mode_to_cfg_str(cfg->qlm[i].mode),
-				       cfg->qlm[i].freq);
+			else {
+				printf("QLM%d    : %s@%dMHz %s\n", i,
+				      bdk_qlm_mode_to_cfg_str(cfg->qlm[i].mode),
+				      cfg->qlm[i].freq,
+				      socket_name_for_qlm(cfg, i));
+			}
 		}
 	}
 	return 0;
