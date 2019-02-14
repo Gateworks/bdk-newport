@@ -610,7 +610,7 @@ gsc_init(bdk_node_t node)
 
 	/* Default color, Reset scroll region and goto bottom */
 	printf("\33[0m\33[1;r\33[100;1H\n\n\n");
-	printf("Gateworks Newport SPL (%s)\n\n", bdk_version_string());
+	printf("%s\n\n", bdk_version_string());
 	printf("GSC     : v%d 0x%04x", buf[GSC_SC_FWVER],
 		buf[GSC_SC_FWCRC] | buf[GSC_SC_FWCRC+1]<<8);
 	printf(" RST:%s", gsc_get_rst_cause(node));
