@@ -39,6 +39,8 @@ struct newport_board_config board_configs[] = {
 		.gpio_usb3sel_pol = 1,
 		.gpio_phyrst = 23,
 		.gpio_phyrst_pol = 1,
+		.gpio_mezz_pwrdis = -1,
+		.gpio_mezz_irq = -1,
 		.mmc_devs = 2,
 		.ext_temp = 1,
 	},
@@ -74,6 +76,8 @@ struct newport_board_config board_configs[] = {
 		.gpio_usb3sel = 19,
 		.gpio_phyrst = 23,
 		.gpio_phyrst_pol = 1,
+		.gpio_mezz_pwrdis = -1,
+		.gpio_mezz_irq = -1,
 		.mmc_devs = 2,
 		.ext_temp = 1,
 	},
@@ -110,6 +114,8 @@ struct newport_board_config board_configs[] = {
 		.gpio_usb3sel = 19,
 		.gpio_phyrst = 23,
 		.gpio_phyrst_pol = 1,
+		.gpio_mezz_pwrdis = 28,
+		.gpio_mezz_irq = 29,
 		.mmc_devs = 2,
 		.ext_temp = 1,
 	},
@@ -146,6 +152,8 @@ struct newport_board_config board_configs[] = {
 		.gpio_usb3sel = -1,
 		.gpio_phyrst = 23,
 		.gpio_phyrst_pol = 1,
+		.gpio_mezz_pwrdis = 28,
+		.gpio_mezz_irq = 29,
 		.mmc_devs = 2,
 		.ext_temp = 1,
 	},
@@ -582,8 +590,13 @@ static int init_max6642(bdk_node_t node)
 }
 
 /* gsc_init:
- *   This is called from early init (boot stub) to determine board model
- *   and perform any critical early init.
+ *
+ * This is called from early init (boot stub) to determine board model
+ * and perform any critical early init including:
+ *  - configure early GPIO (ie front panel GRN LED, default states)
+ *  - display GSC details banner
+ *  - display EEPROM model/mfgdate/serial
+ *  - configuring temperature sensor thresholds
  */
 int
 gsc_init(bdk_node_t node)
@@ -655,9 +668,14 @@ gsc_init(bdk_node_t node)
 		gpio_output(cfg->gpio_phyrst, cfg->gpio_phyrst_pol);
 	/* Enable front-panel GRN LED */
 	if (cfg->gpio_ledgrn != -1)
-		bdk_gpio_initialize(node, cfg->gpio_ledgrn, 1, 1);
+		gpio_output(cfg->gpio_ledgrn, 1);
 	if (cfg->gpio_ledred != -1)
-		bdk_gpio_initialize(node, cfg->gpio_ledred, 1, 0);
+		gpio_output(cfg->gpio_ledred, 0);
+	/* Configure Mezzanine IO */
+	if (cfg->gpio_mezz_pwrdis != -1)
+		gpio_output(cfg->gpio_mezz_pwrdis, 0);
+	if (cfg->gpio_mezz_irq != -1)
+		gpio_input(cfg->gpio_mezz_irq);
 
 	return 0;
 }

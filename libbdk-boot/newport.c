@@ -502,40 +502,21 @@ static int newport_serial_config(bdk_node_t node, char *hwconfig)
 	return 0;
 }
 
-/* GPIO configuration:
+/* GPIO configuration: handle any gpio's not defined in newport_board_config
  *  - power-on pin-sel is GPIO
  *  - power-on default is high-z input
  */
 static int newport_gpio_config(bdk_node_t node, char *hwconfig)
 {
+/*
 	const char *rev = bdk_config_get_str(BDK_CONFIG_BOARD_REVISION);
 
 	debug("%s hwconfig=%s\n", __func__, hwconfig);
 	if (!rev)
 		rev = "A";
 	switch(gsc_get_board_model()) {
-	case GW630x:
-		switch(*rev) {
-		case 'A':
-			debug("GW630x revA\n");
-			gpio_output(14, 1); /* GBE_RST# */
-			gpio_output(16, 1); /* PCIE_WDIS# */
-			gpio_output(19, 1); /* CPU_LEDG# */
-			gpio_output(20, 0); /* CPU_LEDR# */
-			gpio_output(24, 1); /* HUB_RST# */
-			break;
-		case 'B':
-			debug("GW630x revB+\n");
-			gpio_output(13, 1); /* CPU_LEDG# */
-			gpio_output(14, 0); /* CPU_LEDG# */
-			gpio_output(18, 1); /* HUB_RST# */
-			gpio_output(31, 1); /* GBE_RST# */
-			gpio_output(28, 0); /* MEZZ_PWRDIS */
-			gpio_input(29);     /* MEZZ_IRQ# */
-			break;
-		}
-		break;
 	}
+*/
 
 	return 0;
 }
@@ -656,9 +637,9 @@ void phy_reset(bdk_node_t node, struct newport_board_config *cfg)
 {
 	if (cfg->gpio_phyrst == -1)
 		return;
-	bdk_gpio_initialize(node, cfg->gpio_phyrst, 1, cfg->gpio_phyrst_pol);
+	gpio_output(cfg->gpio_phyrst, cfg->gpio_phyrst_pol);
 	bdk_wait_usec(1000);
-	bdk_gpio_initialize(node, cfg->gpio_phyrst, 1, !cfg->gpio_phyrst_pol);
+	gpio_output(cfg->gpio_phyrst, !cfg->gpio_phyrst_pol);
 	bdk_wait_usec(110000);
 }
 
