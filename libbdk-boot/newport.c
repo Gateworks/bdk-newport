@@ -399,6 +399,15 @@ static int newport_qlm_config(bdk_node_t node, char *hwconfig,
 	/* configure */
 	for (i = 0; i < 4; i++) {
 		bdk_qlm_set_clock(node, i, cfg->qlm[i].clk);
+		/* let PCI freq depend on SCLK */
+		if (cfg->qlm[i].mode == BDK_QLM_MODE_PCIE_1X1) {
+			int sclk = bdk_clock_get_rate(node, BDK_CLOCK_SCLK);
+
+			if (sclk >= 550000000)
+				cfg->qlm[i].freq = 8000;
+			else if (sclk >= 350000000)
+				cfg->qlm[i].freq = 5000;
+		}
 		bdk_qlm_set_mode(node, i, cfg->qlm[i].mode,
 				 cfg->qlm[i].freq, 0);
 		if (!quiet) {
