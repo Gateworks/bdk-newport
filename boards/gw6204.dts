@@ -17,8 +17,8 @@ cavium,bdk {
 	 *  0x6 = 48ohm
 	 *  0x7 = 60ohm
 	 */
-	DDR-ALT-REFCLK.N0 = "100"; /* use ext 100MHz ref clk */
 	DDR-CONFIG-DQX-CTL = "0x4";
+	DDR-ALT-REFCLK.N0 = "100"; /* use ext 100MHz ref clk */
 	DDR-CONFIG-CUSTOM-MODE32B.LMC0.N0 = "1"; /* only 32 DQ's used */
 	DDR-TEST-BOOT = "0";
 	/* Speed grade to use for DRAM in MT/s */
