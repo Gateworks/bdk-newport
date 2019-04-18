@@ -22,7 +22,7 @@ cavium,bdk {
 	/* QLM2 unused */
 	QLM-MODE.N0.QLM2 = "DISABLED";
 	/* PCIE 1x: Gen2 */
-	QLM-MODE.N0.QLM3 = "PCIE_1X2";
+	QLM-MODE.N0.QLM3 = "PCIE_1X1";
 	QLM-FREQ.N0.QLM3 = "5000"; /* Gen1:2500 Gen2:5000 Gen3:8000 */
 	QLM-CLK.N0.QLM3 = "1"; /* Common clock 1 */
 
