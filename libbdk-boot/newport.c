@@ -566,6 +566,26 @@ static int newport_dram_config(bdk_node_t node)
 	}
 	bdk_config_set_blob(spd_size, spd_data, BDK_CONFIG_DDR_SPD_DATA);
 
+	/* adjust DRAM clock */
+	int def, spd;
+	int rclk = bdk_clock_get_rate(node, BDK_CLOCK_RCLK) / 1000000;
+	def = spd = bdk_config_get_int(BDK_CONFIG_DDR_SPEED, node);
+	// based on RCLK
+	switch (rclk) {
+	case 400: spd = min(spd, 800); break;
+	case 700: spd = min(spd, 1333); break;
+	case 800: spd = min(spd, 1600); break;
+	case 1100: spd = min(spd, 2133); break;
+	case 1500: spd = min(spd, 2133); break;
+	}
+	if (def != spd) {
+		debug("DRAM    : adjusting DRAM rate"
+		       " from %dMT/s to %dMT/s per %dMHz CPU speed\n",
+		       def, spd,
+		       (int)bdk_clock_get_rate(node, BDK_CLOCK_RCLK) / 1000000);
+		bdk_config_set_int(spd, BDK_CONFIG_DDR_SPEED, node);
+	}
+
 	return 0;
 }
 
