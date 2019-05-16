@@ -530,79 +530,6 @@ static int newport_gpio_config(bdk_node_t node, char *hwconfig)
 	return 0;
 }
 
-int newport_chip_details(bdk_node_t node)
-{
-	struct newport_board_config *cfg = gsc_get_board_config();
-	BDK_CSR_INIT(gicd_iidr, node, BDK_GICD_IIDR);
-	BDK_CSR_INIT(rst_boot, node, BDK_RST_BOOT);
-	BDK_CSR_INIT(gpio_strap, node, BDK_GPIO_STRAP);
-	const char *boot_method_str = "Unknown";
-	int trust_mode = rst_boot.s.trusted_mode;
-	int boot_method = bdk_extract(gpio_strap.u, 0, 4);
-	int alt_pkg;
-	int major_pass;
-	int minor_pass;
-
-	BDK_CSR_INIT(mio_fus_dat2, node, BDK_MIO_FUS_DAT2);
-	alt_pkg = (mio_fus_dat2.s.chip_id >> 6) & 1;
-	major_pass = ((mio_fus_dat2.s.chip_id >> 3) & 7) + 1;
-	minor_pass = mio_fus_dat2.s.chip_id & 7;
-	const char *package_str = (alt_pkg) ? " (alt pkg)" : "";
-	/* The contents of PC when this image started */
-	extern uint64_t __bdk_init_reg_pc;
-	const char *secure_image = "";
-	if (node == bdk_numa_master()) {
-		if (__bdk_init_reg_pc == 0x150000)
-			secure_image = ", Secure Boot";
-		else if (__bdk_init_reg_pc == 0x120000)
-			secure_image = ", Non-secure Boot";
-	}
-
-	printf("SoC     : %s %dKB %lu/%luMHz ",
-	       bdk_model_get_sku(node),
-	       bdk_l2c_get_cache_size_bytes(node) >> 10,
-	       bdk_clock_get_rate(node, BDK_CLOCK_RCLK) / 1000000,
-	       bdk_clock_get_rate(node, BDK_CLOCK_SCLK) / 1000000);
-	printf("0x%x Pass %d.%d%s ", gicd_iidr.s.productid,
-	       major_pass, minor_pass, package_str);
-	printf("\n");
-
-	/* MMC devices */
-	for (int i = 0; i < cfg->mmc_devs; i++) {
-		int64_t sz = bdk_mmc_initialize(node, i); // sz is wrong
-		bool sd = bdk_mmc_card_is_sd(node, i);
-		if (sz > 0)
-			printf("MMC%d    : %s\n", i, sd ? "microSD" : "eMMC");
-		else
-			printf("MMC%d    : not detected\n", i);
-	}
-
-	/* Boot device */
-	switch ( boot_method )
-	{
-		case BDK_RST_BOOT_METHOD_E_CCPI0:
-		case BDK_RST_BOOT_METHOD_E_CCPI1:
-		case BDK_RST_BOOT_METHOD_E_CCPI2:
-		case BDK_RST_BOOT_METHOD_E_REMOTE_CN8:
-		case BDK_RST_BOOT_METHOD_E_PCIE0:
-			break;
-		case BDK_RST_BOOT_METHOD_E_EMMC_LS:
-		case BDK_RST_BOOT_METHOD_E_EMMC_SS:
-			boot_method_str = bdk_mmc_card_is_sd(node, 0) ?
-				"microSD" : "eMMC";
-			break;
-		case BDK_RST_BOOT_METHOD_E_SPI24:
-		case BDK_RST_BOOT_METHOD_E_SPI32:
-			boot_method_str = "SPI";
-			break;
-	}
-	printf("Boot    : %s %strusted %s\n", boot_method_str,
-	       (trust_mode) ? "" : "non-", secure_image);
-
-
-	return 0;
-}
-
 static int newport_dram_config(bdk_node_t node)
 {
 	struct newport_board_info *info = gsc_get_board_info();
@@ -723,9 +650,6 @@ int newport_config(void)
 		printf("failed opening U-Boot env\n");
 
 	bdk_watchdog_poke();
-	/* display chip details */
-	if (!quiet)
-		newport_chip_details(bdk_numa_master());
 
 	/* Config DRAM */
 	bdk_boot_status(BDK_BOOT_STATUS_INIT_NODE0_DRAM);

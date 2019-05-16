@@ -4,6 +4,9 @@
 #include <newport.h>
 #include <libbdk-arch/bdk-csrs-gpio.h>
 
+#include "libbdk-arch/bdk-csrs-gic.h"
+#include "libbdk-arch/bdk-csrs-mio_fus.h"
+
 #define ARRAY_SIZE(arr) (int)(sizeof(arr) / sizeof((arr)[0]))
 #define MINMAX(n, percent)	((n)*(100-percent)/100), ((n)*(100+percent)/100)
 
@@ -589,6 +592,76 @@ static int init_max6642(bdk_node_t node)
 	return 0;
 }
 
+/* octeontx_chip_details: display details about cavium SoC */
+static void
+octeontx_chip_details(bdk_node_t node, struct newport_board_config *cfg)
+{
+	BDK_CSR_INIT(rst_boot, node, BDK_RST_BOOT);
+	BDK_CSR_INIT(gpio_strap, node, BDK_GPIO_STRAP);
+	const char *boot_method_str = "Unknown";
+	int trust_mode = rst_boot.s.trusted_mode;
+	int boot_method = bdk_extract(gpio_strap.u, 0, 4);
+	int alt_pkg;
+	int major_pass;
+	int minor_pass;
+	int i;
+
+	BDK_CSR_INIT(mio_fus_dat2, node, BDK_MIO_FUS_DAT2);
+	alt_pkg = (mio_fus_dat2.s.chip_id >> 6) & 1;
+	major_pass = ((mio_fus_dat2.s.chip_id >> 3) & 7) + 1;
+	minor_pass = mio_fus_dat2.s.chip_id & 7;
+	const char *package_str = (alt_pkg) ? " (alt pkg)" : "";
+	extern uint64_t __bdk_init_reg_pc;
+	const char *secure_image = "";
+	if (node == bdk_numa_master()) {
+		if (__bdk_init_reg_pc == 0x150000)
+			secure_image = ", Secure Boot";
+		else if (__bdk_init_reg_pc == 0x120000)
+			secure_image = ", Non-secure Boot";
+	}
+
+	printf("SoC     : %s %dKB %lu/%luMHz ",
+	       bdk_model_get_sku(node),
+	       bdk_l2c_get_cache_size_bytes(node) >> 10,
+	       bdk_clock_get_rate(node, BDK_CLOCK_RCLK) / 1000000,
+	       bdk_clock_get_rate(node, BDK_CLOCK_SCLK) / 1000000);
+	BDK_CSR_INIT(gicd_iidr, node, BDK_GICD_IIDR);
+	printf("0x%x Pass %d.%d%s ", gicd_iidr.s.productid,
+	       major_pass, minor_pass, package_str);
+	printf("\n");
+
+	/* Boot devices */
+	for (i = 0; i < cfg->mmc_devs; i++) {
+		if (bdk_mmc_initialize(node, i) > 0)
+			printf("MMC%d    : %s\n", i,
+			       bdk_mmc_card_is_sd(node, i) ? "microSD":"eMMC");
+		else
+			printf("MMC%d    : not detected\n", i);
+	}
+
+	/* Boot device and mode*/
+	switch (boot_method)
+	{
+		case BDK_RST_BOOT_METHOD_E_CCPI0:
+		case BDK_RST_BOOT_METHOD_E_CCPI1:
+		case BDK_RST_BOOT_METHOD_E_CCPI2:
+		case BDK_RST_BOOT_METHOD_E_REMOTE_CN8:
+		case BDK_RST_BOOT_METHOD_E_PCIE0:
+			break;
+		case BDK_RST_BOOT_METHOD_E_EMMC_LS:
+		case BDK_RST_BOOT_METHOD_E_EMMC_SS:
+			boot_method_str = bdk_mmc_card_is_sd(node, 0) ?
+				"microSD" : "eMMC";
+			break;
+		case BDK_RST_BOOT_METHOD_E_SPI24:
+		case BDK_RST_BOOT_METHOD_E_SPI32:
+			boot_method_str = "SPI";
+			break;
+	}
+	printf("Boot    : %s %strusted%s\n", boot_method_str,
+	       (trust_mode) ? "" : "non-", secure_image);
+}
+
 /* gsc_init:
  *
  * This is called from early init (boot stub) to determine board model
@@ -676,6 +749,8 @@ gsc_init(bdk_node_t node)
 		gpio_output(cfg->gpio_mezz_pwrdis, 0);
 	if (cfg->gpio_mezz_irq != -1)
 		gpio_input(cfg->gpio_mezz_irq);
+
+	octeontx_chip_details(node, cfg);
 
 	return 0;
 }
