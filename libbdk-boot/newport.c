@@ -822,8 +822,8 @@ static void fixup_mmc(void *fdt)
 	off = fdt_node_offset_by_compatible(fdt, -1, "mmc-slot");
 	if (off <= 0)
 		return;
-	sd = bdk_mmc_card_is_sd(node, 0);
 	sz = bdk_mmc_initialize(node, 0);
+	sd = bdk_mmc_card_is_sd(node, 0);
 	if (sd)
 		setup_mmc(fdt, off, MMC_MICROSD, 0);
 	else
@@ -833,8 +833,8 @@ static void fixup_mmc(void *fdt)
 	off = fdt_node_offset_by_compatible(fdt, off, "mmc-slot");
 	if (off <= 0)
 		return;
-	sd = bdk_mmc_card_is_sd(node, 1);
 	sz = bdk_mmc_initialize(node, 1);
+	sd = bdk_mmc_card_is_sd(node, 1);
 	if (sz > 0) {
 		if (sd)
 			setup_mmc(fdt, off, MMC_MICROSD, 1);
