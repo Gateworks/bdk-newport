@@ -813,8 +813,18 @@ static void fixup_leds(void *fdt)
 {
 	struct newport_board_config *cfg = gsc_get_board_config();
 
-	set_gpio(fdt, "/leds/user1", cfg->gpio_ledgrn);
-	set_gpio(fdt, "/leds/user2", cfg->gpio_ledred);
+	if (cfg->gpio_ledgrn != -1) {
+		set_gpio(fdt, "/leds/green", cfg->gpio_ledgrn);
+		set_gpio(fdt, "/leds/user1", cfg->gpio_ledgrn);
+	}
+	if (cfg->gpio_ledred != -1) {
+		set_gpio(fdt, "/leds/red", cfg->gpio_ledred);
+		set_gpio(fdt, "/leds/user2", cfg->gpio_ledred);
+	}
+	if (cfg->gpio_ledblu != -1) {
+		set_gpio(fdt, "/leds/blue", cfg->gpio_ledblu);
+		set_gpio(fdt, "/leds/user3", cfg->gpio_ledblu);
+	}
 }
 
 static const char *

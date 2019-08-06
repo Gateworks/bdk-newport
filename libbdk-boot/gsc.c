@@ -34,6 +34,7 @@ struct newport_board_config board_configs[] = {
 		/* LED */
 		.gpio_ledgrn = 31,
 		.gpio_ledred = 14,
+		.gpio_ledblu = -1,
 		/* misc */
 		.gpio_usben = -1,
 		.gpio_satasel = -1,
@@ -72,6 +73,7 @@ struct newport_board_config board_configs[] = {
 		/* LED */
 		.gpio_ledgrn = 31,
 		.gpio_ledred = 14,
+		.gpio_ledblu = -1,
 		/* misc */
 		.gpio_usben = 18,
 		.gpio_satasel = -1,
@@ -110,6 +112,7 @@ struct newport_board_config board_configs[] = {
 		/* LED */
 		.gpio_ledgrn = 31,
 		.gpio_ledred = 14,
+		.gpio_ledblu = -1,
 		/* misc */
 		.gpio_usben = 18,
 		.gpio_satasel = -1,
@@ -148,6 +151,7 @@ struct newport_board_config board_configs[] = {
 		/* LED */
 		.gpio_ledgrn = 31,
 		.gpio_ledred = 14,
+		.gpio_ledblu = -1,
 		/* misc */
 		.gpio_usben = 18,
 		.gpio_satasel = -1,
@@ -158,6 +162,42 @@ struct newport_board_config board_configs[] = {
 		.gpio_mezz_pwrdis = 28,
 		.gpio_mezz_irq = 29,
 		.mmc_devs = 2,
+		.ext_temp = 1,
+	},
+
+	/* GW6903 */
+	{
+		.qlm = {
+			/* PCIe Gen2 */
+			{ BDK_QLM_MODE_PCIE_1X1, 5000, BDK_QLM_CLK_COMMON_1 },
+			{ BDK_QLM_MODE_DISABLED, 0, BDK_QLM_CLK_COMMON_1 },
+			{ BDK_QLM_MODE_DISABLED, 0, BDK_QLM_CLK_COMMON_1 },
+			/* PCIe Gen2 (default) or SATA */
+			{ BDK_QLM_MODE_PCIE_1X1, 5000, BDK_QLM_CLK_COMMON_1 },
+		},
+		.skt = {
+			/* qlm, skt, defmode, optmode */
+			{ 0, "J7", "PCI", NULL },
+			{ 3, "J5", "PCI", "SATA" },
+		},
+		/* serial */
+		.gpio_uart_hd = -1,
+		.gpio_uart_term = -1,
+		.gpio_uart_rs485 = -1,
+		/* LED */
+		.gpio_ledred = 5,
+		.gpio_ledgrn = 31,
+		.gpio_ledblu = 29,
+		/* misc */
+		.gpio_usben = -1,
+		.gpio_satasel = -1,
+		.gpio_usb2sel = -1,
+		.gpio_usb3sel = -1,
+		.gpio_phyrst = 23,
+		.gpio_phyrst_pol = 1,
+		.gpio_mezz_pwrdis = -1,
+		.gpio_mezz_irq = -1,
+		.mmc_devs = 1,
 		.ext_temp = 1,
 	},
 };
@@ -340,6 +380,7 @@ retry:
 		return GW_UNKNOWN;
 	}
 
+	type = GW_UNKNOWN;
 	switch (info->model[3]) {
 	case '1':
 		type = GW610x;
@@ -353,8 +394,12 @@ retry:
 	case '4':
 		type = GW640x;
 		break;
-	default:
-		type = GW_UNKNOWN;
+	case '9':
+		if (!strncmp("GW6903", info->model, 6))
+			type = GW6903;
+		break;
+	}
+	if (type == GW_UNKNOWN) {
 		bdk_error("EEPROM: Failed model identification\n");
 		hexdump(buf, sizeof(*info));
 	}
@@ -448,6 +493,13 @@ retry:
 			cfg->ext_temp = 0;
 			cfg->gpio_satasel = 20;
 			cfg->gpio_usb2sel = -1;
+			break;
+		}
+		break;
+	case GW6903:
+		switch(rev_pcb) {
+		case 'A':
+			cfg->gpio_ledred = 14;
 			break;
 		}
 		break;
@@ -739,11 +791,13 @@ gsc_init(bdk_node_t node)
 	/* put PHY's into reset */
 	if (cfg->gpio_phyrst != -1)
 		gpio_output(cfg->gpio_phyrst, cfg->gpio_phyrst_pol);
-	/* Enable front-panel GRN LED */
+	/* Enable front-panel LEDs */
 	if (cfg->gpio_ledgrn != -1)
 		gpio_output(cfg->gpio_ledgrn, 1);
 	if (cfg->gpio_ledred != -1)
 		gpio_output(cfg->gpio_ledred, 0);
+	if (cfg->gpio_ledblu != -1)
+		gpio_output(cfg->gpio_ledblu, 0);
 	/* Configure Mezzanine IO */
 	if (cfg->gpio_mezz_pwrdis != -1)
 		gpio_output(cfg->gpio_mezz_pwrdis, 0);

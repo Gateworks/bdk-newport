@@ -95,6 +95,7 @@ enum baseboard {
 	GW620x,
 	GW630x,
 	GW640x,
+	GW6903,
 	GW_UNKNOWN,
 };
 
@@ -124,6 +125,7 @@ struct newport_board_config
 	/* LEDs */
 	int gpio_ledgrn;
 	int gpio_ledred;
+	int gpio_ledblu;
 	/* misc */
 	int gpio_usben;
 	int gpio_satasel;
