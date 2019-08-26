@@ -561,6 +561,12 @@ static int newport_dram_config(bdk_node_t node)
 			/* Addressing: 512Mbx16 16 Row x 10 Column */
 			spd_data[5] = 0x21;
 			break;
+		case 4096:
+			/* SDRAM Density / Banks: 2 bank groups, 4 banks 16Gb */
+			spd_data[4] = 0x46;
+			/* Addressing: 512Mbx16 17 Row x 10 Column */
+			spd_data[5] = 0x29;
+			break;
 		}
 		break;
 	}
