@@ -380,8 +380,13 @@ retry:
 		return GW_UNKNOWN;
 	}
 
+	/* use model as equivalent DTS if not specified */
+	if ((info->equiv_dts[0] == 0) || (info->equiv_dts[0] == 0xff)) {
+		strncpy(info->equiv_dts, info->model,
+		        sizeof(info->equiv_dts) - 1);
+	}
 	type = GW_UNKNOWN;
-	switch (info->model[3]) {
+	switch (info->equiv_dts[3]) {
 	case '1':
 		type = GW610x;
 		break;
@@ -395,7 +400,7 @@ retry:
 		type = GW640x;
 		break;
 	case '9':
-		if (!strncmp("GW6903", info->model, 6))
+		if (!strncmp("GW6903", info->equiv_dts, 6))
 			type = GW6903;
 		break;
 	}
@@ -418,21 +423,21 @@ retry:
 	bdk_config_set_int(mac, BDK_CONFIG_MAC_ADDRESS);
 
 	/* determine BOM revision from model */
-	for (i = strlen(info->model) - 1; i > 0; i--) {
-		if (info->model[i] == '-')
+	for (i = strlen(info->equiv_dts) - 1; i > 0; i--) {
+		if (info->equiv_dts[i] == '-')
 			break;
-		if (info->model[i] >= '1' && info->model[i] <= '9') {
-			rev_bom = info->model[i] - '0';
+		if (info->equiv_dts[i] >= '1' && info->equiv_dts[i] <= '9') {
+			rev_bom = info->equiv_dts[i] - '0';
 			break;
 		}
 	}
 
 	/* determine PCB revision from model */
-	for (i = strlen(info->model) - 1; i > 0; i--) {
-		if (info->model[i] == '-')
+	for (i = strlen(info->equiv_dts) - 1; i > 0; i--) {
+		if (info->equiv_dts[i] == '-')
 			break;
-		if (info->model[i] >= 'A') {
-			rev_pcb = info->model[i];
+		if (info->equiv_dts[i] >= 'A') {
+			rev_pcb = info->equiv_dts[i];
 			break;
 		}
 	}
@@ -826,9 +831,10 @@ gsc_get_dtb_name(bdk_node_t node, int level)
 	int  rev_bom = 0; /* BOM revision */
 	char *p;
 	int i;
+	struct newport_board_info *info = &board_info;
+	const char *model = info->equiv_dts;
 
 	/* determine base model from model */
-	const char *model = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
 	for (i = 0;i < (int)strlen(model) && i < ((int)sizeof(base) - 1);i++) {
 		char c = model[i];
 		base[i] = (c >= 'A' && c <= 'Z') ? (c+32) : c;

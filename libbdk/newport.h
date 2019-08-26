@@ -30,7 +30,8 @@
 
 struct newport_board_info {
 	uint8_t mac[6];		/* 0x00: MAC base */
-	uint8_t res0[18];	/* 0x06: reserved */
+	char equiv_dts[16];	/* 0x06: equivalent device-tree */
+	uint8_t res0[2];	/* 0x16: reserved */
 	uint32_t serial;	/* 0x18: Serial Number */
 	uint8_t res1[4];	/* 0x1C: reserved */
 	uint8_t mfgdate[4];	/* 0x20: MFG date */
