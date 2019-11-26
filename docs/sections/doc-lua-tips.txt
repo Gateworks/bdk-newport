@@ -1,0 +1,45 @@
+= Lua Scripting Tips
+
+Writing scripts in Lua for either the host or target is a powerful way
+of developing board bringup and diagnostic tools.  A few scripting
+tips and guides can make your scripts much easier to write and
+maintain.  Here are a few recommendations from Cavium Networks.
+
+Use */usr/bin/env* to find *bdk-lua*::
+
+The location of the BDK installation may change over time.  Use the
+*PATH* environment variable to find the Lua binary for you.  Adding
+the following line to the beginning of all your scripts will allow you
+to make them directly executable.
++
+[source,sh]
+----
+#!/usr/bin/env bdk-lua
+----
+
+Use the *strict* module::
+
+Variables are automatically created as global by default in Lua.  This
+can cause simple typographical errors to be very difficult to find.  A
+misspelled variable name will silently create a new global variable,
+which isn't particularly helpful.  The module *strict* forces variables
+to be defined.  It also promotes the use of local variables, which will
+make your scripts more modular and easier to maintain.
++
+[source,lua]
+----
+require("strict")
+----
+
+Use the *utils* module::
+
+The default *print()* function in Lua is very primitive.  For example,
+it won't display the contents of a table.  The *utils* module contains
+a number of functions to make your life easier.  The *printf()* and
+*pprint()* functions are exceedingly useful.
++
+[source,lua]
+----
+require("utils")
+----
+

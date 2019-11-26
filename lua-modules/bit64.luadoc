@@ -1,0 +1,102 @@
+---
+-- Module for performing bit operations on 64 bit numbers. This module
+-- is similar to bit32 in standard Lua, but supports full 64 bit numbers.
+--
+
+---
+-- Arithmetic shift
+--
+-- @function arshift
+-- @param input Input value
+-- @param shift Shift amount, positive is right, negative is left
+-- @return Output
+
+---
+-- Bitwise AND
+--
+-- @function band
+-- @param ... Numbers to AND together
+-- @return Output
+
+---
+-- Bitwise NOT
+--
+-- @function bnot
+-- @param input Input value
+-- @return Output
+
+---
+-- Bitwise OR
+--
+-- @function bor
+-- @param ... Numbers to OR together
+-- @return Output
+
+---
+-- Bitwise XOR
+--
+-- @function bxor
+-- @param ... Numbers to XOR together
+-- @return Output
+
+---
+-- Bitwise rotate left
+--
+-- @function lrotate
+-- @param input Input value
+-- @param shift Left rotate amount
+-- @return Output
+
+---
+-- Bitwise shift left
+--
+-- @function lshift
+-- @param input Input value
+-- @param shift Left shift amount
+-- @return Output
+
+---
+-- Bitwise rotate right
+--
+-- @function rrotate
+-- @param input Input value
+-- @param shift Right rotate amount
+-- @return Output
+
+---
+-- Bitwise shift right
+--
+-- @function rshift
+-- @param input Input value
+-- @param shift Right shift amount
+-- @return Output
+
+---
+-- Bit test
+--
+-- @function btest
+-- @param ... Numbers to AND together
+-- @return True if AND is non zero
+
+---
+-- Extract bits out of a number.
+-- 	v = bit64.bextract(0x11223344, 8, 15)
+--	v = 0x33
+-- @function bextract
+-- @param input Input value
+-- @param start_bit Starting bit
+-- @param stop_bit Optional stop bit, defaults to start bit
+-- @return Output
+
+---
+-- Insert bits into a number.
+--	v = bit64.binsert(0x11223344, 0x55, 8, 15)
+--	v = 0x11225544
+-- @function binsert
+-- @param input Original value
+-- @param insert Value to insert
+-- @param start_bit Starting bit
+-- @param stop_bit Optional stop bit, defaults to start bit
+-- @return Output
+
+

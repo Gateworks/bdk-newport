@@ -1,0 +1,714 @@
+/***********************license start***********************************
+* Copyright (C) 2018 Marvell International Ltd.
+* SPDX-License-Identifier: BSD-3-Clause
+* https://spdx.org/licenses
+***********************license end**************************************/
+/dts-v1/;
+
+/include/ "ddr4-cn8xxx.dtsi"
+
+/ {
+cavium,bdk {
+
+	/* Some boards shipped with BOARD-MAC-ADDRESS-NUM programmed
+	incorrectly. This value overrides the setting in flash of
+	BOARD-MAC-ADDRESS-NUM, allowing correction of the value. This
+	should normally not be used.
+	 */
+	//BOARD-MAC-ADDRESS-NUM-OVERRIDE = "8";
+
+	/* On-chip TWSI port connected to the BMC for IPMI traffic.
+	-1 = No connection exists. 0+ is TWSI bus number. */
+	//BMC-TWSI = "-1";
+
+	/* This specifies a watchdog timer should run during boot and reset
+	the chip if boot hangs for some reason. The timeout is specified
+	in milliseconds. Zero disables the watchdog. */
+	//WATCHDOG-TIMEOUT = "0";
+
+	/* Allow a sequence of TWSI writes to be performed during boot. Each
+	string in the list line is executed in sequence. The TWSI write
+	format is:
+	    node,twsi_id,dev_addr,internal_addr,num_bytes,ia_width_bytes,data
+	    sleep,ms
+	    gpio,node,gpio_num,state
+	node           = Node ID the twsi bus is on. -1 means the local node
+	twsi_id        = TWSI bus to use
+	dev_addr       = TWSI bus address
+	internal_addr  = TWSI internal address, zero if not used
+	num_bytes      = Number of bytes to write (1-8)
+	ia_width_bytes = Internal address width in bytes (0-2)
+	data           = Data to write as a 64bit number
+	sleep,ms       = This on a line delays for 'ms' milliseconds
+	gpio,...       = This sets the state of a GPIO gpio_num to 0 or 1 */
+	//TWSI-WRITE = "";
+	TWSI-WRITE =
+    /* Initialize IO expander U6 to power-up defaults */
+    "gpio,0,10,1",         /* Bring the PHYs out of reset */ 
+    "0,0,0x21,6,1,1,0xff", /* float all pins 0.0-0.7 */
+    "0,0,0x21,7,1,1,0xff", /* float all pins 1.0-1.7 */
+    "0,0,0x21,2,1,1,0x00", /* 0.x: all outputs low, but disabled */
+    "0,0,0x21,3,1,1,0x00", /* 1.x: all outputs low, but disabled */
+    "0,0,0x21,4,1,1,0x00", /* 0.x: no polarity inversion */
+    "0,0,0x21,5,1,1,0x00", /* 1.x: no polarity inversion */
+    /* Initialize IO expander U89 to power-up defaults */
+    "0,0,0x22,6,1,1,0xff", /* float all pins 0.0-0.7 */
+    "0,0,0x22,7,1,1,0xff", /* float all pins 1.0-1.7 */
+    "0,0,0x22,2,1,1,0x00", /* 0.x: all outputs low, but disabled */
+    "0,0,0x22,3,1,1,0x00", /* 1.x: all outputs low, but disabled */
+    "0,0,0x22,4,1,1,0x00", /* 0.x: no polarity inversion */
+    "0,0,0x22,5,1,1,0x00", /* 1.x: no polarity inversion */
+    /* set outputs SLIC_RESET_L=0 and SPI_SEL=0 */
+    "0,0,0x21,6,1,1,0xee", /* 0.0 & 0.4 are outputs */
+
+     "0, 0, 0x70, 0, 1, 1, 0x7", /* Select channel-0 in PCA9546A to enable SFI */
+     "sleep, 10",
+     "0, 0, 0x22, 6, 1, 1, 0x07", /* Configure I2C-GPIO expander I/O directions */
+     "sleep, 10",
+     "0, 0, 0x22, 7, 1, 1, 0x38", /* Configure I2C-GPIO expander I/O directions */
+     "sleep, 10",
+     "0, 0, 0x22, 2, 1, 1, 0x0",  /* Turn on SFP+ Transmitters */
+     "sleep, 10",
+     "0, 0, 0x22, 3, 1, 1, 0x0",    /* Set VSC7224 to I2C mode */
+     "sleep, 10",
+     "0, 0, 0x22, 2, 1, 1, 0x80",  /* Assert VSC7224 reset*/
+     "sleep, 50",
+     "0, 0, 0x22, 2, 1, 1, 0x0",  /* Deassert VSC7224 reset*/
+     "sleep, 50",
+
+     "0, 0, 0x14, 0x7f, 2, 1, 0x0030", /* Page select FSYNC0 (0x30) */
+     "sleep, 10",
+     "0, 0, 0x14, 0x80, 2, 1, 0x2841", /* Set FSYNC0 for 10.3125Gbps  See Table 3 */
+     "sleep, 10",
+     "0, 0, 0x14, 0x81, 2, 1, 0x0008",
+     "sleep, 10",
+     "0, 0, 0x14, 0x82, 2, 1, 0x7a00",
+     "sleep, 10",
+     "0, 0, 0x14, 0x83, 2, 1, 0x000f",
+     "sleep, 10",
+     "0, 0, 0x14, 0x84, 2, 1, 0x9c18",
+     "sleep, 10",
+     "0, 0, 0x14, 0x85, 2, 1, 0x0",
+     "sleep, 10",
+
+     "0, 0, 0x14, 0x7f, 2, 1, 0x0050", /* All channels Rx settings set equally */
+     "sleep, 10",
+     "0, 0, 0x14, 0x82, 2, 1, 0x0014", /* Shrink EQ_BUFF */
+     "sleep, 10",
+     "0, 0, 0x14, 0x90, 2, 1, 0x5585", /* Select min DFE Delay (DFE_DELAY) */
+     "sleep, 10",
+     "0, 0, 0x14, 0x92, 2, 1, 0x207f", /* Set DFE 1-3 limit (DXMAX) = 32dec, AP Max limit = 127 decimal */
+     "sleep, 10",
+     "0, 0, 0x14, 0x93, 2, 1, 0x2000", /* Set AP Min limit = 32 decimal */
+     "sleep, 10",
+     "0, 0, 0x14, 0x94, 2, 1, 0x0031", /* Set DFE Averaging to the slowest (DFE_AVG) */
+     "sleep, 10",
+     "0, 0, 0x14, 0x9c, 2, 1, 0x0000", /* Set Inductor Bypass OD_IND_BYP = 0 & fastest Rise/Fall */
+     "sleep, 10",
+     "0, 0, 0x14, 0xaa, 2, 1, 0x0888", /* Setting DFE Boost = none. Must set for rev C (if DFE in adapt mode) */
+     "sleep, 10",
+     "0, 0, 0x14, 0xa8, 2, 1, 0x2408", /* Setting EQ Min/Max = 8/72 */
+     "sleep, 10",
+     "0, 0, 0x14, 0xa9, 2, 1, 0x0060", /* Setting EQVGA = 96, when in EQVGA manual mode */
+     "sleep, 10",
+     "0, 0, 0x14, 0x87, 2, 1, 0x4021", /* Setting SW_BFOCM, bits 15:14 to 01 */
+     "sleep, 10",
+     "0, 0, 0x14, 0x89, 2, 1, 0x7313", /* Turn off adaptive input equalization and VGA adaptive algorithm control */
+     "sleep, 10",
+     "0, 0, 0x14, 0x89, 2, 1, 0x7f13", /* Turn on adaptive input equalization and VGA adaptive algorithm control */
+     "sleep, 10",
+
+      /* TAP settings for each channel 0-3 */
+     "0, 0, 0x14, 0x7f, 2, 1, 0x0000",  /* Ch-0 Tx */
+     "sleep, 10",
+     "0, 0, 0x14, 0x99, 2, 1, 0x001f",
+     "sleep, 10",
+     "0, 0, 0x14, 0x9a, 2, 1, 0x000f",
+     "sleep, 10",
+     "0, 0, 0x14, 0x9b, 2, 1, 0x0004",
+     "sleep, 10",
+
+     "0, 0, 0x14, 0x7f, 2, 1, 0x0001", /* Ch-1 Rx */
+     "sleep, 10",
+     "0, 0, 0x14, 0x97, 2, 1, 0x1400",
+     "sleep, 10", 
+     /* Transmitter Output polarity Inverted (Unfortunately, Rx polarity lines are wrongly inverted on board */
+     "0, 0, 0x14, 0x97, 2, 1, 0x4000", 
+     "sleep, 10",
+     "0, 0, 0x14, 0x99, 2, 1, 0x000f",
+     "sleep, 10",
+
+     "0, 0, 0x14, 0x7f, 2, 1, 0x0002", /* Ch-2 Tx */
+     "sleep, 10",
+     "0, 0, 0x14, 0x99, 2, 1, 0x001f",
+     "sleep, 10",
+     "0, 0, 0x14, 0x9a, 2, 1, 0x000f",
+     "sleep, 10",
+     "0, 0, 0x14, 0x9b, 2, 1, 0x0004",
+     "sleep, 10",
+
+     "0, 0, 0x14, 0x7f, 2, 1, 0x0003", /* Ch-3 Rx */
+     "sleep, 10",
+     "0, 0, 0x14, 0x97, 2, 1, 0x1400",
+     "sleep, 10", 
+     /* Transmitter Output polarity Inverted (Unfortunately, Rx polarity lines are wrongly inverted on board */
+     "0, 0, 0x14, 0x97, 2, 1, 0x4000", 
+     "sleep, 10",
+     "0, 0, 0x14, 0x99, 2, 1, 0x000f",
+     "sleep, 10";
+
+	/* Allow a sequence of MDIO writes to be performed during boot. Each
+	string in the list line is executed in sequence. The MDIO write
+	format is:
+	    clause,node,bus_id,phy_id,device,location,val
+	    sleep,ms
+	    gpio,node,gpio_num,state
+	clause   = MDIO clause for the write (22 or 45)
+	node     = Node the MDIO bus is connected, -1 for local
+	bus_id   = MDIO bus to use
+	phy_id   = MDIO address
+	device   = Clause 45 internal device address, zero for clause 22
+	location = MDIO register
+	val      = Value to write
+	sleep,ms = This on a line delays for 'ms' milliseconds
+	gpio,... = This sets the state of a GPIO gpio_num to 0 or 1 */
+	//MDIO-WRITE = "";
+
+	/* PHY address encoding:
+	    Bits[31:24]: Node ID, 0xff for node the ethernet device is on
+	    Bits[23:16]: Only used for TWSI
+	    Bits[15:12]: PHY connection type (0=MDIO, 1=Fixed, 2=TWSI)
+	For MDIO:
+	    Bits[31:24]: Node ID, 0xff for node the ethernet device is on
+	    Bits[23:16]: 0
+	    Bits[15:12]: 0=MDIO
+	    Bits[11:8]: MDIO bus number
+	    Bits[7:0]: MDIO address
+	For Fixed:
+	    Bits[31:24]: 0
+	    Bits[23:16]: Zero
+	    Bits[15:12]: 1=Fixed
+	    Bits[11:0]:  0 = 1Gb, 1 = 100Mb
+	For TWSI:
+	    Bits[31:24]: Node ID, 0xff for node the ethernet device is on
+	    Bits[23:16]: TWSI internal address width in bytes (0-2)
+	    Bits[15:12]: 2=TWSI
+	    Bits[11:8]: TWSI bus number
+	    Bits[7:0]: TWSI address */
+	//PHY-ADDRESS.N%d.BGX%d.P%d = "-1";
+	// BGX0 PHY addresses
+	PHY-ADDRESS.N0.BGX0.P0 = "0xff000010";
+	PHY-ADDRESS.N0.BGX0.P1 = "0xff000011";
+	PHY-ADDRESS.N0.BGX0.P2 = "0xff000012";
+	PHY-ADDRESS.N0.BGX0.P3 = "0xff000013";
+	// BGX1 PHY addresses
+	PHY-ADDRESS.N0.BGX1.P0 = "0xff002014";
+	PHY-ADDRESS.N0.BGX1.P1 = "0xff002014";
+        // RGMII PHY address
+	PHY-ADDRESS.N0.BGX2.P0 = "0xff000000";
+
+
+        /* Independent enables for each on-chip BGX port. Use this to
+        disable ports that are not wired on a board. Default is that all
+        ports are enabled. */
+        //BGX-ENABLE.N%d.BGX%d.P%d = "1";
+	BGX-ENABLE.N0.BGX0.P0 = "1";
+	BGX-ENABLE.N0.BGX0.P1 = "1";
+	BGX-ENABLE.N0.BGX0.P2 = "1";
+	BGX-ENABLE.N0.BGX0.P3 = "1";
+	BGX-ENABLE.N0.BGX1.P0 = "1";
+	BGX-ENABLE.N0.BGX1.P1 = "1";
+	BGX-ENABLE.N0.BGX2.P0 = "1";
+
+
+	/* BDK Version information. */
+	//BDK-VERSION = "";
+
+	/* Number of packet buffers in the BDK. */
+	//BDK-NUM-PACKET-BUFFERS = "0x1000";
+
+	/* The size of each packet buffer in the BDK. */
+	//BDK-PACKET-BUFFER-SIZE = "0x400";
+
+	/* Controls whether the BDK displays link status messages. */
+	//BDK-SHOW-LINK-STATUS = "1";
+
+	/* Controls the cores used by the BDK. Zero means all cores. */
+	//BDK-COREMASK = "0";
+
+	/* Timeout for the boot menu in seconds. */
+	//BDK-BOOT-MENU-TIMEOUT = "0xa";
+
+	/* This is used by the boot menu to control which boot path the init
+	code chooses. The supported options are
+	    0 = Normal boot path
+	    1 = Diagnostics boot path */
+	//BDK-BOOT-PATH-OPTION = "0";
+
+	/* This is used by the boot apps to determine the next boot stage.
+	    e.g.:
+	      BDK-CONFIG-BOOT-NEXT-STAGE-INIT=/fatfs/cortina-app.bin */
+	//BDK-CONFIG-BOOT-NEXT-STAGE-%s = "";
+
+	/* Device used to boot, string representation of RST_BOOT_METHOD_E.
+	This is filled by the BDK with the device used to boot */
+	//BOOT-DEVICE.N%d = "";
+
+	/* BDK trace level. This is a bitmask of the enumeration defined in
+	bdk-warn.h. Each bit turns on tracing of a specific BDK
+	component. */
+	//BDK-CONFIG-TRACE = "0";
+
+	/* Determine if internal PCIe ECAMs support Enhanced Allocation(EA):
+	    0 = Enhanced Allocation is not supported
+	    1 = Enhanced Allocation is supported */
+	//PCIE-ENHANCED-ALLOCATION = "1";
+
+	/* Enforcing stronger PCIe ordering. Use this option if a PCIe card
+	is having compatibility issues.
+	    0 = Don't wait for commit, default for best performance.
+	    1 = Wait for commit, use conservative ordering. */
+	//PCIE-ORDERING = "0";
+
+	/* Specifies the preset request vector (PCIERCX_CFG554[PRV]). Requesting
+	of presets during the initial part of the EQ master phase.
+	Encoding scheme as follows:
+	    Bit [15:0] = 0x0: No preset is requested and evaluated in the EQ master phase.
+	    Bit [i] = 1: Preset=i is requested and evaluated in the EQ master phase.
+	    0000000000000000: No preset req/evaluated in EQ master phase
+	    00000xxxxxxxxxx1: Preset 0 req/evaluated in EQ master phase
+	    00000xxxxxxxxx1x: Preset 1 req/evaluated in EQ master phase
+	    00000xxxxxxxx1xx: Preset 2 req/evaluated in EQ master phase
+	    00000xxxxxxx1xxx: Preset 3 req/evaluated in EQ master phase
+	    00000xxxxxx1xxxx: Preset 4 req/evaluated in EQ master phase
+	    00000xxxxx1xxxxx: Preset 5 req/evaluated in EQ master phase
+	    00000xxxx1xxxxxx: Preset 6 req/evaluated in EQ master phase
+	    00000xxx1xxxxxxx: Preset 7 req/evaluated in EQ master phase
+	    00000xx1xxxxxxxx: Preset 8 req/evaluated in EQ master phase
+	    00000x1xxxxxxxxx: Preset 9 req/evaluated in EQ master phase
+	    000001xxxxxxxxxx: Preset 10 req/evaluated in EQ master phase
+	    All other encodings: Reserved
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-PRESET-REQUEST-VECTOR.N%d.PORT%d = "0x593";
+
+	/* Override the auto detected width of a PCIe port. The width of a PCIe
+	port is normally auto detected. Some boards do not wire all PCIe lanes,
+	which causes the port assume more lanes than are actually possible. Use
+	this value to limit the maximum lanes the port can support. The default
+	value of -1 lets the hardware decide.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-WIDTH.N%d.PORT%d = "-1";
+
+	/* Configure the physical slot number for a PCIe port. This is used by error
+	reporting to narrow down failures to a board PCIe slot number. The
+	default value of -1 doesn't set the slot number.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-PHYSICAL-SLOT.N%d.PORT%d = "-1";
+
+	/* Allow a sequence of PCIe config accesses during endpoint boot. Each
+	string in the list is written to the PCIe SPI flash to configure
+	the endpoint before link initialization. The string format is:
+	    cl2,address,data
+	    erase
+	cl2      = 1 for writes to the mask, 0 for normal writes
+	address  = PCIe config space address
+	data     = Data to write
+	erase    = Special case to erase the SPI flash without programming anything */
+	//PCIE-FLASH.N%d.PORT%d = "";
+
+	/* SKU for the chip. This is determined by early code and
+	passed to later software for display. This should not be set in
+	the input device tree, it will be ignored. */
+	//CHIP-SKU.NODE%d = "TBD";
+
+	/* Serial number for the chip. This is determined by early
+	code and passed to later software for display. This should not be
+	set in the input device tree, it will be ignored. */
+	//CHIP-SERIAL.NODE%d = "TBD";
+
+	/* Unique ID for the chip. This is determined by early
+	code and passed to later software for display. This should not be
+	set in the input device tree, it will be ignored. */
+	//CHIP-UNIQUE-ID.NODE%d = "TBD";
+
+	/* For evaluation boards, query the MCU for QLM/DLM setup
+	information. The MCU supplies a TWSI protocol for the SOC to
+	query the modules plugged in and automatically set the QLMs or
+	DLMs to the correct mode. This should only be enabled(1) on
+	EBB8XXX boards. Other boards should have it disabled(0). */
+	QLM-AUTO-CONFIG = "0";
+	//QLM-AUTO-CONFIG = "1";
+
+	/* Set the mode of a QLM/DLM. The possible mode strings are:
+	    DISABLED     # CN83XX: All             CN81XX: All         CN80XX: All         CN96XX: All
+	    PCIE_X1      #                                             CN80XX: DLM0
+	    PCIE_X2      # CN83XX: DLM4,5          CN81XX: DLM0,2,3    CN80XX: DLM0,2,3    CN96XX: DLM4,5
+	    PCIE_X4      # CN83XX: QLM0-3,DLM5     CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM0,1,2,3,6,7, DLM4-5
+	    PCIE_X8      # CN83XX: QLM0,2                                                  CN96XX: QLM0-1,6-7
+	    PCIE_X16     #                                                                 CN96XX: QLM0-3
+	    SATA         # CN83XX: DLM4,5          CN81XX: DLM3        CN80XX: DLM3        CN96XX: DLM4,5
+	    SGMII        # CN83XX: QLM2-6          CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3-7
+	    QSGMII       # CN83XX: QLM2-4,DLM4,5   CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3,6,7,DLM4,5
+	    XAUI         # CN83XX: QLM3,4          CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM3,6,7
+	    RXAUI        # CN83XX: QLM3-6          CN81XX: DLM0-3      CN80XX: DLM2        CN96XX: QLM3-7
+	    XFI          # CN83XX: QLM2-6          CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3-7
+	    SFI          #                                                                 CN96XX: QLM3-7
+	    XLAUI        # CN83XX: QLM3,4          CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM3,6,7
+	    XLAUI_C2M    #                                                                 CN96XX: QLM3,6,7
+	    10G_KR       # CN83XX: QLM3-6          CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3-7
+	    40G_KR4      # CN83XX: QLM3,4,DLM5     CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM3,6,7
+	    25GAUI_C2C   #                                                                 CN96XX: QLM3-7
+	    25GAUI_C2M   #                                                                 CN96XX: QLM3-7
+	    50GAUI_2_C2C #                                                                 CN96XX: QLM3-7
+	    50GAUI_2_C2M #                                                                 CN96XX: QLM3-7
+	    CAUI_4_C2C   #                                                                 CN96XX: QLM3,6,7
+	    CAUI_4_C2M   #                                                                 CN96XX: QLM3,6,7
+	    25G_AN       #                                                                 CN96XX: QLM3-7
+	    50G_AN       #                                                                 CN96XX: QLM3-7
+	    100G_AN      #                                                                 CN96XX: QLM3,6,7
+	    USXGMII_4X1  #                                                                 CN96XX: QLM3,6,7,DLM4,5
+	    USXGMII_2X1  #                                                                 CN96XX: QLM3,6,7,DLM4,5
+	    USXGMII_1X1  #                                                                 CN96XX: QLM3,6,7,DLM4,5 */
+	//QLM-MODE.N%d.QLM%d.LANE%d = "";
+
+        /* For SFF81xx evaluation board, determine the QLM settings at runtime 
+           by querying the DIP switches configured on the board. The DIP switches 
+           are connected to the GPIO pins which could be read to determine the QLM mode.
+           Refer to sff8104.c on how this is done  */
+
+	/* Set the speed of a QLM/DLM in Mhz. The possible speeds are:
+	    1250 # Networking SGMII
+	    1500 # SATA Gen1
+	    2500 # PCIe Gen1, Networking SGMII,QSGMII
+	    3000 # SATA Gen2
+	    3125 # Networking XAUI
+	    5000 # PCIe Gen2, Networking QSGMII
+	    6000 # SATA Gen3
+	    6250 # Networking XAUI,RXAUI
+	    8000 # PCIe Gen3
+	   10312 # Networking XFI,XLAUI,10G_KR,40G_KR4
+	   16000 # PCIe Gen4
+	   20625 # Networking USXGMII (CN9XXX)
+	   25781 # Networking (CN9XXX) */
+	//QLM-FREQ.N%d.QLM%d.LANE%d = "0";
+
+	/* Set the source of the QLM/DLM reference clock:
+	    0 = Common clock 0 (CN9XXX 100 Mhz No SSC)
+	    1 = Common clock 1 (CN9XXX 100 Mhz SSC)
+	    2 = QLM/DLM external reference
+	    3 = Common clock 2 (CN9XXX 156.25 Mhz) */
+	//QLM-CLK.N%d.QLM%d = "2";
+
+	/* Setting of GSERX_LANEX_TX_CFG_0[CFG_TX_SWING] for the QLM/DLM. This
+	should only be used for QLMs or DLMs used for BGX and CCPI not using KR
+	training.
+	NOTE: This setting only apply to CN8XXX. */
+	//QLM-TUNING-TX-SWING.N%d.QLM%d.LANE%d = "-1";
+
+	/* Setting of GSERX_LANEX_TX_PRE_EMPHASIS[CFG_TX_PREMPTAP] for the
+	QLM/DLM. This should only be used for QLMs or DLMs used for BGX and CCPI not
+	using KR training. CFG_TX_PREMPTAP:
+	    Bits[8:5] = Tx Post Tap; Bits[3:0] = Tx Pre Tap
+	NOTE: This setting only apply to CN8XXX. */
+	//QLM-TUNING-TX-PREMPTAP.N%d.QLM%d.LANE%d = "-1";
+
+	/* Setting of GSERX_LANEX_TX_CFG_3[PCS_SDS_TX_GAIN] for the QLM/DLM. This
+	should only be used for QLMs or DLMs used for BGX and CCPI not using KR
+	training.
+	NOTE: This setting only apply to CN8XXX. */
+	//QLM-TUNING-TX-GAIN.N%d.QLM%d.LANE%d = "-1";
+
+	/* Setting of GSERX_LANEX_TX_CFG_3[CFG_TX_VBOOST_EN] for the QLM/DLM. This
+	should only be used for QLMs or DLMs used for BGX and CCPI not using KR
+	training.
+	NOTE: This setting only apply to CN8XXX. */
+	//QLM-TUNING-TX-VBOOST.N%d.QLM%d.LANE%d = "-1";
+
+	/* The insertion loss at Nyquist rate (e.g. 5.125Ghz for XFI/XLAUI) in
+	dB for the RX channel should be passed into the channel loss
+	attribute. For CN8XXX, this attribute is used for XFI/10GBASE-KR,
+	XLAUI/40GBASE-KR4, and CCPI. If no channel loss attribute is
+	provided the default value assumes a loss of greater than 10dB
+	for networking (long channel) and less than 10dB (short channel)
+	for CCPI. This matches the most common usage.
+	NOTE: This setting only apply to CN8XXX. */
+	//QLM-CHANNEL-LOSS.N%d.QLM%d = "-1";
+
+	/* Speed grade to use for DRAM in MT/s. Hardware may adjust this value
+	slightly to improve DRAM stability, so scope measurements may not
+	exactly match the frequency with MT/s. The supported speed
+	grades are:
+	    CN8XXX                                 CN9XXX
+	       0 (auto-set from SPD contents)         0 (auto-set from SPD contents)
+	     666 MT/s (DDR3 only)                  1600 MT/s
+	     800 MT/s (DDR3 only)                  1866 MT/s
+	    1066 MT/s (DDR3 only)                  2133 MT/s
+	    1333 MT/s (DDR3 only)                  2400 MT/s
+	    1600 MT/s                              2666 MT/s
+	    1866 MT/s                              2933 MT/s
+	    2133 MT/s (DDR4 only)                  3200 MT/s
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DDR-SPEED.N%d = "0";
+
+	/* TWSI address of the DIMM SPD. The encoding of this address is
+	:    [15:12]: TWSI bus the DIMM is connected to.
+	     [11:7]: Reserved, set to zero.
+	      [6:0]: TWSI address for the DIMM.
+	A value of zero means the DIMMs are not accessible. Hard coded
+	values will be read from DDR-CONFIG-SPD-DATA.Parameters:
+	    LMC#: Parameter can be different for memory controller. This
+	        specifies which LMC the value is for. LMC must be
+	        0-3. Optional.
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DDR-CONFIG-SPD-ADDR.DIMM%d.LMC%d.N%d = "0";
+        DDR-CONFIG-SPD-ADDR.DIMM0.LMC0 = "0x1050";
+
+        /* Other DRAM settings are read from ddr4-cn8xxx.dtsi */
+
+	/* Specify a on-chip GPIO used to control power for a USB port. When
+	set, the USB host controller will toggle the GPIO automatically
+	during USB reset events. The default value assumes the SOC has no
+	control of the USB power and it is always on. */
+	//USB-PWR-GPIO.N%d.PORT%d = "-1";
+	USB-PWR-GPIO.N0.PORT0 = "12";
+
+	/* Specify the polarity of a on-chip GPIO used to control power for
+	a USB port. The GPIO used is specified by USB-PWR-GPIO. Setting this
+	GPIO low. The default value drives the GPIO high. */
+	//USB-PWR-GPIO-POLARITY.N%d.PORT%d = "1";
+        USB-PWR-GPIO-POLARITY.N0.PORT0 = "0";
+
+	/* Specify reference clock source for SuperSpeed and HighSpeed PLL.
+	Possible sources:
+	 USB_REF_CLK pin
+	Additional sources for CN81XX/CN80XX chips
+	 DLMC_REF_CLK0 pin
+	 DLMC_REF_CLK1 pin
+	 PLL_REF_CLK
+	Clock used by usb needs to run at 100MHz frequency except PLL_REF_CLK
+	which requires 50MHz frequency.
+	Encoding:
+	0 - SS(USB_REF_CLK)   HS(USB_REF_CLK)
+	1 - SS(DLMC_REF_CLK0) HS(DLMC_REF_CLK0)
+	2 - SS(DLMC_REF_CLK1) HS(DLMC_REF_CLK1)
+	3 - SS(USB_REF_CLK)   HS(PLL_REF_CLK)
+	4 - SS(DLMC_REF_CLK0) HS(PLL_REF_CLK)
+	5 - SS(DLMC_REF_CLK1) HS(PLL_REF_CLK)
+	The default is 0 : USB_REF_CLK. */
+	//USB-REFCLK-SRC.N%d.PORT%d = "0";
+	USB-REFCLK-SRC.N0.PORT0 = "0";
+
+	/* CN88XX SC and SNT parts have an errata where a GPIO is used to
+	toggle DC_OK. For boards with SC and SNT parts, a GPIO must be wired
+	per errata description. */
+	//NITROX-GPIO.N%d = "-1";
+
+	/* Number of reading with no errors to signal the start of an
+	eye. The default value should be good for most cases. */
+	//QLM-EYE-NUM-ZEROS = "2";
+
+	/* Time to sample at each location in microseconds. The default
+	value should be good for most cases. */
+	//QLM-EYE-SAMPLE-TIME = "0x190";
+
+	/* Time to settle after each movement in microseconds. The
+	default value should be good for most cases. */
+	//QLM-EYE-SETTLE-TIME = "0x32";
+
+	/* Reference clock in Hz. CN88XX drives data on rising edges of this
+	clock, and the target latches data on the falling edges of this
+	clock. On reset CN88XX tristates SGPIO_SCLK. When not exchanging
+	a bit stream CN88XX keeps SGPIO_SCLK low.
+	  Min: 128 Hz
+	  Max: 100 kHz */
+	//SGPIO-SCLOCK-FREQ.N%d = "0x2710";
+
+	/* Output pin number for SGPIO controller power control. */
+	//SGPIO-PIN-POWER.N%d = "-1";
+
+	/* Output pin number for SGPIO SCLOCK signal. */
+	//SGPIO-PIN-SCLOCK.N%d = "-1";
+
+	/* Output pin number for SGPIO SLOAD signal. */
+	//SGPIO-PIN-SLOAD.N%d = "-1";
+
+	/* Output pin number for SGPIO SDATAOUT[n] signal. n = 0..3. */
+	//SGPIO-PIN-SDATAOUT.N%d.D%d = "-1";
+
+	/* Temperature where THERMAL_TRIP_N is asserted. When the chip reaches
+	this temperature THERMAL_TRIP_N will assert, signalling the board
+	to emergency power off. The default value is the recommended
+	maximum temperature of the chip. Values between 0 and 110 degrees
+	Celsius. */
+	//VRM-TEMP-TRIP.N%d = "0x6e";
+
+	/* Temperature where maximum throttling is applied to the chip. Chip
+	performance will be greatly reduced to keep the temperature below
+	thermal trip (VRM-TEMP-TRIP). The default value is the
+	recommended maximum operating temperature of the chip. Values
+	between 0 and 110 degrees Celsius. */
+	//VRM-TEMP-HIGH.N%d = "0x6e";
+
+	/* Temperature where minimum throttling is applied to the chip. Chip
+	performance will be maximized at or below this temperature. The
+	throttling level will be set to VRM-THROTTLE-NORMAL. The default
+	value is the recommended operating temperature of the chip.
+	Values between 0 and 110 degrees Celsius. This only applies to
+	CN8XXX chips, not CN9XXX. */
+	//VRM-TEMP-LOW.N%d = "0x64";
+
+	/* Throttle level of the chip when operating normally. Temperatures
+	at or below VRM-TEMP-LOW will use this throttling level. The default
+	level (70%), allows good performance while still reducing power under
+	heavy loads. Value is a percentage between 1 and 100. This only
+	applies to CN8XXX chips, not CN9XXX. */
+	//VRM-THROTTLE-NORMAL.N%d = "0x41";
+
+	/* Throttle level of the chip is overheating. Temperatures at or
+	above VRM-TEMP-HIGH will use this throttling level. The default
+	level (5%), allows for forward progress while still reducing power.
+	Value is a percentage between 1 and 100. Setting a value of 100
+	disables dynamic throttling (not recommended). This only applies to
+	CN8XXX chips, not CN9XXX. */
+	//VRM-THROTTLE-THERM.N%d = "0xf";
+
+	/* Maximum Core clock (RCLK) frequency in MHz. DVFS control will vary the
+	actual RCLK frequency depending on Tj, power budget, and system load;
+	this sets an upper bound.  If fuses indicate the part supports a lower
+	frequency, the fuse value is used.  Valid range is 500MHz-3300MHz. Doesn't
+	apply to CN8XXX chips. */
+	//RCLK-FREQ-MAX.N%d = "0x1f4";
+
+	/* Minimum Core clock (RCLK) frequency in MHz. DVFS control will vary the
+	actual RCLK frequency depending on Tj, power budget, and system load;
+	this sets the lower bound.  Default value 500MHz.  WARNING- setting
+	this above 500MHz may result in excess power consumption and sudden
+	thermal shutdown. Valid range is 500MHz-3300MHz. Doesn't apply to
+	CN8XXX chips. */
+	//RCLK-FREQ-MIN.N%d = "0x1f4";
+
+	/* Coprocessor clock (SCLK) frequency in MHz. Valid range is
+	500MHz-1200MHz. Doesn't apply to CN8XXX chips. */
+	//SCLK-FREQ.N%d = "0x1f4";
+
+	/* Cryptographic accelerator clock (CPTCLK) frequency in MHz. If fuses
+	indicate the part supports a lower frequency, the fuse value is used.
+	Valid range 800MHz-1600MHz. Doesn't apply to CN8XXX chips. */
+	//CPTCLK-FREQ.N%d = "0x320";
+
+	/* The highest vdd_core voltage supported by the board in mV. Valid
+	range is 250mV to 1275mV. Default is 1275mV. Doesn't apply to
+	CN8XXX chips. */
+	//VDD-CORE-MAX.N%d = "0x4fb";
+
+	/* The lowest vdd_core voltage supported by the board in mV. Valid
+	range is 250mV to 1275mV. Default is 250mV. Doesn't apply to CN8XXX
+	chips. */
+	//VDD-CORE-MIN.N%d = "0xfa";
+
+	/* The +/- control accuracy of the vdd_core supply as measured at the
+	chip. Encoded as percentage * 10.  For example, a VRM with +/-0.5%
+	accuracy would be 5.  Default is +/-0.5%. Doesn't apply to CN8XXX chips. */
+	//VDD-CORE-ACCURACY.N%d = "5";
+
+	/* The total chip power budget in Watts, used in POWER_CAPPED_USING_ACTIVITY
+	and EFFICIENT_OPERATION modes, DVFS control makes a best-effort
+	attempt to keep power at or below this level. Values between 0 and
+	150 Watts.  Default is 100W. Doesn't apply to CN8XXX chips. */
+	//DVFS-POWER-BUDGET.N%d = "0x64";
+
+	/* The operating mode of the DVFS (Dynamic Frequency Voltage Scaling)
+	power control code.  Encoding:
+	    1 - POWER_CAPPED_USING_ACTIVITY.  Caps power consumption at or below
+	        BDK_CONFIG_DVFS_POWER_BUDGET.
+	    2 - BEST_PERFORMANCE_FOR_GIVEN_THERMAL_BUDGET
+	    3 - EFFICIENT_OPERATION
+	    4 - MANUAL_CONTROL (default)
+	Doesn't apply to CN8XXX chips. */
+	//DVFS-POWER-CONTROL-MODE.N%d = "4";
+
+	/* DVFS control will assert the THERMAL_HOT_L pin when the highest
+	observed temperature on the chip is at or above this value. This
+	value is recommended to be 10 degrees Celsius below BDK_CONFIG_DVFS_MAX_TJ.
+	The default value is the recommended maximum temperature of
+	the chip minus 10. Values between 0 and 110 degrees Celsius. Doesn't
+	apply to CN8XXX chips. */
+	//DVFS-THERMAL-HOT.N%d = "0x64";
+
+	/* The percentage that the DVFS control should attempt to reduce the chip
+	power when the board asserts THERMAL_HOT.  A value of 30 means reduce
+	power 30%, etc.  Allowed values 0 to 100.  Default is 50. Doesn't
+	apply to CN8XXX chips. */
+	//DVFS-THERMAL-HOT-BACKOFF.N%d = "0x32";
+
+	/* Internal source for GPIO pins. The enumeration GPIO_PIN_SEL_E
+	details the possible internal sources for GPIO pins in the chip.
+	The value of this setting is the numeric value from the GPIO_PIN_SEL_E
+	enumeration. The default value(-1) leaves the pin at the hardware
+	default, which is to connect the pin to the GPIO block for manual
+	control.
+	Parameters:
+	    GPIO#: Which GPIO pin to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//GPIO-PIN-SELECT-GPIO%d.N%d = "-1";
+        GPIO-PIN-SELECT-GPIO15 = "0x24f"; // PCM_DATA3
+        GPIO-PIN-SELECT-GPIO16 = "0x24e"; // PCM_DATA2
+        GPIO-PIN-SELECT-GPIO17 = "0x24b"; // PCM_FSYNC1
+        GPIO-PIN-SELECT-GPIO18 = "0x247"; // PCM_BCLK1
+        GPIO-PIN-SELECT-GPIO19 = "0x24d"; // PCM_DATA1
+        GPIO-PIN-SELECT-GPIO20 = "0x24c"; // PCM_DATA0
+        GPIO-PIN-SELECT-GPIO37 = "0x24a"; // PCM_FSYNC0
+        GPIO-PIN-SELECT-GPIO38 = "0x246"; // PCM_BCLK0
+
+
+        /* Internal source for GPIO pins. See enumeration GPIO_PIN_SEL_E for
+         the used values */
+       
+        GPIO-PIN-SELECT-GPIO7 =  "0xe1";    // PBUS_WAIT (XOR = 1; set by GPIO-POLARITY-GPIO below)
+        GPIO-PIN-SELECT-GPIO24 = "0xeb";    // PBUS_ALE3 (wrong in board schematics which says ALE1)
+        GPIO-PIN-SELECT-GPIO27 = "0xed";    // PBUS_CE1  (XOR = 1; set by GPIO-POLARITY-GPIO below)
+        GPIO-PIN-SELECT-GPIO28 = "0xe3";    // PBUS_OE   (XOR = 1; set by GPIO-POLARITY-GPIO below)
+        GPIO-PIN-SELECT-GPIO29 = "0xe0";    // PBUS_CLE
+        GPIO-PIN-SELECT-GPIO30 = "0xe2";    // PBUS_WE   (XOR = 1; set by GPIO-POLARITY-GPIO below)
+
+        GPIO-PIN-SELECT-GPIO40 = "0x112";   // PBUS_AD24
+        GPIO-PIN-SELECT-GPIO41 = "0x113";   // PBUS_AD25
+        GPIO-PIN-SELECT-GPIO42 = "0x114";   // PBUS_AD26
+        GPIO-PIN-SELECT-GPIO43 = "0x115";   // PBUS_AD27
+        GPIO-PIN-SELECT-GPIO44 = "0x116";   // PBUS_AD28
+        GPIO-PIN-SELECT-GPIO45 = "0x117";   // PBUS_AD29
+        GPIO-PIN-SELECT-GPIO46 = "0x118";   // PBUS_AD30
+        GPIO-PIN-SELECT-GPIO47 = "0x119";   // PBUS_AD31
+
+	/* Set the polarity of GPIO pins. GPIO pins are normally high=1 and
+	low=0. Setting this configuration item to '1' inverts this, so
+	high=0 and low=1. The inversion applies to both input and output.
+	The default value of '0' configures high=1 and low=0.
+	Parameters:
+	    GPIO#: Which GPIO pin to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//GPIO-POLARITY-GPIO%d.N%d = "0";
+   GPIO-POLARITY-GPIO7  =  "1";
+   GPIO-POLARITY-GPIO27 =  "1";
+   GPIO-POLARITY-GPIO28 =  "1";
+   GPIO-POLARITY-GPIO30 =  "1";
+
+}; /* cavium,bdk */
+}; /* / */

@@ -1,0 +1,57 @@
+[[SPI]]
+= SPI / MPI
+
+TBD
+
+.SPI/MPI Menu
+----
+=================================
+SPI/MPI Menu
+=================================
+ 1) Access an EEPROM or NOR flash
+ 2) Initialize
+ 3) Main menu
+ 4) Perform a single transfer
+----
+
+.Initialize
+----
+(INS)Clock rate (1 - 16000000) [1000000]:
+(INS)Configure chip select 0(y/n) [y]:
+(INS)Configure chip select 1(y/n) [y]:
+(INS)Configure chip select 2(y/n) [y]:
+(INS)Configure chip select 3(y/n) [y]:
+(INS)Chip selects are active high(y/n) [n]:
+(INS)Only use SPI_DO (one wire mode)(y/n) [n]:
+(INS)Clock when idle(y/n) [n]:
+(INS)Clock is low on idle(y/n) [n]:
+(INS)Transfer LSB first(y/n) [n]:
+----
+
+.Access an EEPROM or NOR flash
+----
+=================================
+SPI/MPI Device Menu
+=================================
+ 1) Select chip select (CS0)
+ 2) Select chip select type (Active low)
+ 3) Use one or two data wires (2 wire)
+ 4) Idle clock type (Hi)
+ 5) Endian order (MSB)
+ 6) Address width (16)
+ 7) Frequency (10 MHz)
+ 8) View device contents
+ 9) Write to device
+10) Main menu
+----
+
+.Perform a single transfer
+----
+(INS)Menu choice []: 4
+(INS)Chip select (0 - 3) [0]:
+(INS)Transmit bytes (0 - 8) [1]:
+(INS)Transmit data: 0x00
+(INS)Receive bytes (0 - 8) [1]:
+Receive: 0xff
+----
+

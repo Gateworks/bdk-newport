@@ -1,0 +1,302 @@
+= Board Device Specification
+
+== Overview
+
+Support for SFP28 and QSFP28 modules requires a complex description of
+the board to support all the control wires and LEDs.  At a high level an
+network port consists of four components:
+
+* The BGX/CGX block inside the chip
+* PHY or retimer
+* A physical port for connecting devices, often a SFP28 or QSFP28
+* LEDs for signalling state and activity.
+
+Unlike BGX, CGX in CN9XXX supports dynamic speed modes.  This means it
+is no longer sufficient to query the network port once during boot for
+proper setup.  A PHY or retimer may optionally be inserted between the
+SoC and the external physical ports.  A list of supported PHY or
+retimers may be found later in this document.  In addition to the
+physical network port, the BDK can drive up to four LEDs to represent
+network state.  These LEDs are as follows:
+
+* LED-LINK-SLOW: Link speed (On for 10G)
+* LED-LINK-FAST: Link speed (On for 25G) blinks for ID
+* LED-ACTIVITY: Activity connected to direct SoC GPIO. On if link and idle
+* LED-ID: Blinks when port ID requested
+
+Since the number of internal GPIO and TWSI buses are limited, external
+devices may supplement the internal devices.  These expanders may be
+nested multiple levels deep on the board, creating a chain of devices
+need for a single logical port.  To support this, the BDK added a new
+description of external devices.
+
+=== Supported External Devices
+
+* LED
+** Active high/low
+** Connected through GPIO, TWSI GPIO Extender, or TWSI LED driver
+
+* SFP28
+** Low speed connections
+*** 2: TX_Fault (0=no fault, 1= fault) (input to SoC)
+*** 3: TX_Disable (0=enable, 1=disable) (output from SoC)
+*** 4: TWSI SDA
+*** 5: TWSI SCL
+*** 6: Mod_ABS Module presence detect (0=module, 1=empty) (input to SoC)
+*** 7: RS0 (0=10G, 1=25G) (output from SoC)
+*** 8: RX_LOS Loss Of Signal (0=signal, 1=no signal) (input to SoC)
+*** 9: RS1 (Not used? drive high) (output from SoC)
+
+* QSFP28
+** Optional max power in mWatts may be specified
+** Low speed connections
+*** 8: ModSelL = Module select active low (output from SoC)
+*** 9: ResetL = Module reset active low (output from SoC)
+*** 11: TWSI SCL
+*** 12: TWSI SDA
+*** 27: ModPrsL = Module presence active low (input to SoC)
+*** 28: IntL = Interrupt active low (input to SoC)
+*** 31: LPMode = Low power mode (0=high power, 1=low power) (output from SoC)
+
+* TWSI GPIO Extender
+** PCA8574 - 8 GPIOs from twsi control
+
+* TWSI switch
+** PCA9548 - Switch 1 master to 8 slave buses
+** PCA9541 - Smart multimaster of 1 slave bus
+
+* TWSI LED driver
+** PCA9552 - Drives 16 LEDs ON/OFF/2 blink rates
+
+=== Networking Ports
+
+Network ports are tied to CGX using the device tree. The following
+configuration items are relevant:
+
+[source, sh]
+----
+NETWORK-PHY.N%d.CGX%d.P%d = "NAME-OF-PHY-DEVICE";
+NETWORK-PORT.N%d.CGX%d.P%d = "NAME-OF_PORT-DEVICE";
+NETWORK-LED-LINK-SLOW.N%d.CGX%d.P%d = "NAME-OF-LED-DEVICE";
+NETWORK-LED-LINK-FAST.N%d.CGX%d.P%d = "NAME-OF-LED-DEVICE";
+NETWORK-LED-ACTIVITY.N%d.CGX%d.P%d = "NAME-OF-LED-DEVICE";
+NETWORK-LED-ID.N%d.CGX%d.P%d = "NAME-OF-LED-DEVICE";
+----
+
+== Specifying External Devices
+
+Devices are specified as a list of strings stored in the configuration
+item "DEVICES".  DEVICES is a list of strings in the following format:
+
+[source, sh]
+----
+DEVICES="NAME,type=DRIVER,param=value,param=value,...",
+        "NAME,type=DRIVER,param=value,param=value,...",
+        "NAME,type=DRIVER,param=value,param=value,...";
+----
+
+The devices must be specified so the parent devices are defined before
+any child devices using them.  Many devices will have a "dev" parameter
+which specifies the parent bus the device is connect to.  For example a
+LED may specify a dev=GPIO_NAME, which means the LED is controlled by
+a pin of the named GPIO.  The GPIO_NAME device may have another "dev"
+entry, specifying the TWSI bus for the GPIO_NAME expander.
+
+== External Devices
+
+=== LEDs
+
+Board designers connect LEDs to GPIOs or drivers in one of two ways.
+First they may connect one side of the LED to ground and the other to
+the control circuit.  These LEDs are active when the control circuit
+applies voltage.  Second they may connect one side to a voltage and the
+other side to the control circuit.  These LEDs are active then the
+control circuit is grounded.  Most LED drivers have a parameter
+"active_high" for specifying which of these two options was chosen.  Set
+it to "1" for LEDs requiring power, and "0" for LEDs requiring ground.
+
+==== LED Drivers
+
+* type=LED-CONSOLE: Prints a message to the console when state changes. These
+are not real LEDs, just a software emulation for debug.
+** name: Name of the device
+
+[source, sh]
+----
+"NAME,type=LED-CONSOLE"
+----
+
+* type=LED-GPIO: LED connected to a GPIO like device somewhere.
+** name: Name of the device
+** dev: GPIO device the LED is connect to
+** gpio: Which GPIO is connected to the LED
+** active_high: Is the LED on when logic 1
+** tristate: When off, or idle, should the GPIO tristate(1) or drive(0)
+
+[source, sh]
+----
+"NAME,type=LED-GPIO,dev=%s,gpio=%d,active_high=%d,tristate=%d"
+----
+
+* type=LED-PCA9552: TWSI based LED driver. This device line only specifies
+the driver, not the LEDs connected to it. For every LED connected, a
+LED line will be required.
+** name: Name of the device
+** dev: TWSI bus its connected to
+** addr: TWSI address of device
+
+[source, sh]
+----
+"name,type=LED-PCA9552,dev=%s,addr=%d"
+----
+
+=== GPIOs
+
+==== GPIO Drivers
+
+* type=GPIO: Native internal GPIO block
+** name: Name of the device (N0.GPIO0)
+** gpio: GPIO to access
+** active_high: Is the GPIO high when logic 1
+
+[source, sh]
+----
+"name,type=GPIO,gpio=%d,active_high=%d"
+----
+
+* type=GPIO-CONSOLE: Prints a message to the console when state changes
+** name: Name of the device
+
+[source, sh]
+----
+"name,type=GPIO-CONSOLE"
+----
+
+* type=GPIO-PCA8574: GPIO Extender
+** name: Name of the device
+** twsi: TWSI bus its connected to
+** addr: TWSI address of device
+
+[source, sh]
+----
+"name,type=GPIO-PCA8574,twsi=%s,addr=%d"
+----
+
+=== TWSI
+
+==== TWSI Drivers
+
+* Native: Native internal TWSI block
+** name: Name of the device (N%d.TWSI%d)
+** addr: TWSI address of device
+
+* type=TWSI-PCA9548: TWSI switch
+** name: Name of the device
+** dev: TWSI bus its connected to
+** addr: TWSI address of device
+
+[source, sh]
+----
+"name,type=TWSI-PCA9548,dev=%s,addr=%d"
+----
+
+* type=TWSI-PCA9541: Smart multimaster of 1 slave bus
+** name: Name of the device
+** dev: TWSI bus its connected to
+** addr: TWSI address of device
+
+[source, sh]
+----
+"name,type=TWSI-PCA9541,dev=%s,addr=%d"
+----
+
+=== Network Ports
+
+==== Network PHY Drivers
+
+FIXME
+
+==== Network Port Drivers
+
+* type=NETPORT-CONSOLE: Displays console messages on port calls. Useful for debug
+** name: Name of the port
+
+[source, sh]
+----
+"name,type=NETPORT-CONSOLE"
+----
+
+* type=NETPORT-SFP28: SFP, SFP+, or SFP28
+** name: Name of the port
+** twsi: TWSI bus to use
+** tx_fault: GPIO connected to 2: TX fault (0=no fault, 1= fault)
+** tx_dis: GPIO connected to 3: TX Disable (0=enable, 1=disable)
+** pres: GPIO connected to 6: Module presence detect (0=module, 1=empty)
+** rs0: GPIO connected to 7: RS0 (0=10G, 1=25G)
+** rx_los: GPIO connected to 8: RX Loss Of Signal (0=signal, 1=no signal)
+** rs1: GPIO connected to 9: RS1 (0=10G, 1=25G)
+
+
+[source, sh]
+----
+"name,type=NETPORT-SFP28,twsi=%s,tx_fault=%s(%d),tx_dis=%s(%d),pres=%s(%d),rs0=%s(%d),rx_los=%s(%d),rs0=%s(%d)"
+----
+
+* type=NETPORT-QSFP28: QSFP, QSFP+, or QSFP28
+** name: Name of the port
+** twsi: TWSI bus to use
+** max_power: Max power port can supply in mWatts
+** sel: GPIO connect to 8: Module select (0=select, 1=no select)
+** reset: GPIO connect to 9: Module reset (0=reset, 1=no reset)
+** pres: GPIO connect to 27: Module presence detect (0=module, 1=empty)
+** intr: GPIO connect to 28: Interrupt (0=irq, 1=idle)
+** lowp: GPIO connect to 31: Low power mode (0=low, 1=high)
+
+[source, sh]
+----
+"name,type=NETPORT-QSFP28,twsi=%s,max_power=%d,sel=%s(%d),reset=%s(%d),pres=%s(%d),intr=%s(%d),lowp=%s(%d)"
+----
+
+=== NetPHY Drivers
+
+* None: No PHY or retimer, or invisible to software
+* FIXME
+
+== Example
+
+Here is a sample configuration for the SFP28 on the CN96XX-FIO board. The
+schematics call the SFP28 "Port9".
+
+=== CN96XX-FIO Port9(SFP28) Overview
+
+Below is an overview of how the CN96XX-FIO connects Port9(SFP28) for use
+by DLM5 lane 0.
+
+* SoC TWSI3
+** PCA9548APW ADDR = 1110_000X
+*** 0 = QSFP1
+*** 1 = QSFP2
+*** 2 = Port9
+*** 3-7 = Unused
+** PCA8574APW ADDR = 0111_001X
+*** 0 = Port9 Detect
+*** 1 = Port9 RX_LOS
+*** 2 = Port9 TX_DIS
+*** 3 = Port9 TX_FAULT
+*** 4 = Port9 RS0
+*** 5 = Port9 RS1
+*** 6 = Port9 LED0_L
+*** 7 = Port9_LED1_L
+
+=== CN96XX-FIO Port9(SFP28) Device Tree
+
+[source, sh]
+----
+DEVICES="TWSI3-SWITCH,type=TWSI-PCA9548,dev=N0.TWSI3,addr=0x70",
+        "TWSI3-EXTEND,type=GPIO-PCA8574,twsi=N0.TWSI3,addr=0x39",
+        "Port9-SFP,type=NETPORT-SFP28,twsi=TWSI3-SWITCH(2),\
+                tx_fault=TWSI3-EXTEND(3),\
+                tx_dis=TWSI3-EXTEND(2),pres=TWSI3-EXTEND(0),rs0=GPIO-EXT(4),\
+                rx_los=TWSI3-EXTEND(1),rs1=GPIO-EXT(5)";
+----
+

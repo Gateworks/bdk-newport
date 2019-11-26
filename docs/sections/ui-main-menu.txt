@@ -1,0 +1,66 @@
+[[MAINMENU]]
+= Getting started at the Main Menu
+
+After initial boot, the BDK displays the first, or main, menu.  This
+provides a list of high level options that are available
+interactively.  Most menu choices bringup sub menus of additional
+options.
+
+.Sample Main Menu
+----
+include::../captures/main_menu.capture[]
+----
+
+Each menu option supports a logically distinct set of options:
+
+Configuration options::
+
+Use this option to configure the BDK for your board.  The specifics of
+PHY addresses, MAC addresses, etc change for each board.  See
+<<CONFIGURE,Configuring the BDK>>.
+
+File options::
+
+Here you'll find options for dealing with the BDK virtual filesystem.
+These are normally most useful when writing scripts for the BDK.
+
+Flash options::
+
+Option for dealing with a NOR flash connected to chip select 0.
+
+DDR options::
+
+Options for configuring DDR3.
+
+PCIe options::
+
+PCIe discovery, enumeration, and probing can be accessed through this
+menu. See <<PCIE, Testing PCIe>>.
+
+TWSI options::
+
+Scan or probe TWSI bus devices.
+
+SMI/MDIO options::
+
+Scan or probe SMI/MDIO bus devices.
+
+Interactive Lua prompt::
+
+This provides direct access to the Lua interpreter running in the BDK.
+This can be used to probe and configure any type of hardware inside or
+connected on the board.  Scripting using Lua is cover in another
+document.
+
+Traffic Generator::
+
+This menu option starts a simple network traffic generator.  It can
+be used to transmit and receive packets on all packet
+interfaces.  In combination with an external loopback, this can
+quickly verify the interfaces on a board.
+
+Reboot::
+
+Perform a soft reset.  This can be useful for a quick reboot
+without power cycling the entire board.
+

@@ -1,0 +1,127 @@
+Copyright (c) 2014 - 2018 Marvell Semiconductor Inc.
+
+Confidential. All rights reserved. 
+
+This publication and its contents are proprietary to Marvell. No part of this publication may be reproduced in any form or by any means without the written permission of Marvell Semiconductor Inc.
+
+Release Notes for Marvell 88X7120/88X6141 PHYs API.
+
+
+Instructions
+------------
+This source code is provided as a function library for configuring/controlling and querying status of the Marvell 88X7120/88X6141 PHYs. 
+
+The header files (e.g. mydAPI.h) together with the API Application Notes and datasheet comprise the documentation for using this API to interface to the PHY.
+
+Refer to the spreadsheet, "mydAPI summary.xlsx" for a complete list of API functions and descriptions.
+
+All C files in the top level and serdes subdirectory except mydHwCntl.c are designed to be compiled/linked with the host processor's code as-is. 
+
+The file mydHwCntl.c is meant to be specific to the host processor's hardware and may need to be modified accordingly. The sample code in the hardware-specific files contains code which was used to test the API and was compiled/linked with a test program using MSVC and executed on a Window's-based PC to access a USB-to-MDIO interface in order to test with the PHY evaluation board. 
+
+The function mydInitDriver() is designed to download the firmware and serdes images and allow initializing the driver with function pointers for the host's MDIO read/write functions without having to modify any API code. (NOTE: mydWait() must always be ported to the host's environment).  The Z80 firmware, SBUS master and SERDES images are used during firmware download in the mydInitDriver() function. Refer to the mydInitialization.h for more detailed information on the mydInitDriver() usage.
+
+The function mydUnloadDriver() performs the clean-up when the driver unloads. This function must be called before terminating the process to prevent memory leakage.
+
+The file mydUtils.c contains utility functions and platform-specific debugging output function. The debugging output function has to be ported to the specific platform to generate logging and debugging output if desired. All output may be removed (this is the default) or enabled using the MYD_DEBUG define. 
+
+mydDiagnostics.h and mydFwDownload.h contain prototypes of the useful API functions for diagnostics and PHY firmware download. mydAPIInternal.h contains functions used internally by the API. These functions are not intended to be called directly by the host software.
+
+
+Serdes API Usage and Instructions
+---------------------------------
+The files mydHwSerdesCntl.h and mydSerdes.h contain prototypes of the useful Serdes API functions and types needed for some Serdes features and diagnostic operations.  The Serdes API component is included by default with define MYD_ENABLE_SERDES_API. An option is available to exclude the Serdes API component to reduce the MYD API driver memory footprint. Normal PHY operation does not require the Serdes API.
+
+The Serdes API component is in a separate Serdes sub-folder. The code in this folder is supplied under a BSD license. The Serdes API includes features for eye measurements, setting Tx/Rx polarity, injecting errors, and several other diagnostic features.  When the optional Serdes API component is added to the MYD API driver, it will increase the driver memory footprint.
+
+This component is included by default with define MYD_ENABLE_SERDES_API. All files, including the Serdes sub-folder, must be included when building the driver.  To exclude the Serdes API component, remove the MYD_ENABLE_SERDES_API define and exclude the Serdes sub-folder files.
+
+The file mydSerdes.h contains Serdes API data structures for the eye measurements and training log.  When calling these operations, the APIs required a pre-allocated memory structure to store these data.
+
+The Serdes API component requires dynamic memory allocation at run-time. The support for the standard C memory functions for malloc(), free() and realloc() are required.  
+
+
+Notes about Memory Usage/Allocation
+-----------------------------------
+The MYD API uses only static memory allocation. However, the Serdes API requires dynamic memory allocation. If the serdes diagnostic functions are not needed, it is advised to exclude them by setting MYD_ENABLE_SERDES_API to 0  This will drastically reduce the memory footprint of the API and also make the memory usage completely deterministic.
+
+The DbgBufSize is used in the string buffer for the debug message logging. If both the MYD_DEBUG and MYD_ENABLE_SERDES_API flags are enabled, the DbgBufSize needs to be larger than the eye diagram size, depending on the detail level, ranging from several 1000s to 200K bytes.
+
+If the Serdes API is included, it's important to unload the driver with a call to mydUnloadDriver() between new calls to mydInitDriver() to free up dynamically allocated memory. 
+
+
+API Errata
+------------
+- Additional delay is added to the PAM4 Auto-Neg modes to establish a link 
+- When using the Z80 firmware, the maximum MDIO/MDC data clock rate is 12.5 MHz
+
+
+API revision history
+------------------------
+API version 1.2
+- Added EEPROM support including writing the EEPROM image(mydUpdateEEPROMImage) and loading the EEPROM image(mydLoadEEPROMImageToRAM) to the RAM 
+- Added mydIntrIOConfig.c/h source files for Interrupt Control/Status/Real-time Status, GPIO control, LED control and Recovered clock control
+- Corrected the mydSetTxPolarity and mydSetRxPolarity APIs to set the correct Polarity bits (#23744)
+- Added support for Gearbox modes and Gearbox feature APIs including rate matching FIFO and IPG
+- Added diagnostic API mydDiagStateDump to retrieve all the useful state information on a provided lane
+- Updated all the modes configuration with improved stability and faster linkup (#23746)
+- Added several new 1G/2.5G/5G PCS and Repeater operational modes.  Refer to the "mydAPI summary.xlsx" spreadsheet for more details on the list of supported modes. (#23746)
+- Updated mydChipAndZ80ResetControl() hardware reset to handle the default EEPROM setting. (#23745)
+- Added support to load the optional Z80 firmware image. The Z80 image provides additional features that are only required on certain setup. (#23735)
+- This API revision is tested with the following firmware versions:
+     Serdes firmware version: 0x1093
+     SBus firmware version: 0x1021
+     Z80 firmware version:0x109
+
+API version 1.1
+- Added several new PCS and Repeater operational modes.  Refer to the "mydAPI summary.xlsx" spreadsheet for more details on the list of supported modes. (#23718)
+- Added mydGetPcsFaultStatus API for retrieving PCS Tx and RX fault status bits 
+- Added mydSerdesTxInjectError and mydSerdesRxInjectError APIs for injecting error bit to either the Tx or Rx signal.
+- Added mydLanePowerup and mydLanePowerdown APIs for powering up or down a single lane.
+- Updated mydSerdesTuneCTLE and mydSerdesGetRxDFE APIs for the CTLE and Rx DFE tuning features.
+- Updated the FEC API in mydFEC.c to support various FEC features.  Refer to the "mydAPI summary.xlsx" spreadsheet for FEC APIs changes. (#23685, #23693)
+- Updated mydSerdesSetTxFFE and mydSerdesGetTxFFE for setting and retrieving the Tx FFE values.
+- This API revision is tested with the following firmware versions:
+     Serdes firmware version: 0x1090
+     SBus firmware version: 0x101F
+
+API version 1.0
+- Several API operational and diagnostic features are included in this version.  A complete list of supported APIs are available in the "mydAPI summary.xlsx" spreadsheet.  Features added in this release includes: (#23684)
+    - PCS/Repeater mode selection and link status
+    - Firmware download
+    - Various type of resets
+    - Eye diagram
+    - PCS loopback 
+    - Packet generator
+    - PRBS pattern generator 
+    - FEC control/status and counters
+- This API version supports a subset of the operational modes.  Refer to the "mydAPI summary.xlsx" spreadsheet for more detail on the list of supported modes.  Supported modes in this release include:
+    Operational modes (PCS)
+    - MYD_P25LN  
+    - MYD_P50KF  
+    - MYD_P50UP  
+    - MYD_P50QP  
+    - MYD_P100LN 
+    - MYD_P100LR 
+    - MYD_P100CR 
+    - MYD_P100KR 
+    - MYD_P100KN 
+    - MYD_P100UP 
+    - MYD_P100QP 
+    - MYD_P200UP 
+    - MYD_P200QP 
+    Operational modes (Repeater)
+    - MYD_R25L 
+    - MYD_R50U 
+    - MYD_R50Q 
+    - MYD_R100L
+    - MYD_R200L
+    - MYD_R200U
+    - MYD_R400U
+- Sample APIs are included in the mydSamples.c file.  These sample APIs include API initialization, firmware loading, mode configuration, checking link status, PRBS pattern tests, Packet generator, loopback and plotting the eye diagram. 
+- This API revision is tested with the following firmware versions:
+     Serdes firmware version: 0x1086
+     SBus firmware version: 0x101F
+
+API version 0.1 (Early Preview Release)
+The MYD API version 0.1 is an early preview release with the basic data structures and API framework.  This is useful for client software to get an early start to interface with the MYD API.  The "mydAPI summary.xlsx" spreadsheet includes a list of preview APIs together with its descriptions.  Most of the preview APIs and the mode selections are still in development and not completely tested or fully functional.  This interfaces to the APIs and the mode selections are closed to the finalized version and are not expected to change unless necessary.

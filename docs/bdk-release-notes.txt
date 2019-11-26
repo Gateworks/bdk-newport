@@ -1,0 +1,1367 @@
+//
+// This is a asciidoc document. Edit here, but view the PDF
+//
+
+= Bringup and Diagnostic Kit (BDK) Release Notes =
+
+== Overview ==
+This document gives a short overview of the major changes
+incorporated into each BDK release.
+
+== thunder-release-v2.04 ==
+* CN9XXX
+** Program MRML_CMD_TO[tovalue] to speedup ecam enumaration
+** Fix bug where SATA controller init is performed on every lane
+** Add driver for sending DVFS control data over SCMI
+** Force set AP_CVMMEMCTL1_EL1[node1trapena]=1 on sinlge node chips
+** Enable AP_CVMMEMCTL1_EL1[SWITCHTAGENA]
+* DRAM
+** Miscellaneous Minor Updates
+*** Includes the following small updates:
+*** Fix RDIMM Register Manufacturer name printing
+*** Enhance VREF samples averaging
+*** Fix BY-RANK init PARK override
+*** Fix "Wlevel Rank Final Test errors" printout
+*** Allow override of LMC Restart retries
+**** Allow override of default (3) retries of LMC init restart.
+**** If override is 0 (no restarts), do not do chip reset.
+** Remove obsolete deskew stuck-byte code.
+** Update the code that does DRAM testing per LMC
+** Adjust debug verbosities for DAC evaluation failures
+** Implement Deskew Unlock Feature
+*** Feature available only on 83XX, and not fully functional.
+*** Feature is compile-time option, OFF by default.
+*** Once compiled in, feature is OFF until enabled via envvar.
+*** Make Validate_Read_Deskew_Training available from libdram.c.
+*** Correct Validate_Read_Deskew_Training argument list.
+*** Make deskew_count_t struct available.
+*** Deskew Unlock available before SWL, at end of LMC init, and after tuning, through envvar value.
+** DRAM tests now look for Dcache and Icache parity errors
+** Clean and enhance read-leveling (minor)
+*** Take more samples for iteration RODT when equal to final setting RODT.
+*** Remove obsolete read-leveling averaging option.
+** Enhance and cleanup hardware-assist (DBTRAIN) usage.
+*** Use multiple LFSR patterns for software write-leveling and DLL tuning.
+*** Indicate 32-bit mode when tuning DLL offsets.
+*** Allow use of hardware-assist when tuning in 32-bit mode.
+** Clean-up and enhance clock configuration validation
+*** Clean-up error return and error detection for clock setup.
+*** Do chip RESET in the case of badly-initialized PLL.
+** Tweaks for DRAM testing
+*** Make per-thread area size modulo-256 (2 x cache block size) so that two areas are each an integral number of cache blocks.
+*** Force a re-WRITE of the expected value when an error has 100% retry failures (meaning the original WRITE was bad).
+*** Add PREFETCH cache manip to mem_xor and mem_rows DRAM tests, to try and increase utilization numbers.
+** Several tweaks for read-leveling
+*** Default RL delay bumping only for 11b bitmasks, except do all odds for 81XX.
+*** Make low PBM total count limit default to 5, but make it changeable via envvar.
+*** Treat low PBM total count as ABNORMAL, use original calculation from RL scores.
+*** For PBM mask 0x07 et al, use second if second and third counts are 1.
+*** Add special PBM handling when RLEVEL_CTL[rlevel_offset] == 1.
+** More Miscellaneous Updates
+*** Disable internal VREF averaging across byte-lanes for 81XX, but let it be available via envvar.
+*** Display MPR pages only for RDIMMs.
+*** Display "SPD: Thermal Sensor PRESENT" if it is.
+*** Do not count or print PBMs when RODT is 240 or 34 ohms (defaults), but make override possible via envvar.
+** Introduce write-leveling perfect bitmasks
+*** Treat WL bitmasks with 4 bits set as "perfect"
+*** Weight the perfect WL bitmasks heavily, so that a single PBM will outscore 4 non-PBMs.
+*** Allow weighting to be changed via envvar.
+*** Choose best score between majority and minority as write-leveling setting.
+** Read-leveling adjustments using counts
+*** Use best_byte counts to influence/override PBM choice (sometimes).
+*** Fix a CADJMOR mistake and a CADJLE2 print.
+*** Adjust range qualifying for CADJLE2 read-leveling adjustment.
+** Increase read-leveling passes for 1DPC
+*** Increase the number of passes taken when doing 1DPC
+*** This increases the total number of samples, and thus the number of scored rows and (hopefully) the number of PBMs
+*** Fix some verbosity settings for RL printing of BMs and scores
+*** Fix even more verbosity settings for RL printing of BMs and scores
+** Port LRDIMM Support to BDK TOT
+*** Port forward LRDIMM support from old code base.
+*** BY-RANK initialization must be disabled for LRDIMMs.
+*** Must set EXT_CONFIG2[early_dqx2]=1 for LRDIMMs.
+*** Activate LRDIMM_HACK_QUAD_TO_DUAL for trying 4-rank DIMMs.
+*** Add envvar for dumping the SPD swizzle information.
+*** Enhance overriding of training settings.
+*** DRAM parity mode is disabled by default.
+** Increase memory utilization of two DRAM tests
+*** Marching Rows (mem_rows)
+*** Random Data (mem_random)
+** Fix some hex prints to always include leading zeroes
+** Loosen CADJLE2 test to handle more instances.
+** Fix RDIMM support after port of LRDIMM code.
+*** Cleanup MPR and MRW related routines
+*** Process any overrides of LRDIMM training settings only when the result of training is bad (no edges, etc).
+* CN88XX
+** Fix incorrect speed passed to CCPI causing gcc 7.3 to fail on CN88XX
+* Trusted boot
+** Improve messages for singature read failure
+** Fix signature read with numbers having too many zero MSB
+*** The code reading ECC signatures was being too strict checking sizes for
+the ASN.1 encoded numbers. ASN.1 strips off leading zeros, so it was failing
+randomly when the top 8 bits were all zero. The new code allows up to 12*8
+leading zero, which should be exceedingly unlikely. If we get that many,
+the signature probably has other issues.
+** Add pretty menu to blow non-secure NV counter
+* Generic
+** Make Lua menus for DLM/QLM more consistent across chips
+*** Make some minor changes to the DLM/QLM configure menus so
+all chips use the same menu choices and such. This is to
+promote easy scripting across chips.
+** Change Lua menus to use the loopback function
+** Use C function to show settings instead of direct CSR read in lua
+** Change uart output code to not lock/unlock on every single byte
+** Expose the CNF95XX model constants to Lua
+** Add QLM config menu for CNF95XX
+** [fatfs] Calculate the end sector for the partition to make it easier to resize
+** [mmc] Change waiting for command completion to avoid a millisecond delay every poll
+** Fix bug where icache isn't flushed correctly after image load
+** Fix SATA test patterns not working if a disk isn't detected during init
+** Add function to do load and add by name for a CSR
+*** CN96XX introduced many CSRs that only return data for an
+atomic fetch and add. Add a string lookup function so
+these can be done by the csr command.
+*** Add lua support for performent load and add on a CSR
+*** Add csra command to menus for load and add of a csr
+*** Add csra command to traffic-gen for load and add of a csr
+** Add max number of arguments check to C function calls
+** Rename QLM mode constants to not be specific to DLM/QLM widths
+*** With the addition of CN96XX, QLM modes may not apply across entire
+QLMs or DLMs. Specifying the width also confused a number of customers
+and FAEs. Change the QLM mode names to be width agnostic, so SGMII_4x1
+just becomes SGMII. This makes configuration easier. Now modes only
+apply for the lane it is found on.
+** Change SATA mode constants to not include QLM width
+*** Change the constants that represent SATA mode to not include
+the width of the QLM/DLM. This simplifies configuration and
+makes it like the ethernet constants, which just went through
+the same conversion.
+** Rename PCIe modes to not include number of ports
+** Update device trees for config help updates
+* Model SKUs
+** Add AUS extension to t81 model table
+** CN80XX SKUs with 555 pins end in '1' instead of '0', violating the core numbering rule
+** Add AUS suffix for CN80XX in a 676 pin package
+* Traffic Gen
+** Add option to enable validation during perf_test
+** Add ability for transmit function to send a quick burst of packets
+** Add report of errors during perf_test
+** Make packet dump twice as wide
+** Add support for patterns of 0xff and 0x00
+** Show more info when running scan_sizes and perf_test. Makes results easier to understand
+** Show PPS during perf_test
+
+== thunder-release-v2.03 ==
+* DRAM
+** Miscellaneous printing and verbosity changes.
+** Prevent DDR speed from being higher than CPU speed.
+** Flag DDR Margining output lines that need review.
+** Use L2 Invalidate operations during test failure retries.
+** Re-work Margining stages and functionality.
+** Major modifications to read-leveling and offset/VREF training.
+** Support DDR3 4Rx4 RDIMM (VIKING) special case.
+** Do not do BY-RANK init when in 32-bit mode on 80XX
+** Add DRAM_CONNECTION configuration option
+** Enhance software write-leveling for 32-bit mode
+* CN93XX/CN96XX
+** Add QLM config menu for CN93XX/CN96XX
+** Update platform determination for fuse location changes
+** Use a lookup table to avoid division and modulo is packet send
+** Boot using SCP
+** Use GSERN scratch registers to remember serdes state
+* CNF95XX
+** Preliminary support for CNF95XX. Some IO are not complete yet
+* Device tree
+** Set #redistributor-regions to 1 in single node systems
+** Fix failure to pass FDT in asim for CN81XX
+** Change cpu numbering in CN9XXX device trimming
+** Update QLM_MODE comment to specify which CN8XXX chips each mode applies to
+** Use CCS_CONST to enumerate cores by cluster instead of hardcoded for CN93XX
+* Misc
+** GCC 7.3 and LLVM 6.0 support
+** [crb-1s] permutate PCIe physical slot numbering
+** [crb-2s] Add PCIE-PHYSICAL-SLOT to CRB-2S DTS file
+** Workaround errata PEM-31375 PEM RSL accesses to PCLK registers
+** Disable GTI global watchdog early in boot
+** Show PCIe specific FOM value
+** Fix breakage if BGX/CGX port 0 is hidden by the device tree
+** Move bdk_qlm_state_lane_t into a common header and add high level mode bits
+** Add timestamps to tracing output
+** Count domains instead of hardcoding the internal domain number
+
+== thunder-release-v2.02.2 ==
+* [networking] Fix breakage if BGX/CGX port 0 is hidden by the device tree
+
+== thunder-release-v2.02.1 ==
+* [pbus] Add missing break. Were AMD flashes broken?
+* CSR updates to support PCIe FOM
+* [devtree] Set #redistributor-regions to 1 in single node systems
+* [cn81xx] Fix failure to pass FDT in asim for CN81XX
+* [crb-1s] permutate PCIe physical slot numbering
+* [crb-2s] Add PCIE-PHYSICAL-SLOT to CRB-2S DTS file
+* [pcie] Workaround errata PEM-31375 PEM RSL accesses to PCLK registers can timeout
+* [pcie] Show PCIe specific FOM value
+* [DRAM] Fix CK_CTL override
+* [watchdog] Disable GTI global watchdog early in boot. Requested by SDK team on Bug#2
+* [devtree] Add MCU-SHUTDOWN-TWSI-CONFIG to boards with MCUs per request from the SDK
+
+== thunder-release-v2.02 ==
+* Update Copyright notices
+* Trust
+** Establish inserting signature node into LINUX.dtb
+** Fix crash in asim when compiled with LLVM 5.0.0
+* Version Numbers
+** Expose bdk_version_string() to Lua. Exposing this function will allow
+removing the lua file bdk-version.lua. Update release builds to update the
+build date.
+* DRAM
+** Consult "lmc_half" fuse for SKU limitation.
+** Make sure SCRAMBLE settings are disabled during DRAM initialization.
+** Enable SCRAMBLE settings if desired at the end of initialization of each LMC.
+** Default to scrambling all secure and non-secure accesses.
+* QLM
+** Correct CTLE Peak to be 4 bits, not 5. Old docs were wrong
+
+== thunder-release-v2.01 ==
+* Release source packages
+** Store release tag in source releases so version is correct. This changes
+makes BDK build from released source create the same version string as the
+original release. If someone made changes, there is no way to know. Better
+to have an approximate version instead of the word "unknown".
+** Change BDK's make clean to delete the BDK's signing certificate. A
+"make clean" now deletes the BDK's signing certificate so a change to NV_COUNT
+will be reflected. The two private keys, hw-rot-private.pem and
+bdk-sign-private.pem, are unaffected. A "make distclean" will also delete the
+private keys.
+* ECAM
+** Show more debug info about MSI-X during device scan
+* CN80XX/CN81XX
+** Lock all of L2 for chips with less than 4MB of L2/LLC. It has been
+reported that CN80XX has trouble with larger device trees being corrupted
+by cache invalidates when booting trusted. The device tree ends up being
+stored in an area not locked, which gets flushed before DRAM is setup.
+
+== thunder-release-v2.00 ==
+* Lots of documentation updates to the BDK manual
+* SATA
+** Workaround for GSER-30310: SATA HDD Not Ready due to PHY SDLL/LDLL lockup at 3GHz
+** Fix detect timeout in SATA and remove retry logic
+* PCIe
+** Do not drop to GEN2 when lane width not satisfied
+** Don't enable PCIe network ports unless PEM is out of reset
+* DRAM
+** Change the displayed DRAM speed from MHz to MT/s
+* Preliminary, unofficial CN93XX support.  CN93XX is still in
+development, so code is more of a preview of changes.  CN9XXX requires
+flash layout changes that affect all chips.
+* Add LZMA decompression library to the BDK
+** CN9XXX needs extra reserved flash space for SCP amd MCP binaries.  As
+the existing flash is quite full and ATF starts directly after the BDK,
+we need someway to save lots of space.  LZMA compression was chosen for
+its public domain license and ease of implementation.  This allows more
+space in the BDK without affecting ATF.
+** setup.bin, diagnostics.bin, and cortina-app.bin are now compressed
+* Rewrite flash generation script to support CN93XX as well as CN8XXX
+** Add the SCP and MCP BL1 images to flash.  We need a total of four
+images for secure and non-secure.  Under target-bin there are
+scp-bl1.exe and mcp-bl1.exe which are tiny place holders for the actual
+images.
+* GPIO
+** Add ability to toggle GPIO pins in MDIO or TWSI write sequences. It is
+common to have reset lines for devices connected to GPIO lines that are
+also communicated with using MDIO or TWSI. Add the ability for MDIO-WRITE
+or TWSI-WRITE to set GPIO states during the sequence, so any needed
+toggles are timed correctly relative to the MDIO/TWSI.
+* UART
+** Enable the uart(UAA) driver during init. Previously the BDK UAA driver only
+setup ports 2 and above if diagnostics was run.
+* Boot menu changes
+** Remove option to choose a image from FATFS to boot. This option is never
+used and add lots of code to the boot stub. Remove it to save space.
+** Remove option upload to FATFS using XMDOEM.  This option is never
+used and adds to the bloat of the boot stub.  Remove it to save space.
+Note that you can still program flash using XMODEM.
+* Device tree
+** Add the BDK version to the device tree
+** Remove unused device tree entries. The following device tree entries have been deemed unnecessary
+*** DDR-CONFIG-CUSTOM-DDR-RTT-NOM-AUTO.LMC%d.N%d
+*** DDR-CONFIG-CUSTOM-DDR-RODT-CTL-AUTO.LMC%d.N%d
+*** DDR-CONFIG-CUSTOM-RLEVEL-AVERAGE-LOOPS.LMC%d.N%d
+** Add the chip unique id to the device tree
+** Remove outdated and unused environment in argument 0 of images
+** Add device tree parameter to control scrambling
+* Support Trusted Boot
+** Details about trusted boot are documented in a new chapter inside the BDK manual.
+** Add Lua menu for working with Trusted Boot fuses
+** Switch to ANSI/OEM instead of UTF-8 and reduce max filename to save space
+** Add device tree parameters for the CSIB, ROT, and BSSK
+** Load ATF from /fatfs/bl1.bin.lzma when in trust mode
+** Hide unused menu option is setup menu when using trusted boot
+** Add SKU decodes for t83 and t81 trustzone chips
+* Internal
+** Default thread stack size changed to 8KB. Trusted boot puts more on the stack
+** Use link time optimization (-flto) with GCC to reduce size
+** [libc] Fix bug in strcat() introduced during LLVM support
+** [libc] Provide reentrant syscalls for newlib to remove wrappers
+** [libc] Fix warning reproted by LLVM 4.0.0 on mprec.c
+** Fix sign extension error in extraction of ECAM enhanced allocation info
+
+== thunder-release-v1.30.5 ==
+* SATA
+** Revert "[sata] Slow OOB clock frequency to improve Gen3 detection".  This
+workaround has shown failures with high IDDQ parts.
+
+== thunder-release-v1.30.4 ==
+* GPIO
+** Add ability to toggle GPIO pins in MDIO or TWSI write sequences. It is
+common to have reset lines for devices connected to GPIO lines that are
+also communicated with using MDIO or TWSI. Add the ability for MDIO-WRITE
+or TWSI-WRITE to set GPIO states during the sequence, so any needed
+toggles are timed correctly relative to the MDIO/TWSI.
+* SATA
+** Workaround for GSER-30310: SATA HDD Not Ready due to PHY SDLL/LDLL lockup at 3GHz
+** Fix detect timeout in SATA and remove retry logic
+* UART
+** Enable the uart(UAA) driver during init. Previously the BDK UAA driver only
+setup ports 2 and above if diagnostics was run.
+* Internal
+** Fix sign extension error in extraction of ECAM enhanced allocation info
+** Add SKU decodes for t83 and t81 trustzone chips
+
+== thunder-release-v1.30.3 ==
+* SATA: Change GSERX_LANEX_MISC_CFG_0[EIE_DET_STL_ON_TIME]=0x5 to improve Gen3 detection
+
+== thunder-release-v1.30.2 ==
+* Don't enable PCIe network ports unless PEM is out of reset
+* Change the displayed DRAM speed from MHz to MT/s
+
+== thunder-release-v1.30.1 ==
+* Add the chip unique id to the device tree
+* SATA
+** Add GSER registers to support SATA workaround
+** Workaround for GSER-30310: SATA HDD Not Ready due to PHY SDLL/LDLL lockup at 3GHz
+** Fix detect timeout in SATA and remove retry logic
+* Internal
+** Fix bug in strcat() introduced during LLVM support
+** Emulation: Remove default assignment of qlm0/1 to pcie.
+
+== thunder-release-v1.30 ==
+* PCIe
+** Add device tree parameter to override PCIe link max width
+** Add device tree entry for specifying the physical slot
+*** PCIe slot numbers are specified for the CRB-1S
+** In SERDES display, update determining of lanes to work with EP mode
+** Add support for CN83XX PCIe SPI flash
+*** Add display of PCIe SPI flash to lua menus
+*** Add device tree entry for describing SPI flash programming
+* PBUS
+** Add parallel NOR flash support. Tested on EBB8104 and EBB8304
+** Add menu option for Xmodem upload to NOR flash connected to the PBUS
+* Networking
+** On CN83XX with PKO, use DQ_FC to monitor PKO queue depth in memory for
+better performance.
+** On CN83XX with PKO, update max gather list to be bigger now that we don't
+need queue decrement.
+** Check for local or remote fault before declaring 10G+ links up
+** Add device tree option to override the number of MAC address programmed. Due
+to poor directions to customers, many boards were programmed with an incorrect
+number of MAC addresses. Add a device tree option to allow overriding the
+number of MAC addresses stored in the manufacturing data. This can then be set
+in each board's device tree to correct the number of MAC addresses.
+* SATA
+** Fix incorrect access to non existent slice 1 of DLMs. This fixes an
+incorrect access to Lanes 2-3 on DLMs configured for SATA. No functional
+difference expected.
+* Misc
+** Fix truncation of sysreg access for core registers through interactive
+tools. Access to both front and backend core registers now works through
+various command line tools.
+** Add QSGMII_4X1 to list of QLM/DLM modes in DTS file comments
+** Ignore upper bits of MFG1 when checking for wafer info and serial number
+** Only include CSR headers needed for each file. Include the register header
+files needed by each file instead of relying on bdk.h to include them all. This
+will allow bdk.h to include less, speeding up compiles.
+** Fix hardcoded shift for node in address by calling bdk_numa_get_address().
+No affect on CN8XXX chips, only affects future CN9XXX chips.
+** Add the BDK version to the device tree
+
+== thunder-release-v1.29.2 ==
+* Networking
+** Add device tree option to override the number of MAC address programmed. Due
+to poor directions to customers, many boards were programmed with an incorrect
+number of MAC addresses. Add a device tree option to allow overriding the
+number of MAC addresses stored in the manufacturing data. This can then be set
+in each board's device tree to correct the number of MAC addresses.
+
+== thunder-release-v1.29.1 ==
+* Minor fixes to compiler with LLVM 3.9.1
+* Prune device tree MDIO PHY information for SGMII ports not using MDIO. Linux
+needs the MDIO PHY handle removed from any SGMII mode port that doesn't use
+MDIO to talk to the PHY. Remove the handle for TWSI style connects, and fixed
+speed links.
+* Add workaround for PCIE-29566
+
+== thunder-release-v1.29 ==
+* PCIe RC initialization has undergone numerous improvements to increase link
+reliability and robustness.
+** PEM is not turned on until initialization. The PEM is clock gated until
+after QLM / DLM setup is complete and RC initialization starts.
+** Retry PCIe link init if device comes up with wrong width or speed. Each link
+is tried a maximum of three times.
+** Add a simple LTSSM history to the PCIe trace output
+** For gen3 links retry link if errors are seen. This recovers from poor
+presets being chosen.
+** Require PCIe links to be up without any errors for 200ms before
+proceeding. Some cards have a link bounce or error during PCIe init. Require
+the link to be stable for 200ms without any errors before considering it up.
+If any bounce or other error happens, treat it like a full PCIe retry.
+** Drop link speed to gen2 for gen3 links that are on their last retry
+** Allow link bounce for a short time after it goes good. We've seen cards
+where the link will bounce down/up after it has been detected as up. For a
+short period after link up (10ms) ignore bounces and errors. After this time,
+either a bounce or an error will cause a retry.
+** Add setup menu option to specify the preset request vector. Tuning the best
+RX equalization mask for PCIe is a manual process requiring multiple boots and
+tests. To support this without a flash update, add the preset request vector
+config parameter to the setup menu. This allows the changing of this field
+without software updates. Once the correct preset is found, the board's source
+DTS file should be updated.
+** Add workaround for PCIE-29440, atomic ops
+* SERDES
+** Display eye width, height, and area as part of eye diagram
+** Display QLM settings during RX equalization when tracing is on
+* Cortina / Inphi
+** Add readme line for CS4343_10GE_eeprom_10_23_2015.txt. The Cortina / Inphi
+readme file describing the various images was missing a line to describe the
+latest image we are using.
+** Add support for QSFP+/SFP+ speed auto detection. QLM-MODE can now be set to
+"QSFP+" or "SFP+" signalling that the BDK should configure the interface for
+the QSFP+/SFP+ found during boot. This supports 1GBps, 10Gbps, and 40Gbps
+speeds. The Cortina / Inphi updated must be run to properly set the mode of
+the PHY during boot. The Cortina / Inphi updater must be customized for each
+board to account for lane wiring.
+** Added support for 1000BASE-X, used for SFP+.
+** The CRB-2S has been configured to use this functionality. The CRB-2S
+requires BMC gpio GPIOJ0 to be driven low in order to select the QSFP+
+module. Older BMC software doesn't do this. The gpio can be manually configured
+through the BMC console with the following. If this hasn't been done the BDK
+will fail to detect a module and default to XLAUI, which is the old behavior.
+*** gpiotool 72 --set-dir-output
+*** gpiotool 72 --set-data-low
+*** gpiotool 72 --get-data
+* CN88XX
+** Fix unexpected reference warnings for disabled QLMs on CN88XX.
+** Add experimental auto tune function for CCPI. Use the vertical eye
+measurement to automatically find the best TX swing for each CCPI lane. The
+results are displayed only. It is up to the user to review the results and
+update the device tree if the automatic tuning provides useful results.
+* CN83XX
+** Program DLM6 before DLM5 when setting up 4 lane BGX modes, such as XAUI,
+XLAUI, 40G-KR4.
+** Expand API to support more that 64 GPIOs. CN83XX has 80.
+* CN81XX
+** tdm: swap tx/rxdata pins, so tx is on tdm0. Errata#29221 means TX only safe
+on TDM0 for t81@1.0/1.1 We swap tdm pin assignments on all boards, and swap
+the kernel too, and the SLIC on tdm0/1 can work without triggering bug. Second
+slic, or sff81's framer, is out of luck, but a custom board definition
+(swapping tdm data/fsync/bclk between the two devices) could be used to work
+with sff81 framer
+** Add RTC configuration for EBB8104
+** Configure the GPIO pins for use by PBUS
+* DRAM
+** Ensure MODE32B is configured for EBB8004. In lab setups non-production
+parts may be used on EBB8004 setups which require this setting. This does not
+affect production parts.
+** Fix 83XX address decode for correct LMC.
+** CRB-2S DRAM speed has been fixed at 1866Mt/s instead of using auto DRAM
+speed. Older EVT2 and EVT3 boards do not support the higher speed chosen by
+auto.
+** Verify 32-bit mode setting via chip, config, and fuses.
+** Multi-sample Internal VREF DAC settings.
+*** Use multi-sampling of DAC settings to calculate best values.
+*** Clean up printing of PHY_CTL during LMC Offset Training.
+*** Raise verbosity level for several DAC-related debug prints.
+* Internal changes
+** Make ROM-FS case insensitive. FAT fs is case insensitive. To ease
+mimicking fs-fat with fs-rom make ROM-FS also case-insensitive.
+** Try loading board data from ROM-FS. Remote loader passes data through
+/rom file system. Try loading board configuration data from that location
+before checking /boot.
+** Lookup board dtb on /rom/ before checking /fatfs/
+** Check if Linux DTB is present in /rom/ before checking /fatfs/
+** The fatfs-tool program can now extract file from an image
+
+== thunder-release-v1.28 ==
+* PCIe
+** Add device tree option for specifying the preset request vector
+** Update PCIe reset sequence to match new HRM.
+** Fix bug in displaying eye diagram on lane 4 for PCIe
+** Add workaround for PCIE-28816. PCIe links may live lock if at gen1 and
+gen3 equalization is enabled. This happens when a link retrain is requested.
+** Errata PEM-25990 - Disable ASLPMS
+* SATA
+** Improve BIST code robustness
+* DRAM
+** Add AUTO as an option for console DRAM speed setting.
+*** Add the AUTO option as a SETUP menu DRAM speed item, which ask for
+automatically chosen optimal DRAM speed, for use during initialization.
+*** At runtime, when AUTO is the DRAM speed option:
+**** Probe for DIMMs present and determine their speeds and configuration.
+**** Return the optimal speed dependent on DIMMs and configuration for use
+during DRAM initialization.
+**** The automatically chosen speed overwrites the DDR-SPEED device tree entry
+in DRAM.
+*** Continue to allow manual override via the BDK menus, ie setting a specific
+speed in SETUP.
+** All Cavium evaluation boards are now configured to use auto for DRAM speed
+** Set TIMING_PARAMS1[trfc_dlr] field appropriately for 3DS DIMMs.
+** Fix some DDR4 configurations to have correctly empty ranks. This fixes a
+bad computed VREF for 2DPC 1-rank configurations. RTT_PARK, RTT_WR, and
+VREF_VALUE now have empty entries where they should.
+** Fix some 32-bit handling issues
+*** Use the original test_dram_byte() code, it works in 32-bit mode.
+*** Correctly handle 32-bit mode in Validate_Read_Deskew_Training().
+*** Fix evaluate_DAC_settings() for 32-bit mode.
+* CCPI
+** Allow more time for CCPI lanes to recover ready. Lanes that are stuck
+waiting for ready need a transition to ser_lane_bad, then have ser_lane_bad
+cleared to restart the state machine. Prior code made this transition 1ms,
+which seems too short on some ODM boards. Make the transition 10ms. Also lower
+the number of times a lane must be ready before we allow a state transition.
+The original 10 times seems excessive, so the new value is 5.
+** Display lots of serdes debug info when tracing is enabled. When CCPI tracing
+is enabled, show lots of SERDES tuning information for every CCPI lane. This
+should make it easier to debug CCPI failures using logs.
+* USB
+** Add workaround for USB2 PLL not starting (Errata USB-29206). The PLL used
+for USB2 may not start correctly after a PHY reset. Check if the PLL didn't
+lock and power cycle the PLL if needed. This allows the PLL to restart and
+function properly. The BDK is the only code to reset the PHY on thunderx, so
+no other software should need changes.
+* TWSI
+** Only report error after bus recovering failed
+* Misc
+** Update SKU decoder for all chips
+** Show node and QLM number when a unexpected reference clock is detected
+** Improve error messages when fuse soft blow fails
+** Add message checking status of CRC32 on OS device tree. When logging of the
+OS device tree is enabled, display a message showing if the tree passed a
+CRC32 verification.
+** Check a CRC32 when passing device trees between images
+** Fix bug where wrong defaults are used if OS device tree loaded. When a OS
+device tree is loaded, we expand all current BDK defaults in the running
+device tree so later software can access them. Since the init binary starts
+without DRAM and ends with DRAM, the best defaults change while it is
+running. Update the defaults before expanding them.
+
+== thunder-release-v1.27 ==
+* DDR4
+** The common DDR4 config files, and the CRB-2S files, have been optimized to
+save space. There should be no functional changes, but the process was manual
+and has some risk
+* CN83XX
+** First support for CN82XX and CN83XX
+* USB
+** Add Manufacturer, product and Serial Number for inserted devices to usb host
+controller status display.
+* SATA
+** Change QLM setting per new recommendations. This reverts commit
+18adfd92167d43e988ac42b4cf9a52b6c4b4e525, which was suppose to be an
+experiment but communicated as a permanent change.
+** Change QLM CTLE setting to match CSR description. CSRs as of 9/30/2016 show
+CTLE=0 for all SATA speeds.
+** Shutdown SATA controller on SATA init failure. If SATA initialization fails,
+perform a HBA reset to recover the controller. This way the next call won't
+fail due to left over state.
+** Disable partial and slumber power management
+* CCPI
+** Perform RX equalization during message check. Initial hardware equalization
+may be poor as the nodes come up asynchronously. Perform RX equalization during
+message check just like during training. This allows the SERDES to better tune
+for the incoming PRBS pattern.
+** Send 1/3 of the number of messages during message check. Now that we perform
+RX equalization between each message during message check, the time to perform
+the full check is long. Increment message counters by 3 so we send 1/3 the
+number of messages. This allows more bits in the training message to be checked
+and for the whole sequence to run faster.
+** Don't probe CCPI on chips where it is disabled. Some CN88XX parts don't have
+CCPI. Check fuses to figure this out and skip CCPI.
+* TWSI
+** Perform bus recovery on writes as well as reads
+* Networking
+** Set the TX threshold of BGX to optimally use FIFOs
+** Delay before enabling validation after perf_test. The traffic-gen
+performance test was enabling the validation of packets before the test
+stopped moving traffic. This caused false errors to be reported at the end of
+perf_test.
+** Add traffic-gen command to wait for all links to come up
+** Fix permanent link down if BER test fails. A bug in the BGX link init for
+SPU allowed a BER error to mistakenly leave the port in a stuck state where
+packets can't be received even though the link is up. This should affect all
+chips, but the failure has only been seen on CN83XX.
+** Improve link negotiation for 10Gbps and higher links. For all high speed BGX
+links, better check for link up before redoing the link state. This allows
+links to come up quicker with fewer RX equalization calls. This should also
+cause less bouncing when links are connect to each other.
+* PCIe
+** Add menu option to display details for QLM settings. To help with PCIe
+debug, add a menu option to show many detailed settings of each QLM lane used
+by a PCIe port. This allows easy access to these without the operator knowing
+which PCIe lanes map to QLMs.
+** Add menu option to display eye for PCIe lane
+** Add menu items to do config read/write
+* Misc
+** The fatfs-tool now shows the number of free clusters/blocks on "ls"
+** Official BDK builds are now done with GCC 6.1.0, aarch64-thunderx-elf-gcc (Cavium Inc. Version 2.1 build 27) 6.1.0
+
+== thunder-release-v1.26 ==
+* CN80XX
+** Workaround incorrect alternate package fusing. Due to a documentation mixup,
+some CN80XX parts do not have chip_id bit 7 set. As a backup, use lmc_mode32 to
+find these parts. Both bits are suppose to be fused, but some parts only have
+lmc_mode32. This should only apply to CN81XX/CN80XX parts.
+* Misc
+** Add define to enable / disable the checking of a magic register dump
+signal. On some systems this has fixed crashes during PCIe link initialization.
+* TWSI
+** Fix CSR name typo in TWSI bus recovery
+* PCIe
+** Display the PEM LTSSM state after PCIe init
+* SATA
+** Rewrite SATA init sequence to match AHCI 1.3 spec. AHCI rev 1.3 specifies
+"10.1.1 Firmware Specific Initialization". Update the SATA init to exactly
+follow this sequence for early init. This removed some processing from
+__bdk_qlm_set_sata() and moved it to bdk_sata_initialize().
+** Perform a port reset if device fails to become ready. The SATA device
+seems to get stuck waiting for the busy bit to clear a small percentage of
+the time in the BDK. When this happens, perform a port COMINIT to recover.
+This will be done up to three times.
+* CCPI
+** Reset QLM if training is stuck not receiving messages. Under rare
+conditions the QLMs can fail to transmit training messages while training
+is active. This is seen as one node receiving messages, but not getting
+responses from the other for its requests. This shows up as a lane getting
+stuck in message check. When this is detected, perform a QLM soft reset to
+recover the QLM lanes.
+** Show all lanes in one status line. Add a line to CCPI trace that contains
+the state of all 24 lanes. This makes it easier to follow all lanes at once.
+* Networking
+** Only perform BER test on links using 10G SERDES. The BER tests use the
+BGXX_SPUX_BR block, which is only active for XFI, 10G-KR, XLAUI, and 40G-KR.
+XAUI, DXAUI, and RXAUI don't use this block and can't do the same BER test.
+** Fix max packet length check in packet allocator. Could cause memory
+corruption on large packets.
+
+== thunder-release-v1.25 ==
+* Includes all fixes from thunder-release-v1.24.3 and thunder-release-v1.23.10
+* Add Cavium's BSD license to the top of BDK files
+* CCPI
+** Force boot to stop when CCPI fails on systems requiring multi-node
+* SATA
+** Consolidate QLM+SATA init code into a single common file
+** Take SATA PCS out of reset before the GSER PHY
+** Improve debug output messages on command failure
+** Fix QLM reporting incorrect SATA speed after controller reset
+** Increase the SATA init delay to 250ms to workaround detect issues
+* SERDES
+** Add support for SGMII with a 100Mhz ref clock
+** Check for Eletrical Idle or CDR loss during RX equalization
+** Allow RX equalization to be run on any speed link
+* Networking
+** Check for bit errors during BGX link init
+** Report link down if SMU reports a local or remote fault
+* CN80XX
+** Initial support for CN80XX
+** Support for EBB8004
+* eMMC
+** Add menu option to run an automated eMMC/SD test
+* PCIe
+** Fixes to virtual function discovery to support external devices.
+** Do not show euphemeral devices on local hostRC
+* DRAM
+** Improve DDR4 read-leveling accuracy
+** Improve performance of 1-rank DIMMs
+** Improve performance of 2-slot configurations
+** Add support for mini-DIMMs and SO-DIMMs
+** Allow read bit-deskew to be disabled
+** Detection of 3DS and NV DIMMs
+** Improve default DIMM information output.
+** Fix memory leak on SPD read failure
+** Fix missing brackets on if statement causing spurious output for boards with less than 4 DRAM controllers in use
+* USB
+** Correct USB version check to work with 3.x devices, not just 3.0
+** Improved error and warning reporting
+** Change storage device names for usb dynamic devices to reflect physical node they attached to
+** Improved USB device display
+** Add automated pattern test to the usb menu
+** Fix support for write-protectable flash drives
+* GPIO
+** Add device tree item for configuring the polarity of a GPIO
+
+* FATfs
+** Use raw system calls instead of C buffered IO
+** Increase the file IO buffer size to 4KB
+* TWSI
+** Implement bus recovery after a TWSI timeout
+
+== thunder-release-v1.24.4 ==
+* eMMC
+** Fix bug where the address didn't increment during writes
+* CRB-2S
+** Remove Cortina PHY reset as it isn't required for the latest ROM
+** Apply better tuning parameters to QLM0-1, for networking
+
+== thunder-release-v1.24.3 ==
+* CCPI
+** Display the BDK version of node 1 during boot.  The BDK version of both
+nodes must match, so a fatal error will be raised if the version on both
+nodes doesn't match.  The error message "FATAL: Mismatched BDK versions
+between nodes" will be displayed when the nodes don't match.
+
+== thunder-release-v1.24.2 ==
+* CCPI
+** Clear CCPI link TX retry and RX block error counters after CCPI init. RX
+block error counters were causing false error reporting during UEFI.
+* DRAM
+** Fix missing arguments to debug_print() found by cppcheck
+* Device Tree
+** Device tree now uses qsgmii instead of sgmii tag for QSGMII mode GSER
+** Fix trace help comment to refer to correct file
+** Clarify the description of channel loss
+** Fix PEM trimming on node-1
+** Small optimization when deleting PEM to use already obtained fdt offset.
+** Rewrite "qlm-mode" trimming
+** refclkuaa to exact value.
+** Changed "pci-host-ecam-generic" property replacement to not truncate
+property value, and take effect in more cases.
+** Fix patching of /memory@ nodes.
+* CN81XX / CN80XX
+** Hide the 'E' option in the boot menu for CN81XX/CN80XX. The L2 Cache on
+CN81XX and CN80XX is too small to run diagnostics without DRAM. Don't show
+this boot option on these chips.
+** Fix detection of alternate package for CN80XX.
+** Report a single lane for DLM0-1 on CN80XX.
+** Update serdes config menu for CN80XX.
+** Properly do MCU autoconfig when a DLM only has 1 lane. Applies to CN80XX.
+
+== thunder-release-v1.24.1 ==
+* CCPI
+** Fix bug where CCPI pre/post for node 0 was using node 1 values.  Node 0
+was mistakenly using pre and post tuning values meant for node 1.  This
+bug is normally harmless because most systems use the same tuning values
+for both nodes.
+** Fix bug where CCPI tuning parameters would default to zero.  Due to how
+image handoff works in the BDK, the function bdk_init_ccpi_early() is only
+called in the first image and not following images.  This is the expected
+and correct behavior.  The bug was that the CCPI lane state was
+initialized in this function instead of bdk_init_ccpi_connection().  This
+caused the defaults for CCPI lane tuning to be lost.
+
+== thunder-release-v1.24 ==
+* DRAM
+** Fix possible skip of ECC update in memory owned by the BDK
+** Enhance read-leveling bitmasks printing
+** Allow old TRP field calculation in TIMING_PARAMS0
+** Fix the calculated ECC byte validity check
+** Do not skip RODT rows for 1-rank 2-slot configurations
+** Initial 32-bit mode support for 81xx/80xx
+** Fix uses of RTT_WR
+** Keep all rows for RL if single rank DIMM
+** Use RTT_WR of 80 ohms for both 1-rank DIMM configurations
+** Handle RTT_WR usage for 88XX pass 1
+** Re-arrange read-leveling sampling order
+** Change RTT_PARK and RODT for 1-rank 2-slot configurations
+** Use 100MHz refclk with all RDIMM types when required
+
+* Networking
+** Properly detect link down status for XAUI
+** Marvell RXAUI PHY needs reset and updated param
+** Disabling filtering of mcast so we get backpressure counters
+** Fix bug causing corruption of BGXX_CMRX_RX_DMAC_CTL
+** Use BGX hw counters for tx packets and octets
+
+* CCPI
+** Toggle the lane bad bit when we don't get a lane up
+** Once training RX ready is set, never clear it or ask for updates
+** Use GTI timestamps to improve multi-node synchronization
+** 6.25G using RX equalization requires another delay in ready checks
+
+* PCIe
+** Set SLIX_M2S_MACX_CTL[waitl_com] for more strict ordering
+** Show friendly name for internal devices during ecam scan
+** Add discovery of virtual functions
+
+* SATA
+** Perform a HBA reset during init
+
+* SERDES
+** Remove code skipping QLM setup if we're already in the correct mode
+** Treat any refclk less than 1Mhz as zero
+
+* SNT
+** Add detection of Nitrox through checking fuse 231 (0xe7)
+
+* Misc
+** Correct display of binary data in the device tree
+** Report failure if fatfs-tool can't copy a file
+** Fix issue where "keys" in a menu says it was a invalid command
+** Add the chip serial number to the device tree during init
+** Update expected CPT fuses for CN81XX and CN80XX models
+** Fix UAA device entry
+** Fix issue where trace output could say a FDT was updated when it wasn't
+** Don't use compiler builtins for compare and swap
+** Add required 300Mhz offset for decode of MIO_FUS_DAT3[core_pll_mul]
+** Add setup menu for choosing tracing levels
+
+== thunder-release-v1.23.19 ==
+* PCIe RC initialization has undergone numerous improvements to increase link
+reliability and robustness.
+** PEM is not turned on until initialization. The PEM is clock gated until
+after QLM / DLM setup is complete and RC initialization starts.
+** Retry PCIe link init if device comes up with wrong width or speed. Each link
+is tried a maximum of three times.
+** Add a simple LTSSM history to the PCIe trace output
+** For gen3 links retry link if errors are seen. This recovers from poor
+presets being chosen.
+** Require PCIe links to be up without any errors for 200ms before
+proceeding. Some cards have a link bounce or error during PCIe init. Require
+the link to be stable for 200ms without any errors before considering it up.
+If any bounce or other error happens, treat it like a full PCIe retry.
+** Drop link speed to gen2 for gen3 links that are on their last retry
+** Allow link bounce for a short time after it goes good. We've seen cards
+where the link will bounce down/up after it has been detected as up. For a
+short period after link up (10ms) ignore bounces and errors. After this time,
+either a bounce or an error will cause a retry.
+** Add setup menu option to specify the preset request vector. Tuning the best
+RX equalization mask for PCIe is a manual process requiring multiple boots and
+tests. To support this without a flash update, add the preset request vector
+config parameter to the setup menu. This allows the changing of this field
+without software updates. Once the correct preset is found, the board's source
+DTS file should be updated.
+
+== thunder-release-v1.23.18 ==
+* DRAM
+** When using auto speed, set the config to the final Mt/s value. When
+DDR-SPEED == 0, the DRAM code calculates the speed based on the DIMMs plugged
+into the board. After this speed is calculated, save it into the in-memory
+device tree so it is visible to following software.
+
+== thunder-release-v1.23.17 ==
+* Update SKU decoder for new CN88XX chips
+* GPIO
+** Add device tree parameter to configure GPIO sources.
+* PCIe
+** Display the PEM LTSSM state after PCIe init.
+** Add device tree option for specifying the preset request vector.
+** Update PCIe reset sequence to match new HRM. The hardware team has changed
+the PCIe reset sequence since the RC init code was written. Update the reset
+to match the latest sequence from a HRM.
+** Fix bug in displaying eye diagram on lane 4 for PCIe.
+** Add workaround for PCIE-28816. PCIe links may live lock if at gen1 and gen3
+equalization is enabled. This happens when a link retrain is requested.
+** Errata PEM-25990 - Disable ASLPMS.
+* SERDES
+** Show node and QLM number when a unexpected reference clock is detected.
+** Improve the description of QLM_CHANNEL_LOSS.
+* Fuses
+** Improve error messages when fuse soft blow fails.
+* CCPI
+** Display lots of serdes debug info when tracing is enabled. When CCPI tracing
+is enabled, show lots of SERDES tuning information for every CCPI lane. This
+should make it easier to debug CCPI failures using logs.
+* USB
+** Correct display of ACK timeout when USB is disabled. The USB2 PLL
+workaround was displaying ACK timeouts when run on systems without USB2 wired
+up. Suppress the warnings.
+* TWSI
+** Only report error after bus recovering failed
+* Configuration
+** Fix bug where wrong defaults are used if OS device tree loaded. When a OS
+device tree is loaded, we expand all current BDK defaults in the running device
+tree so later software can access them. Since the init binary starts without
+DRAM and ends with DRAM, the best defaults change while it is running. Update
+the defaults before expanding them.
+* Internal structural changes
+** Make PCIe config calls used in CSRs weak so they don't pull in PCIe when
+it isn't used. The boot stub doesn't link in PCIe, but does use the CSR
+access functions. This was mistakenly pulling in all the PCIe code, causing
+bloat. Make the functions used by the CSR routines weak, so they aren't pulled
+in unless PCIe is used somewhere else.
+** Add function to get the number of GPIO on a chip. Each chip supports a
+different number of GPIO. Consolidate this knowledge into a single function.
+** Add message checking status of CRC32 on OS device tree. When loggin of the
+OS device tree is enabled, display a message showing if the tree passed a
+CRC32 verification.
+** Check a CRC32 when passing device trees between images.
+
+== thunder-release-v1.23.16 ==
+* TWSI
+** Perform bus recovery on writes as well as reads
+* SATA
+** Disable partial and slumber power management
+** Uncomment error message that was mistakenly disabled
+* CCPI
+** Don't probe CCPI on chips where it is disabled
+** Allow more time for CCPI lanes to recover ready
+* Networking
+** Fix permanent link down if BER test fails. A bug in the BGX link init for
+SPU allowed a BER error to mistakenly leave the port in a stuck state where
+packets can't be received even though the link is up. This should affect all
+chips, but the failure has only been seen on CN83XX.
+** Improve link negotiation for 10Gbps and higher links. For all high speed BGX
+links, better check for link up before redoing the link state. This allows
+links to come up quicker with fewer RX equalization calls. This should also
+cause less bouncing when links are connect to each other.
+* PCIe
+** Add menu option to display details for QLM settings
+** Add menu option to display eye for PCIe lane
+** Add menu items to do config read/write
+** Add device tree option for specifying the preset request vector
+* DRAM
+** Add AUTO as an option for console DRAM speed setting.
+*** Add the AUTO option as a SETUP menu DRAM speed item, which ask for
+automatically chosen optimal DRAM speed, for use during initialization.
+*** At runtime, when AUTO is the DRAM speed option:
+**** Probe for DIMMs present and determine their speeds and configuration.
+**** Return the optimal speed dependent on DIMMs and configuration for use
+during DRAM initialization.
+**** The automatically chosen speed overwrites the DDR-SPEED device tree entry
+in DRAM.
+*** Continue to allow manual override via the BDK menus, ie setting a specific
+speed in SETUP.
+** All Cavium evaluation boards are now configured to use auto for DRAM speed
+* USB
+** Add workaround for USB2 PLL not starting, USB-29206. The PLL used for USB2
+may not start correctly after a PHY reset. Check if the PLL didn't lock and
+power cycle the PLL if needed.
+
+== thunder-release-v1.23.15 ==
+* Misc
+** Add define to enable / disable the checking of a magic register dump
+signal. On some systems this has fixed crashes during PCIe link initialization.
+* USB
+** Numerous resource leaks were fixed related to USB plug / unplug.
+** Change storage device names for usb dynamic devices to reflect physical node
+they attached to.
+** Improved output for listing USB devices. List is now per hardware port.
+** Add Manufacturer, product and Serial Number for inserted devices to usb host
+controller status display.
+** Add automated pattern test to the usb menu
+** Fix support for write-protectable flash drives
+** Increase io speed for usb
+* FATfs
+** Use raw system calls instead of C buffered IO
+** Increase the file IO buffer size to 4KB
+* SATA
+** Change QLM setting per new recommendations. This reverts commit
+18adfd92167d43e988ac42b4cf9a52b6c4b4e525, which was suppose to be an
+experiment but communicated as a permanent change.
+** Change QLM CTLE setting to match CSR description. CSRs as of 9/30/2016 show
+CTLE=0 for all SATA speeds.
+** Shutdown SATA controller on SATA init failure. If SATA initialization fails,
+perform a HBA reset to recover the controller. This way the next call won't
+fail due to left over state.
+* CCPI
+** Perform RX equalization during message check. Initial hardware equalization
+may be poor as the nodes come up asynchronously. Perform RX equalization during
+message check just like during training. This allows the SERDES to better tune
+for the incoming PRBS pattern.
+** Send 1/3 of the number of messages during message check. Now that we perform
+RX equalization between each message during message check, the time to perform
+the full check is long. Increment message counters by 3 so we send 1/3 the
+number of messages. This allows more bits in the training message to be checked
+and for the whole sequence to run faster.
+
+== thunder-release-v1.23.14 ==
+* TWSI
+** Fix CSR name typo in TWSI bus recovery
+* CCPI
+** Reset QLM if training is stuck not receiving messages. Under rare
+conditions the QLMs can fail to transmit training messages while training
+is active. This is seen as one node receiving messages, but not getting
+responses from the other for its requests. This shows up as a lane getting
+stuck in message check. When this is detected, perform a QLM soft reset to
+recover the QLM lanes.
+** Show all lanes in one status line. Add a line to CCPI trace that contains
+the state of all 24 lanes. This makes it easier to follow all lanes at once.
+* Networking
+** Only perform BER test on links using 10G SERDES. The BER tests use the
+BGXX_SPUX_BR block, which is only active for XFI, 10G-KR, XLAUI, and 40G-KR.
+XAUI, DXAUI, and RXAUI don't use this block and can't do the same BER test.
+
+== thunder-release-v1.23.13 ==
+* SERDES
+** Check for Electrical Idle or CDR loss during RX equalization. RX equalization
+requires a continuous signal while it runs. If the lanes enter Electrical Idle
+or loose CDR lock, we know the signal dropped while equalization was running.
+Mark this as a failure so we will redo RX equalization later. This happens
+most often with BGX where the incoming signal may "bounce" during initial
+setup.
+** Allow RX equalization to be run on any speed link. RX equalization has been
+shown to improve the eye even at slow speeds. Allow RX equalization to be run
+on any link.
+* Networking
+** Check for bit errors during BGX link init. For a BGX link to be considered
+up, require that it have block lock during the entire up sequence. Also do a
+short bit error check to stop link up on false link bounces.
+** Report link down if SMU reports a local or remote fault. With Marvell PHYs
+and XFI, we've seen cases were local fault gets set after the link is up.
+Update the code to check for this condition.
+** Fix hard coded constants for PHY fixed speeds. The BGX code mistakenly
+used hard coded constants for the fixed PHY speeds. Update the code to use
+the symbolic constants.
+* DRAM
+** Fix memory leak on SPD read failure
+** Fix missing brackets on if statement causing spurious output for boards with
+less than 4 DRAM controllers in use.
+* SATA
+** Rewrite SATA init sequence to match AHCI 1.3 spec. AHCI rev 1.3 specifies
+"10.1.1 Firmware Specific Initialization". Update the SATA init to exactly
+follow this sequence for early init. This removed some processing from
+__bdk_qlm_set_sata() and moved it to bdk_sata_initialize().
+** Perform a port reset if device fails to become ready. The SATA device
+seems to get stuck waiting for the busy bit to clear a small percentage of
+the time in the BDK. When this happens, perform a port COMINIT to recover.
+This will be done up to three times.
+
+== thunder-release-v1.23.12 ==
+* TWSI
+** Implement bus recovery after a TWSI timeout
+
+== thunder-release-v1.23.11 ==
+* CCPI
+** Display the BDK version of node 1 during boot.  The BDK version of both
+nodes must match, so a fatal error will be raised if the version on both
+nodes doesn't match.  The error message "FATAL: Mismatched BDK versions
+between nodes" will be displayed when the nodes don't match.
+** Force boot to stop when CCPI fails on systems requiring multi-node
+* SATA
+** Consolidate QLM+SATA init code into a single common file
+** Take SATA PCS out of reset before the GSER PHY
+** Improve debug output messages on command failure
+** Fix QLM reporting incorrect SATA speed after controller reset
+** Increase the SATA init delay to 250ms to workaround Samsung SSD failure
+* USB
+** Correct USB version check to work with 3.x devices, not just 3.0
+** Change all xhci warnings and errors to trace messages
+* DRAM
+** Improve DDR4 read-leveling accuracy
+** Improve performance of 1-rank DIMMs
+** Improve performance of 2-slot configurations
+** Add support for mini-DIMMs and SO-DIMMs
+** Allow read bit-deskew to be disabled
+** Detection of 3DS and NV DIMMs
+** Improve default DIMM information output.
+
+== thunder-release-v1.23.10 ==
+* eMMC
+** Fix bug where the address didn't increment during writes
+* CRB-2S
+** Remove Cortina PHY reset as it isn't required for the latest ROM
+** Apply better tuning parameters to QLM0-1, for networking
+
+== thunder-release-v1.23.9 ==
+* CCPI
+** Clear CCPI link TX retry and RX block error counters after CCPI init. RX
+block error counters were causing false error reporting during UEFI.
+
+== thunder-release-v1.23.8 ==
+* CCPI
+** Fix bug where CCPI pre/post for node 0 was using node 1 values.  Node 0
+was mistakenly using pre and post tuning values meant for node 1.  This
+bug is normally harmless because most systems use the same tuning values
+for both nodes.
+** Fix bug where CCPI tuning parameters would default to zero.  Due to how
+image handoff works in the BDK, the function bdk_init_ccpi_early() is only
+called in the first image and not following images.  This is the expected
+and correct behavior.  The bug was that the CCPI lane state was
+initialized in this function instead of bdk_init_ccpi_connection().  This
+caused the defaults for CCPI lane tuning to be lost.
+
+== thunder-release-v1.23.7 ==
+* Add required 300Mhz offset for decode of MIO_FUS_DAT3[core_pll_mul].
+Not clear from the documentation, the multiplier read from
+MIO_FUS_DAT3[core_pll_mul] has a 300Mhz offset from the actual RCLK speed.
+Add this to the code.
+
+== thunder-release-v1.23.6 ==
+* SATA
+** Perform a HBA reset during init.  Perform a host bus reset to make sure
+SATA is good.  This seems to be needed in rare cases.  Without it, SATA
+will very rarely fail the first identify.
+* CCPI
+** 6.25G using RX equalization requires another delay ready checks Through
+experiments, CCPI using 6.25G and RX equalization requires a slightly
+longer delay than 10G for waiting for the ready state machine.
+
+== thunder-release-v1.23.5 ==
+* DRAM
+** Fix possible skip of ECC update in memory owned by the BDK.  There is a
+region of Memory between 3/4 of the size of L2 and the size of L2 that may
+be written to DRAM before DRAM is initialized.  Although this region is
+unused and doesn't matter, this could cause the ECC bits for these cache
+lines to not be updated.  This seems to happen most often on ODM boards
+which have extra processing in the BDK before DRAM is initialized.  This
+causes more L2 evicts.
+** Change tabs to spaces in libdram.c.  Tabs shouldn't appear in the BDK.
+
+== thunder-release-v1.23.4 ==
+* Misc
+** Update expected CPT fuses for CN81XX and CN80XX models
+* Device Tree
+** Fix UAA device entry.  The original device tree spec had a typo of
+"uua" instead of "uaa" for the uart clock rate.  Fix the typo and update
+comments.
+** Fix issue where trace output could say a FDT was updated when it
+wasn't.  For the sclk and refclkuaa clock-frequency updates, the code
+would mistakenly trace that these were update if the node wasn't found.
+With this fix, these will only report update if they were actually
+changed.
+
+== thunder-release-v1.23.3 ==
+* Misc
+** Add detection of Nitrox through checking fuse 231 (0xe7)
+** Marvell RXAUI PHY needs reset and updated param
+** Fix bug causing corruption of BGXX_CMRX_RX_DMAC_CTL.  The code for
+enabling and disabling the BGX ports was incorrectly clearing mcst_mode in
+BGXX_CMRX_RX_DMAC_CTL.  The purpose of the code was to hide unused BGX
+ports on boards.  Due to this bug, pause frames for ports were being
+dropped without being counter in stats.  The pause frames still worked,
+just weren't counted.
+** Fix spelling error in directory prompt and remember last selection
+** Report failure if fatfs-tool can't copy a file
+*** Copy now actually checks to see if the data was written to fat
+*** Replace all output to stderr with stdout to fix print ordering issues
+** Fix issue where "keys" in a menu says it was a invalid command
+** Add the chip serial number to the device tree during init
+* CCPI
+** Use GTI timestamps to improve multi-node synchronization
+
+== thunder-release-v1.23.2 ==
+* PCIE
+** Set SLIX_M2S_MACX_CTL[waitl_com] for more strict ordering.  Testing has
+shown issues with the default weak ordering for PCIe.  Setting
+SLIX_M2S_MACX_CTL[waitl_com] fixes the issue.  This is not as big of a
+performance impact as WAIT_COM, so it is ok to have it on all the time.
+
+== thunder-release-v1.23.1 ==
+* CCPI
+** Toggle the lane bad bit when we don't get a lane up.  In rare cases
+we've seen lanes not become ready when everything else is good.  Toggling
+the SER_LANE_BAD seems to restart the state machine and get the lane
+ready.
+** Once training RX ready is set, never clear it or ask for updates.
+Following a theory that a bounce of RX_READY could cause one node to
+complete training but the other one not, never clear RX_READY once it is
+set.  When a lane transitions to RX_READY, force training to go idle and
+wait for termination.
+
+== thunder-release-v1.23 ==
+* Operating system device tree changes
+** Fix uart clock speed passed to next image. This fixes issues with Linux getting the incorrect baud rate.
+** "local-mac-address" is stored as 6 bytes per Linux/Uboot standard
+** "local-mac-address" processing now includes RGMII
+
+* CN81XX / CN80XX
+** Fix RGMII internal and external loopback
+** Fix incorrect link speed reported for mixed DLM modes
+** Support L2 stats in traffic-gen
+** Disable EBB880x display code on EBB8104, which caused USB issues
+** Support for RGMII at 10Mbps and half / full duplex
+
+* SERDES
+** Improved QLM tuning functionbased on CCPI updates
+** Update the eye monitor capture for CN88XX pass 2.x and CN81XX
+
+* CCPI
+** Disable reporting of CCPI disp_err. It is informational only
+** Rewrite CCPI init to perform KR training in software
+** Add support for choosing long or short channel, default to short
+** Fix incorrect IO reads from disabled node during init
+
+* USB
+** Clarified license for XHCI
+** USB: correct configuration for gpio-managed usb-vbus power
+** Allow configuration of usb reference clock(s) through device tree
+
+* Misc
+** CN88XX: Fix typo in SGMII menu option
+** Improve SPI flash upload using xmodem
+** Only check for debug magic key on master node. This fixes a crash of node 1 core 0 when the uart baud rate is changed on node 0.
+** Improve GTI clock synchronization in dual node setups
+
+== thunder-release-v1.22 ==
+* Added support for CN88XX pass 2.1. Prior releases will crash when entering diagnostics on CN88XX pass 2.1 and higher.
+* Added support for CN81XX.
+* Added support for measuring SERDES quality using a vertical eye measurement
+** New traffic-gen command "margin_rx" for networking related SERDES
+** SATA menu option "Run margining tool"
+** PCIe menu option "Run margining tool". This requires a CN73XX NIC plugged into the PCIe slot.
+** New CCPI menu for testing and measurement
+** Add support for GPIO toggle required for CN88XX with Nitrox
+* Improved Power burn functionality
+** Start / stop power burn manually
+** Automated power burn transient load. On for 1 second, off for 1 second
+** Power burn controlled separately for each node
+** Power burn functionality moved into a new "Power Burn options" menu
+* DDR
+** Improvements to diagnostic output, bit deskew training, VREF processing
+** Allow rank majority to affect single DIMM configurations
+** Compute the pattern averages from rank windows, not rank averages
+** Move setting of the DRAM SPD addresses out of the common DDR3 and DDR4 config
+** Enable the trim circuit on the appropriate LMC channels to adjust the DDR clock duty cycle for chips that support it
+** Rework the sequence used to take the DRAM out of self-refresh mode
+** Correct the calculation for TIMING_PARAMS0[trp].
+** Enhance HW-assist tuning to allow use on data bytelanes.
+** Fix HW write-leveling validity checking.
+** Enable ECC byte tuning by default; fix speed caclulation.
+** Fix handling of mini-UDIMMs and mini-RDIMMs.
+** DBI support.
+** Fix some DDR4 ODT defaults for 2-rank 2-slot configs.
+** Allow hardware-assisted software write-leveling.
+
+* SERDES
+** Have RX equalization check that a lane has CDR lock before trying equalization
+** BGX: Don't allow lane up to continue until RX equalization succeeds on all lanes
+** Apply workaround for GSER-27882 to CCPI
+** Improved default tuning for SERDES at 6.25G. RXAUI shows the most improvement
+** Apply PEM config fixes required by errata for gen3 long channel (PEM-26189, PEM-21178)
+** Update GSER-26150 workaround for CCPI
+** Apply GSER-26150 to 8G and higher, not just 10G
+** Implement workaround for GSER-27882 in BGX
+** Change how KR training is tracked for BGX interfaces. Direction hints should always be correct now.
+** The QLM tuning set function now allows setting PRE and POST independently
+** Add a device tree config item for QLM insertion loss
+** Change the default 10G swing and post emphasis for all CN8XXX chips
+** Fix incorrect function call on eye parameters. Eye diagram should be avoided, only works on CN88XX pass 1.x
+
+* Networking
+** Various fixes for Cortina PHY update app
+** Disable TNS support
+** Rewrite NIC allocation to use one VF per interface, not port* USB: Add new config option to specify the polarity of the usb gpio
+** Change SERDES lane tuning to not override values when defaults are used
+** Apply tuning to CCPI with KR training. Previously this was skipped
+** TX POST limit changed from 31 to 15. 15 is the highest legal value
+** Inphi / Cortina ROM updated to 23/10/2015 @ 15:33
+** Update Inphi / Cortina PHY access functions to support multi-node. ODMs need to modify the updater app for their board
+** Program Vitesse PHY for QSGMII / SGMII selection during initialization
+
+* PCIe
+** Update PEM-21178 workaround as some fields weren't covered
+** Don't apply QLM tuning to PCIe Gen3 links
+** Fixed memory transactions in the PCIe menu
+** Add setup menu option to control PCIe ordering
+** Disable ECRC for PCIe. It can be enabled by the operating system later if needed
+* Misc
+** Support building with GCC5. GCC5 executables will not work on CN88XX pass 1.x as GCC uses compare and swap
+** Preliminary support for CN81XX and CN83XX
+** Device tree files now contain some configuration items that are passed to ATF/UEFI but unused by the BDK
+** Diagnostics now include SGPIO support (SATA LEDs)
+** Chip SKU information is now displayed to the user and passed in the device tree
+** Boot messages report secure or non-secure boot
+** Dynamic device tree fixup for Linux. The BDK will now load an extra device tree for the operating system use. See documentation for details on BDK configuration.
+** Add support for dynamic thermal monitoring. Add options to the setup menu to control power throttling. Diagnostics power menu options updated.
+** Default hardware power throttle changed from 71% to 66%
+** Improve the performance of the MPI/SPI transfers
+** Use recursive lock for console output instead of spinlock. Fixes potential hangs with many output threads on one core.
+** Add init of IOBX_NCB0_HP
+** Many messages renames to remove references to THUNDERX
+** USB XHCI support for hubs and mass storage. Storage devices with FatFS volumes can be read/written. Currently only the PAD reference clock is supported.
+** File menu now has an option to list files in BDK file systems.
+** Fixed issue where the device tree wasn't passed into diagnostics correctly if the machine had lots of DRAM
+** Disabled SATA staggered spinup. Staggered spinup was found to cause issues with some SSDs
+** PCIe scan and enumeration now understand ARI and Enhanced Allocation
+** Change the SMI/MDIO drive strength to 30 ohm
+
+== thunder-release-v1.21 ==
+* Redo handling of CCPI link init to support CN88XX pass 2.0.
+** The output format has changed greatly, using terminal escape sequences to present a per lane status.
+** Add configuration item for CCPI lane reversal, set on CRB-2S EVT2. This item must be set on any board with lane reversal and CN88XX pass 1.x. Pass 2.0 should auto detect this, but that is untested.
+** Node 0 and node 1 now share CCPI init code. The code is completely different than before, requiring much more testing.
+** Software now intercepts all KR training status so it can control how long training runs for. This allows us to recover from pass 2.0's tendency for one side to finish training before the other side gets a chance.
+** This code has been tested on:
+*** CRB-2S-EVT4 with pass 2.0, 10G-KR CCPI
+*** CRB-2S-EVT3 with pass 1.1, 6G CCPI
+*** CRB-2S-EVT3 with pass 1.1, 10G-KR CCPI
+*** CRB-2S-EVT2 with pass 1.0, 6G CCPI
+*** EBB8800 with pass 1.0, 6G CCPI
+*** EBB8800 with pass 1.0, 10G-KR CCPI
+* Added DRAM margin tool
+* Fix bug where ref clock not set after a soft reset on second QLM of PCIe x8
+* Use THUNDER pass 2.x ability to override the internal VREF DAC setting.
+* Implement automatic use of 100 MHz alternate refclk.
+** Allow the DDR_ALT_REFCLK configuration option to force use of the alternate refclk speed specification for all DIMM types and DDR speeds.
+** Add a Setup Menu item to show and change the DDR_ALT_REFCLK setting.
+** When the DDR_ALT_REFCLK setting does not always force an alternate refclk, if the other DRAM configuration conditions do require use of alternate refclk, the code will still attempt initially to configure it and will use it if it is present, otherwise it will gracefully return to the standard 50MHz.
+* Add workaround for Errata (AP-27388) Flavors of DMB not stalling on subsequent LD
+* Errata (L2C-27380) L2C_OCI_CTL[LOCK_LOCAL_*,CAS_FDX] must be set
+* Fix and re-activate the code to do setting of unused read-leveling and write-leveling CSRs.
+* Read DIMM SPDs and store it in the device tree for later stages
+** The SPD data is needed by later software to populate SMBIOS information, so read them before doing DRAM init. This also means the DRAM code no longer needs TWSI access while it runs.
+* Disable GSER-27140 temperature workaround
+** The workaround for GSER-27140 has been found to break CCPI at 10G on CN88XX pass 2.0. Disable GSER-27140 until this is resolved. The temperature ramp improvements are not interesting if we can't run CCPI at 10G.
+* Clear all CCPI lane counters after CCPI init
+** Lane errors hit during CCPI initialization are not interesting for debug. Clear all statistic counters after bringup the CCPI link. This will fix customers complaining about CCPI errors that were really one time issues during init.
+* Add workaround for Bug #27499 - ISB not flushing the pipeline after a TLBI
+* Apply tuning to CCPI using RX equalization only
+* Start one core on each node as error reporting is enabled
+** Error reporting runs as a thread on each node. If there are no cores running on remote nodes, then no errors will be reported. Always start one core on each node. This also requires that the remote cores be shutdown when we transition to another image.
+** Error reporting runs as a thread on each node. If there are no cores running on remote nodes, then no errors will be reported. Always start one core on each node. This also requires that the remote cores be shutdown when we transition to another image.
+* Preliminary support for compiling the BDK with LLVM
+** The BDK currently boots, but doesn't work correctly. ARM64 support in LLVM 3.7.1 seems to have issues.
+* The top level "license.txt" file summarizes all open source components and licenses in the BDK.
+* Workarounds added for GSER temperature sensitivity (GSER-25992, GSER-26150, and GSER-27140)
+** This may affect customers using CCPI in unexpected ways
+* Cortina PHY firmware is updated on boot for the CRB-1S and CRB-2S
+* Fix parsing error on TWSI device tree entries causing hex data to no be parsed
+** This error caused the 40G port on the CRB-1S to not function
+
+== thunder-release-v1.20 ==
+* The BDK is now configured through a per board device tree. See TBD for documentation.
+* The device tree changes require board manufacturing data to be stored at the end of flash. If this isn't present, boot will stop and the user will be prompted to enter the setup menu. This changes affects production flow as well as all existing boards.
+* There are no longer and board specific C files. All board configuration happens in device tree. See TBD for how to add a board.
+* Old DRAM configurations using C code can be converted to device tree by using the C code with the newer BDK. The BDK will display a message that it created a template device tree that the user can display.
+* ATF and UEFI currently rely on hard-coded checks based on board name passed in X0 from the BDK. This will cause customer issues until ATF and UEFI transition to using the device tree in X1.
+* The BDK stores MAC addresses in the board manufacturing data. UEFI has not been updated to use this data yet, so MAC addresses need to be entered twice.
+* Output QLM tuning state when the user requests an RX equalization. This help the user manually tune QLMs.
+* Reset the Cortina PHY on each connection side during init of the CRB-1S and CRB-2S.
+* CRB-2S EVT3 no longer runs the DRAM test on boot. This is only needed on the EVT2.
+* The watchdog timer is only enabled on the CRB-1S EVT2. EVT3 and EVT4 do not need the watchdog timer.
+* The boot stub status codes reported to the BMC have changed.
+* DRAM configuration can be performed by including common device trees for either DDR3 or DDR4. Customer boards are only expected to override the SPD addresses and DRAM speed grade.
+* The diagnostics SATA menu now contains menu items for SATA pattern generation.
+* Add ability to inject DRAM errors to verify ECC reporting
+* DRAM fix: Apply workaround (24006) to Pass 2.0 as well as 1.x
+* DRAM fix: Fix bug in pack_rlevel_settings() where byte 0 was not packed
+
+Known Issues:
+* CCPI link timeout if you perform a soft reset in the boot menu or exit the setup menu. Workaround is to power cycle the board after it hangs. Customers are not expected to hit this issue during normal operations, just initial configuration.
+* This release requires a newer Cortina PHY image that supports both copper and optical on the CRB-1S and CRB-2S. Without this ROM update, networking doesn't work on the CRB-1S and CRB-2S. Link comes up but no packets flow.
+
+These were in RC3 and removed in RC4 and beyond:
+* New CCPI init sequence to better support CN88XX pass 2.0. This affects all passes of CN88XX.
+* Configuration option CCPI-LANE-REVERSE must be set on boards using CN88XX pass 1.x with CCPI lanes revered. See CRB-2S EVT2 device tree for an example.
+
+== thunder-release-THUNDERX_SDK_2.0.0_build_01 ==
+* Apply workaround for (GSER-27140) 2015-10-23  SERDES temperature drift sensitivity in receiver
+* Fix bug where KR auto-neg is restarted too quickly
+* PCIe enumeration fix
+
+== thunder-release-ThunderX-Firmware-Release-1.11.0 ==
+* Disconnect GSER from SATA when running PRBS. The SATA path bypasses the pattern generators in GSER
+* Remove the DRAM menu in bdk-boot/boot-stub.c
+* Fix QLM tuning labels. Previous menus had many errors.
+* Fix bug where dram init code was disabling the watchdog instead of poking it
+* Add Enhanced Allocation support to the ECAM scan (CN88XX pass 2)
+* Allow specially format config lines to cause arbitrary twsi writes
+* Allow specially format config lines to cause arbitrary MDIO writes
+* Add ability to run DRAM tests with CCPI nodes swizzled, testing CCPI
+* Add config option to test DRAM on boot. Test each node independently so we can tell which one has trouble.
+* Set L2C_OCI_CTL[lock_local_stc]=1 on CN88XX pass 2.x parts
+* Apply GSER-26636 to CCPI QLMs
+* Update PCIe enumeration to use same addresses Linux uses
+* DRAM: allow tuning to be called via menu item
+* Add MDIO writes to reset line side of PHYs on the CRB-1S
+* Enable PCI enhanced allocation (EA) for the ATF and beyond
+* Implement workaround for (ECAM-27114) PCIERC has incorrect device code
+

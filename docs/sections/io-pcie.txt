@@ -1,0 +1,53 @@
+[[PCIE]]
+= PCI Express (PCIe)
+
+The BDK supports testing PCIe ports in root complex mode.  Basic bus
+initialization and enumeration can be performed even before DDR3 is
+working.  The sequence is simply to perform the items in the PCIe menu it
+order.
+
+.Sample PCIe Menu
+----
+include::../captures/pcie_menu.capture[]
+----
+
+== PCIe#: Initialize
+
+Bringup PCIe link "#" and report the number of lanes and speed of the interface.
+
+== PCIe#: Scan for devices
+
+Use PCIe config cycles to scan bus "#" for devices.  The devices found
+can be displayed in a following menu option.  Note that this option
+only finds devices and does not assign resources.  This makes it easier
+to see device discovery when a PCIe analyzer is connected.
+
+== PCIe#: Enumerate devices
+
+Iterate through the devices found in the scan an assign resources to
+them.  After this step is complete, devices will have valid BAR setups
+and respond to memory transactions.
+
+== PCIe#: Display devices
+
+Display the devices found on the bus and show details about each BAR
+register.
+
+== PCIe#: Perform a memory read
+
+Issue a PCIe memory read transaction on the bus.  Prompts will be
+issued for the PCIe address to read from and the number of bytes to
+read.
+
+== PCIe#: Perform a memory write
+
+Issue a PCIe memory write transaction on the bus.  Prompts will be
+issued for the PCIe address to write and the data.  The data should be
+input as a series of hex digits, two per byte.
+
+== PCIe#: Shutdown
+
+Shutdown the PCIe link.  This might be useful if you want to test link
+robustness by performing a series of initialization and shutdown
+sequences.
+

@@ -1,0 +1,28 @@
+= Lua Startup Sequence on THUNDERX
+
+The following details which Lua scripts are executed on THUNDERX during
+boot of the BDK diagnostics.
+
+. diagnostics.bin.lzma binary boots.
+
+. */rom/init.lua* is executed.
++
+[source,lua]
+----
+include::../../apps/diagnostics/lua/init.lua[]
+----
+
+. */rom/main.lua* is executed.
++
+[source,lua]
+----
+include::../../apps/diagnostics/lua/main.lua[]
+----
+
+. Board specific file is loaded, if present
++
+[source,lua]
+----
+../../apps/diagnostics/lua/board-setup.lua
+----
+

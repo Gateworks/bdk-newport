@@ -1,0 +1,93 @@
+# AAPL CORE Revision: 2.6.2
+#
+# Copyright (c) 2014-2017 Avago Technologies. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+#
+# 2. Neither the name of the copyright holder nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+
+# Example Makefile for AAPL CORE files.
+
+HEADERS = \
+        include/aacs_server.h \
+        include/aapl.h \
+        include/aapl_core.h \
+        include/aapl_library.h \
+        include/asic_info.h \
+        include/avsp.h \
+        include/diag_core.h \
+        include/eye.h \
+        include/eye_math.h \
+        include/gpio_mdio.h \
+        include/i2c.h \
+        include/logging.h \
+        include/mdio.h \
+        include/meas.h \
+        include/pmd.h \
+        include/pmro.h \
+        include/sbm.h \
+        include/sbus.h \
+        include/sensor.h \
+        include/serdes_core.h \
+        include/serdes_dfe.h \
+        include/spico.h \
+        include/system_includes.h
+
+
+SOURCES = \
+        aacs.c \
+        aacs_server.c \
+        aapl_core.c \
+        avsp.c \
+        avsp_5410.c \
+        diag_core.c \
+        gpio_mdio.c \
+        i2c.c \
+        library.c \
+        logging.c \
+        mdio.c \
+        pmro.c \
+        sbus.c \
+        sbm.c \
+        sensor.c \
+        dfe.c \
+        eye.c \
+        eye_math.c \
+        meas.c \
+        pmd.c \
+        serdes_core.c \
+        spico.c \
+        spico_diag.c \
+        user_code.c
+
+
+OBJECTS = $(SOURCES:.c=.o)
+
+TARGET = libaapl-BSD.so
+
+CFLAGS = -fPIC -Iinclude -DHAVE_UNISTD_H -g
+
+$(TARGET) : $(OBJECTS)
+	gcc -g -shared -o $(TARGET) $(OBJECTS) -lm
+
+$(OBJECTS) : $(HEADERS)
+

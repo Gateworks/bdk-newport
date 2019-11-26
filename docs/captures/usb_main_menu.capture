@@ -1,0 +1,13 @@
+=================================
+USB Menu
+=================================
+ 1) Select USB port (Currently 0)
+ 2) Initialize the port
+ 3) Disable testing
+ 4) USB 2.0 J_STATE test
+ 5) USB 2.0 K_STATE test
+ 6) USB 2.0 SE0_NAK test
+ 7) USB 2.0 PACKET test
+ 8) USB 2.0 FORCE_ENABLE test
+ 9) Main menu
+

@@ -1,0 +1,241 @@
+# ***********************license start***********************************
+# Copyright (C) 2018 Marvell International Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+# https://spdx.org/licenses
+# **********************license end**************************************
+
+#
+# Use this on the MA cluster to get YAML files with one file
+# per chip pass.
+#
+
+SVNROOT?=svn+ssh://masvn/svn
+
+CSR3_ARGS=--yaml-stdout # Write to stdout
+CSR3_ARGS+=--yaml-expand-inherits # Simplify field inherits
+CSR3_ARGS+=--yaml-strip-chippass # Remove chip pass lines since we're making a file per chip
+CSR3_ARGS+=--input *.csr # Remove chip pass lines since we're making a file per chip
+CSR3_ARGS+=--yaml-system-addressing # Create full addresses, not BAR offsets
+CSR3=csr3 --doc-replace $(CSR3_ARGS) --yaml-pass
+CSR3_T96=csr3 $(CSR3_ARGS) --yaml-pass # Doc replace is broken for T96
+
+CSR3_ARGS_T88=--address-overlap 0 # Don't do address overlap checking as TNS fails
+CSR3_ARGS_T88+=--bar-overlap 0 # Don't do address overlap checking as TNS fails
+CSR3_T88=csr3 --doc-replace $(CSR3_ARGS) $(CSR3_ARGS_T88) --yaml-pass
+
+.DEFAULT: help
+.SILENT: help
+help:
+	echo ""
+	echo "Generate YAML files for thunder and octeon chips for use by"
+	echo "software. Each yaml file represents a single pass of a chip"
+	echo "model."
+	echo ""
+	echo "checkout:  Get all the chip information from the RTL svn"
+	echo "update:    Update existing svn from last checkout"
+	echo "generate:  Generate yaml files"
+	echo "clean:     Delete yaml files, but not svn checkouts"
+	echo "distclean: Delete everything"
+	echo ""
+
+.PHONY: generate
+generate: t81 t83 t88 t96 t95 t98 loki o70 o73 o75 o78
+
+#
+# Initial checkout
+#
+.PHONY: checkout
+checkout:
+	# t81
+	svn co -q $(SVNROOT)/t81/trunk/hwcode/regs/gen t81
+	svn co -q $(SVNROOT)/t81/trunk/dvconf t81/dvconf
+	svn co -q $(SVNROOT)/t81/trunk/Project_Root t81/Project_Root
+	# t83
+	svn co -q $(SVNROOT)/t83/trunk/hwcode/regs/gen t83
+	svn co -q $(SVNROOT)/t83/trunk/dvconf t83/dvconf
+	svn co -q $(SVNROOT)/t83/trunk/Project_Root t83/Project_Root
+	# t88
+	svn co -q $(SVNROOT)/t88/trunk/hwcode/regs/gen t88
+	svn co -q $(SVNROOT)/t88/trunk/dvconf t88/dvconf
+	svn co -q $(SVNROOT)/t88/trunk/Project_Root t88/Project_Root
+	# t96_1.1: Frozen as t96 broke 1.x CSRs
+	svn co -q $(SVNROOT)/t93/branches/T93_1_1/hwcode/regs/gen t96_1.1
+	svn co -q -r 608682 $(SVNROOT)/techdocs/trunk/ThunderII/96XX/dvconf t96_1.1/dvconf
+	svn co -q -r 608682 $(SVNROOT)/t93/branches/T93_1_1/Project_Root t96_1.1/Project_Root
+	# t96
+	svn co -q $(SVNROOT)/t93/trunk/hwcode/regs/gen t96
+	#svn co -q $(SVNROOT)/techdocs/trunk/ThunderII/96XX/dvconf t96_1.1/dvconf
+	svn co -q $(SVNROOT)/t93/trunk/dvconf t96/dvconf
+	svn co -q $(SVNROOT)/t93/trunk/Project_Root t96/Project_Root
+	# t95_1.1: Frozen as t95 broke 1.x CSRs
+	svn co -q $(SVNROOT)/t95/branches/T95_1_1/hwcode/regs/gen t95_1.1
+	svn co -q -r 608682 $(SVNROOT)/t95/branches/T95_1_1/dvconf t95_1.1/dvconf
+	svn co -q -r 608682 $(SVNROOT)/t95/branches/T95_1_1/Project_Root t95_1.1/Project_Root
+	# t95
+	svn co -q $(SVNROOT)/t95/trunk/hwcode/regs/gen t95
+	svn co -q $(SVNROOT)/t95/trunk/dvconf t95/dvconf
+	svn co -q $(SVNROOT)/t95/trunk/Project_Root t95/Project_Root
+	# loki
+	svn co -q $(SVNROOT)/f95n/trunk/hwcode/regs/gen loki
+	svn co -q $(SVNROOT)/f95n/trunk/dvconf loki/dvconf
+	svn co -q $(SVNROOT)/f95n/trunk/Project_Root loki/Project_Root
+	# t98
+	svn co -q $(SVNROOT)/t98/trunk/hwcode/regs/gen t98
+	svn co -q $(SVNROOT)/t98/trunk/dvconf t98/dvconf
+	svn co -q $(SVNROOT)/t98/trunk/Project_Root t98/Project_Root
+	# o70
+	svn co -q $(SVNROOT)/o70/trunk/hwcode/regs/gen o70
+	svn co -q $(SVNROOT)/o70/trunk/dvconf o70/dvconf
+	svn co -q $(SVNROOT)/o70/trunk/Project_Root o70/Project_Root
+	# o73
+	svn co -q $(SVNROOT)/o73/trunk/hwcode/regs/gen o73
+	svn co -q $(SVNROOT)/o73/trunk/dvconf o73/dvconf
+	svn co -q $(SVNROOT)/o73/trunk/Project_Root o73/Project_Root
+	# o75
+	svn co -q $(SVNROOT)/o75/trunk/hwcode/regs/gen o75
+	svn co -q $(SVNROOT)/o75/trunk/dvconf o75/dvconf
+	svn co -q $(SVNROOT)/o75/trunk/Project_Root o75/Project_Root
+	# o78
+	svn co -q $(SVNROOT)/o78/trunk/hwcode/regs/gen o78
+	svn co -q $(SVNROOT)/o78/trunk/dvconf o78/dvconf
+	svn co -q $(SVNROOT)/o78/trunk/Project_Root o78/Project_Root
+
+#
+# Update
+#
+.PHONY: update
+update:
+	# Octeon
+	svn update o?? o??/dvconf o??/Project_Root
+	# OcteonTX
+	svn update t?? t??/dvconf t??/Project_Root
+	svn update loki loki/dvconf loki/Project_Root
+	# We don't update lower dirs of t96_1.1 and t95_1.1. They are frozen
+	svn update t96_1.1 #t96_1.1/dvconf t96_1.1/Project_Root
+	svn update t95_1.1 #t95_1.1/dvconf t95_1.1/Project_Root
+
+#
+# Clean
+#
+.PHONY: clean
+clean:
+	rm -f *.yaml
+
+#
+# Distclean
+#
+.PHONY: distclean
+distclean: clean
+	rm -rf o?? t?? loki t96_1.1 t95_1.1
+
+#
+# t96
+#
+.PHONY: t96
+t96: t96_pass_1.0.yaml t96_pass_1.1.yaml t96_pass_3.0.yaml
+
+t96_pass_1.0.yaml: t96_1.1/*.csr
+	cd t96_1.1 && $(CSR3) t96@1.0 > ../$@
+t96_pass_1.1.yaml: t96_1.1/*.csr
+	cd t96_1.1 && $(CSR3) t96@1.1 > ../$@
+t96_pass_3.0.yaml: t96/*.csr
+	cd t96 && $(CSR3_T96) t93@3.0 > ../$@
+
+#
+# t95
+#
+.PHONY: t95
+t95: t95_pass_1.0.yaml t95_pass_2.0.yaml
+
+t95_pass_1.0.yaml: t95_1.1/*.csr
+	cd t95_1.1 && $(CSR3) t95@1.0 > ../$@
+t95_pass_2.0.yaml: t95/*.csr
+	cd t95 && $(CSR3) t95@2.0 > ../$@
+
+#
+# loki
+#
+.PHONY: loki
+loki: loki_pass_1.0.yaml
+
+loki_pass_1.0.yaml: loki/*.csr
+	cd loki && $(CSR3) f95n@1.0 > ../$@
+
+#
+# t98
+#
+.PHONY: t98
+t98: t98_pass_1.0.yaml
+
+t98_pass_1.0.yaml: t98/*.csr
+	cd t98 && $(CSR3) t98@1.0 > ../$@
+
+#
+# t88
+#
+.PHONY: t88
+t88: t88_pass_1.0.yaml t88_pass_1.1.yaml t88_pass_2.0.yaml
+
+t88_pass_1.0.yaml: t88/*.csr
+	cd t88 && $(CSR3_T88) t88@1.0 > ../$@
+t88_pass_1.1.yaml: t88/*.csr
+	cd t88 && $(CSR3_T88) t88@1.1 > ../$@
+t88_pass_2.0.yaml: t88/*.csr
+	cd t88 && $(CSR3_T88) t88@2.0 > ../$@
+
+#
+# t83
+#
+.PHONY: t83
+t83: t83_pass_1.0.yaml
+
+t83_pass_1.0.yaml: t83/*.csr
+	cd t83 && $(CSR3) t83@1.0 > ../$@
+
+#
+# t81
+#
+.PHONY: t81
+t81: t81_pass_1.0.yaml
+
+t81_pass_1.0.yaml: t81/*.csr
+	cd t81 && $(CSR3) t81@1.0 > ../$@
+
+#
+# o70
+#
+.PHONY: o70
+o70: o70_pass_1.0.yaml
+
+o70_pass_1.0.yaml: o70/*.csr
+	cd o70 && $(CSR3) o70@1.0 > ../$@
+
+#
+# o73
+#
+.PHONY: o73
+o73: o73_pass_1.0.yaml
+
+o73_pass_1.0.yaml: o73/*.csr
+	cd o73 && $(CSR3) o73@1.0 > ../$@
+
+#
+# o75
+#
+.PHONY: o75
+o75: o75_pass_1.0.yaml
+
+o75_pass_1.0.yaml: o75/*.csr
+	cd o75 && $(CSR3) o75@1.0 > ../$@
+
+#
+# o78
+#
+.PHONY: o78
+o78: o78_pass_1.0.yaml o78_pass_2.0.yaml
+
+o78_pass_1.0.yaml: o78/*.csr
+	cd o78 && $(CSR3) o78@1.0 > ../$@
+o78_pass_2.0.yaml: o78/*.csr
+	cd o78 && $(CSR3) o78@2.0 > ../$@
+

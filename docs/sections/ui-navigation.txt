@@ -1,0 +1,35 @@
+[[NAVIGATION]]
+= Navigating Menus and Answering Prompts
+
+All menus in the BDK start with a banner followed by a list of
+numbered options.  Options are chosen by typing the associated number
+into the "Menu Choice:" prompt and pressing ENTER.  Leaving a prompt
+blank signals that input should be aborted, passing control passes
+back to the menu.  All menus have the last option as an exit of the
+menu and return to the previous menu.
+
+Some menu options require extra input from the user.  These accept
+keyboard input followed by the ENTER key.  Leaving a field blank, or
+hitting Control-C abort input.  Control goes back to the menu.
+Numeric input can be in decimal (default) or hexadecimal by beginning
+the number with "0x" (zero followed by "x", similar to the C
+programming language).
+
+= Line Editing
+
+Any prompt ending with ">" supports full line editing and history. Generally
+speaking, arrow keys, home, end, insert, and delete work as expected.
+
+* Use 'ARROW KEYS', 'HOME', 'END' or *vi* style commands 'ESC-h', 'ESC-j', 'ESC-k', 'ESC-l', 'ESC-0', 'ESC-$', 'ESC-w', or 'ESC-b' for navigation.
+* Scroll through previous commands using the 'UP' and 'DOWN' arrow keys.
+* Use 'INSERT' to toggle insert/overwrite mode, 'DELETE' to delete, 'F1' for help.
+* Many *vi* style modes are available for command and history navigation.
+* Use 'TAB' for command completion, multiple to cycle, or 'CTRL-D' for a list of possible commands.
+* Use 'ESC-i', 'ESC-A' ,'ESC-a', 'ESC-c' for insert mode, 'ESC-R', 'ESC-r' for overwrite mode (behavior like *vi*).
+* Use '!!', '!<num>' or '!<string>' to repeat previous commands in the history.
+* Use '::', ':<num>' or ':<string>' to recall previous commands in the history to current.
+* Use '?<string>', '/<string>', 'ESC-?<string>', 'ESC-/<string>', 'ESC-n', 'ESC-N' to also recall to current.
+* Use 'CTRL-l' erase the screen, 'ESC-D' to clear the rest of the current line.
+* Use 'ESC-d<movement>' to delete, 'ESC-~' to change case, 'ESC-u' to undo (one level).
+* See the *vi* man page for more info on the operation of various commands.
+

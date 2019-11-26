@@ -1,0 +1,118 @@
+= Development Environment Setup
+
+== Requirements
+
+* PC compatible, or THUNDERX system running a Linux distribution
+supporting 32bit userspace binaries.  Most 64bit Linux distributions are
+also capable of running 32bit binaries.
+** Recommended: Debian 8.x (Jessie) 32bit or 64bit.
+
+* Python 2.x, version 2.3 or higher. Python 3.x is not supported.
+** Recommended: Python 2.7+
+
+* A terminal emulation program supporting serial.
+** Recommended: Minicom
+
+== Hardware Connections
+
+The BDK supports two basic setups for boards under test, either
+standalone or PCIe.  The exact setup is flexible, but one of the
+choices below is recommended.
+
+=== Connections for Standalone Boards
+
+The most common setup is where the board used for development is
+completely standalone and requires only minimal connections to the
+development PC.  The board's power supply and other necessities are all
+independent from the development PC.
+
+* PC serial COM1 is connected to the THUNDERX board's UART0 with a null modem
+        cable. You can also conenct the board to a terminal server.
++
+CAUTION: Cabling with hardware flow control signals is highly recommended. The BDK
+will work without hardware flow control, but serial performance will be
+degraded.
+
+* PC with two ethernet cards.
+** Ethernet eth0 is connected to your local LAN
+** Ethernet eth1 is connected directly to THUNDERX's first network port.
++
+TIP: Development can be performed using a single ethernet card. IP address
+management will be more complex.
+
+* The binary *target-bin/bdk.bin* is burned into the beginning of SPI NOR flash
+connected to THUNDERX's SPI bus.
+
+== Installing the BDK
+
+The BDK release consists of a unix tar file compressed with gzip.  All
+files inside the release are contained inside a single directory with
+a name based on the BDK version.  It is safe to extract the release
+into an existing directory.
+
+.Installing the BDK into your home directory
+[source, sh]
+----
+$ cd ~
+# This example used BDK version v1.30
+$ tar -zxf thunder-release-v1.30-source.tgz
+$ ls thunder-release-v1.30/
+apps     bin          CN83XX.asim  docs         libbdk-bist  libbdk-driver  libbdk-os  libfatfs  license.txt  target-bin                 thunder-release-v1.30.bin.md5
+bdk.vpj  boards       CN88XX.asim  libbdk       libbdk-boot  libbdk-hal     libc       libfdt    lua-modules  tests                      utils
+bdk.vpw  CN81XX.asim  csr-tool     libbdk-arch  libbdk-dram  libbdk-lua     libdram    liblua    Makefile     thunder-release-v1.30.bin
+----
+
+== Environment Variables
+
+Before running any BDK scripts or executables, the shell environment needs
+to be setup. The following example works for Bash and other Bourne shell
+derivatives.
+
+.Setup the environment for the BDK
+[source, sh]
+----
+export BDK_ROOT=~/thunder-release-VERSION
+export PATH=${PATH}:${BDK_ROOT}/bin
+----
+
+For bash, adding these lines to *.bashrc* will make sure the proper
+environment is always setup.
+
+== Testing the Development System
+
+Here is a checklist of items to quickly check to make sure your development
+system is configured properly and ready to develop and run diagnostics.
+
+. Make sure the environment variable BDK_ROOT is set.
++
+[source, sh]
+----
+$ echo ${BDK_ROOT}
+~/thunder-release-VERSION
+----
+
+. Make sure the BDK *bin* directory is in your path.
++
+[source, sh]
+----
+$ echo ${PATH}
+...:~/thunder-release-VERSION/bin
+----
+
+. Execute bdl-lua and make sure it runs properly.
++
+[source, sh]
+----
+$ bdk-lua -v
+Lua 5.2.0  Copyright (C) 1994-2011 Lua.org, PUC-Rio
+----
+
+. Make sure Minicom is configured for a baud rate of 115200 and hardware
+flow control is enabled. Hardware flow control is not required, but it is
+strongly recommended.
++
+[source, sh]
+----
+$ minicom --setup
+----
+

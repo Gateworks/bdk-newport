@@ -1,0 +1,74 @@
+= Interactive Lua on the THUNDERX
+
+The target side *diagnostics* application supplies a text menu based
+interface to board diagnostic functions.  Each menu expects a numeric
+input selecting a valid choice from the list of options.  Generally the
+last menu choice returns to the previous menu.  The entire interactive
+menu interface is written in Lua for easy expansibility.  The source for
+the menus can be found in the *lua-modules* directory.
+
+All *diagnostics* prompts also support direct register access with
+*csr*.  Registers can read and written using names. Tab completion of
+register names is supported.
+
+.Example CSR accesses
+[source,sh]
+----
+# Read a register
+(INS)Menu choice []: csr RST_BOOT
+RST_BOOT[0x000087e006001600] = 0x7800262000000004
+  [   63] CHIPKILL             =          0 (0x0)
+  [   62] JTCSRDIS             =          1 (0x1)
+  [   61] EJTAGDIS             =          1 (0x1)
+  [   60] TRUSTED_MODE         =          1 (0x1)
+  [   59] CKILL_PPDIS          =          1 (0x1)
+  [   58] JT_TSTMODE           =          0 (0x0)
+  [   57] VRM_ERR              =          0 (0x0)
+  [   56] DIS_HUK              =          0 (0x0)
+  [   55] DIS_SCAN             =          0 (0x0)
+  [54:47] RESERVED_47_54       =          0 (0x0)
+  [46:40] C_MUL                =         38 (0x26)
+  [   39] RESERVED_39          =          0 (0x0)
+  [38:33] PNR_MUL              =         16 (0x10)
+  [32:30] LBOOT_OCI            =          0 (0x0)
+  [29:26] RESERVED_26_29       =          0 (0x0)
+  [25:24] RESERVED_24_25       =          0 (0x0)
+  [23:18] LBOOT_EXT45          =          0 (0x0)
+  [17:12] LBOOT_EXT23          =          0 (0x0)
+  [11: 2] LBOOT                =          1 (0x1)
+  [    1] RBOOT                =          0 (0x0)
+  [    0] RBOOT_PIN            =          0 (0x0)
+
+# Read one field in a register
+(INS)Menu choice []: csr RST_BOOT.RBOOT
+RST_BOOT.RBOOT = 0 (0x0)
+
+# Write one field in a register
+(INS)Menu choice []: csr RST_BOOT.RBOOT 1
+(INS)Menu choice []: csr RST_BOOT.RBOOT
+RST_BOOT.RBOOT = 1 (0x1)
+(INS)Menu choice []: csr RST_BOOT.RBOOT 0
+
+# Read a register with arguments
+(INS)Menu choice []: csr RST_CTLX(0)
+RST_CTLX(0)[0x000087e006001640] = 0x0000000000000048
+  [63:10] RESERVED_10_63       =          0 (0x0)
+  [    9] PRST_LINK            =          0 (0x0)
+  [    8] RST_DONE             =          0 (0x0)
+  [    7] RST_LINK             =          0 (0x0)
+  [    6] HOST_MODE            =          1 (0x1)
+  [ 5: 4] RESERVED_4_5         =          0 (0x0)
+  [    3] RST_DRV              =          1 (0x1)
+  [    2] RST_RCV              =          0 (0x0)
+  [    1] RST_CHIP             =          0 (0x0)
+  [    0] RST_VAL              =          0 (0x0)
+----
+
+:leveloffset: 2
+include::ui-navigation.txt[]
+:leveloffset: 1
+
+TIP: Any prompt supporting line editing in *diagnostics* also
+supports RPC calls.  Whenever *diagnostics* is waiting for user
+input, you can send a RPC request and get a response.
+

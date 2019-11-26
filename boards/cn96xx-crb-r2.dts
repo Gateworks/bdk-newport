@@ -1,0 +1,175 @@
+/***********************license start***********************************
+* Copyright (C) 2018 Marvell International Ltd.
+* SPDX-License-Identifier: BSD-3-Clause
+* https://spdx.org/licenses
+***********************license end**************************************/
+/dts-v1/;
+
+/include/ "cn96xx-crb_common.dtsi"
+
+/ {
+cavium,bdk {
+	/* Allow a sequence of TWSI writes to be performed during boot. Each
+	string in the list line is executed in sequence. The TWSI write
+	format is:
+	    node,twsi_id,dev_addr,internal_addr,num_bytes,ia_width_bytes,data
+	    sleep,ms
+	    gpio,node,gpio_num,state
+	node           = Node ID the twsi bus is on. -1 means the local node
+	twsi_id        = TWSI bus to use
+	dev_addr       = TWSI bus address
+	internal_addr  = TWSI internal address, zero if not used
+	num_bytes      = Number of bytes to write (1-8)
+	ia_width_bytes = Internal address width in bytes (0-2)
+	data           = Data to write as a 64bit number
+	sleep,ms       = This on a line delays for 'ms' milliseconds
+	gpio,...       = This sets the state of a GPIO gpio_num to 0 or 1 */
+	//TWSI-WRITE = "";
+	TWSI-WRITE = "0,3,0x20,0x6,1,1,0xdd", /* U65 PCA9535 C0 */
+                     "0,3,0x20,0x7,1,1,0xdd", /* U65 PCA9535 C1 */
+                     "0,3,0x20,0x2,1,1,0xdd", /* U65 PCA9535 O0 TX_DISABLE = 0 for SFP1/2 */
+                     "0,3,0x20,0x3,1,1,0xdd", /* U65 PCA9535 O1 TX_DISABLE = 0 for SFP3/4 */
+                     "0,3,0x22,0x6,1,1,0xdd", /* U66 PCA9535 C0 */
+                     "0,3,0x22,0x7,1,1,0x03", /* U66 PCA9535 C1 */
+                     "0,3,0x22,0x2,1,1,0xdd", /* U66 PCA9535 O0 TX_DSAIBLE = 0 for SFP 5/6 */
+                     "0,3,0x22,0x3,1,1,0xb3", /* U66 PCA9535 O1 88X5123_RST_L = 0, QSFP RST = 0, VCC = 1, LP_MODE = 0, MOD_SEL = 0 */
+                     "sleep,10", /* Hold for 10ms */
+                     "0,3,0x22,0x3,1,1,0xf3", /* U66 PCA9535 O1 88X5123_RST_L = 1, QSFP RST = 1, VCC = 1, LP_MODE = 0, MOD_SEL = 0 */
+	             /* In CN96xx-CRB R2.0/R2.1, GPIO 36/41 is used to enable/disable uSD and eMMC respectively
+                        We need to enable both before linux can parse the linux dts and have these GPIO controlled by driver */
+                     "gpio,0,36,1", /* Enable uSD card */
+                     "gpio,0,41,1"; /* Enable eMMC */
+
+	/* Configure the physical slot number for a PCIe port. This is used by error
+	reporting to narrow down failures to a board PCIe slot number. The
+	default value of -1 doesn't set the slot number.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-PHYSICAL-SLOT.N%d.PORT%d = "-1";
+	PCIE-PHYSICAL-SLOT.N0.PORT0 = "0";
+	PCIE-PHYSICAL-SLOT.N0.PORT2 = "1";
+	PCIE-PHYSICAL-SLOT.N0.PORT3 = "2";
+
+	/* The voltage, VDDA_GSER, supplied to the SERDES by the board in
+	millivolts. Some SERDES tuning is based on the voltage supplyed
+	to the chip. The default value matches the HRM recommended value.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//QLM-VOLTAGE.N%d = "0x384";
+	/* All CN96xx-CRB R2.0/R2.1 boards have VDDA_GSER set to 1.0V */
+	QLM-VOLTAGE.N0 = "1000";
+
+	/* Set the mode of a QLM/DLM. The possible mode strings are:
+	    DISABLED     # CN83XX: All             CN81XX: All         CN80XX: All         CN96XX: All
+	    PCIE_X1      #                                             CN80XX: DLM0
+	    PCIE_X2      # CN83XX: DLM4,5          CN81XX: DLM0,2,3    CN80XX: DLM0,2,3    CN96XX: DLM4,5
+	    PCIE_X4      # CN83XX: QLM0-3,DLM5     CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM0,1,2,3,6,7, DLM4-5
+	    PCIE_X8      # CN83XX: QLM0,2                                                  CN96XX: QLM0-1,6-7
+	    PCIE_X16     #                                                                 CN96XX: QLM0-3
+	    PCIE_X4-EP   #                                                                 CN96XX: QLM0,3,6
+	    PCIE_X8-EP   #                                                                 CN96XX: QLM0-1,6-7
+	    PCIE_X16-EP  #                                                                 CN96XX: QLM0-3
+	    SATA         # CN83XX: DLM4,5          CN81XX: DLM3        CN80XX: DLM3
+	    SGMII        # CN83XX: QLM2-6          CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3-7
+	    1G_X         # CN83XX: QLM2-6          CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3-7
+	    QSGMII       # CN83XX: QLM2-4,DLM4,5   CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3,6,7,DLM4,5
+	    XAUI         # CN83XX: QLM3,4          CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM3,6,7
+	    RXAUI        # CN83XX: QLM3-6          CN81XX: DLM0-3      CN80XX: DLM2        CN96XX: QLM3-7
+	    XFI          # CN83XX: QLM2-6          CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3-7
+	    SFI          #                                                                 CN96XX: QLM3-7
+	    XLAUI        # CN83XX: QLM3,4          CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM3,6,7
+	    XLAUI_C2M    #                                                                 CN96XX: QLM3,6,7
+	    10G_KR       # CN83XX: QLM3-6          CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3-7
+	    40G_CR4      # CN83XX: QLM3,4,DLM5     CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM3,6,7
+	    40G_KR4      # CN83XX: QLM3,4,DLM5     CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM3,6,7
+	    20GAUI_C2C   #                                                                 CN96XX: QLM3-7
+	    25GAUI_C2C   #                                                                 CN96XX: QLM3-7
+	    25GAUI_C2M   #                                                                 CN96XX: QLM3-7
+	    25G_CR       #                                                                 CN96XX: QLM3-7
+	    25G_KR       #                                                                 CN96XX: QLM3-7
+	    25GAUI_2_C2C #                                                                 CN96XX: QLM3-7
+	    40GAUI_2_C2C #                                                                 CN96XX: QLM3-7
+	    50GAUI_2_C2C #                                                                 CN96XX: QLM3-7
+	    50GAUI_2_C2M #                                                                 CN96XX: QLM3-7
+	    50G_CR2      #                                                                 CN96XX: QLM3-7
+	    50G_KR2      #                                                                 CN96XX: QLM3-7
+	    50GAUI_4_C2C #                                                                 CN96XX: QLM3,6,7
+	    80GAUI_4_C2C #                                                                 CN96XX: QLM3,6,7
+	    CAUI_4_C2C   #                                                                 CN96XX: QLM3,6,7
+	    CAUI_4_C2M   #                                                                 CN96XX: QLM3,6,7
+	    100G_CR4     #                                                                 CN96XX: QLM3-7
+	    100G_KR4     #                                                                 CN96XX: QLM3-7
+	    USXGMII_4X1  #                                                                 CN96XX: QLM3,6,7,DLM4,5
+	    USXGMII_2X1  #                                                                 CN96XX: QLM3,6,7,DLM4,5
+	    USXGMII_1X1  #                                                                 CN96XX: QLM3,6,7,DLM4,5
+	Notes:
+	    1) For protocols spanning multiple QLM/DLM, only specify the lowest
+	        DLM/QLM. The other DLM/QLM will automatically be configured. This
+	        note applies to QLM-FREQ QLM-CLK, and QLM-CLK-TERM also.
+	    2) For CN8XXX, PCIe EP mode is specified by strapping. Don't add
+	        entries for these QLM/DLM here.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-MODE.N%d.QLM%d.LANE%d = "";
+	/* In CN96xx-CRB R2.0/R2.1, the QLMs for PCIe is re-arranged to achieve x8 EP
+	   PEM0 -> QLM0/QLM1 -> PCIe x8 slot
+	   PEM3 -> QLM2 -> Mini PCIe x1 slot
+	   PEM2 -> QLM3 -> M.2 for NVMe x4 slot
+	   When PEM0/PCIe x8 slot or PEM2/NVMe x4 slot is in EP mode with special module
+	   Please set QLM0/QLM3 modes to "PCIE_X8-EP" and "PCIE_X4-EP and adjust SW5/SW6
+	   on the board according to user manual */
+	QLM-MODE.N0.QLM0 = "PCIE_X8"; /* PCIe slot 0 */
+	QLM-MODE.N0.QLM2 = "PCIE_X1"; /* Mini PCIE */
+	QLM-MODE.N0.QLM3 = "PCIE_X4"; /* NVMe M.2 */
+
+	/* Set the speed of a QLM/DLM in Mhz. The possible speeds are:
+	    1250 # Networking SGMII,1G_X
+	    1500 # SATA Gen1
+	    2500 # PCIe Gen1, Networking SGMII
+	    3000 # SATA Gen2
+	    3125 # Networking XAUI
+	    5000 # PCIe Gen2, Networking QSGMII
+	    6000 # SATA Gen3
+	    6250 # Networking XAUI,RXAUI
+	    8000 # PCIe Gen3
+	   10312 # Networking XFI,XLAUI,10G_KR,40G_CR4,40G_KR4
+	   12890 # Networking 25GAUI_2, 50GAUI_4
+	   16000 # PCIe Gen4 (CN9XXX)
+	   20625 # Networking 20GAUI, 40GAUI_2, 80GAUI_4, USXGMII (CN9XXX)
+	   25781 # Networking (CN9XXX)
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-FREQ.N%d.QLM%d.LANE%d = "0";
+	/* CN96xx A0/B0 only support up to PCIe gen3, setting clock to 16000 in EP
+	   mode will fail */
+	QLM-FREQ.N0.QLM0 = "8000";
+	QLM-FREQ.N0.QLM2 = "8000";
+	QLM-FREQ.N0.QLM3 = "8000";
+
+	/* Set the source of the QLM/DLM reference clock:
+	    0 = Common clock 0 (CN9XXX 100 Mhz No SSC)
+	    1 = Common clock 1 (CN9XXX 100 Mhz SSC)
+	    2 = QLM/DLM external reference
+	    3 = Common clock 2 (CN9XXX 156.25 Mhz)
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional. */
+	//QLM-CLK.N%d.QLM%d = "4";
+	/* When PEM0 or PEM2 is in EP mode, other QLMs need to use Common clock 0
+	   and disable the SSC in onboard clock generator by changing SW6.2 to OFF */
+	QLM-CLK.N0.QLM0 = "1"; /* 100 Mhz, SSC */
+	QLM-CLK.N0.QLM2 = "1"; /* 100 Mhz, SSC */
+	QLM-CLK.N0.QLM3 = "1"; /* 100 Mhz, SSC */
+}; /* cavium,bdk */
+}; /* / */

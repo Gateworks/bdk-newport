@@ -1,0 +1,34 @@
+#!/bin/sh
+
+if [ "${BDK_ROOT}" = "" ]
+then
+    echo "The BDK_ROOT environment variable is not set"
+    exit 1
+fi
+
+# Only set BDK_ARCH if it isn't already defined. This allows
+# users to override it in case the detection doesn't work
+if [ "${BDK_ARCH}" = "" ]
+then
+    BDK_ARCH=`uname -m`
+fi
+
+if [ "${BDK_ARCH}" = "aarch64" ]
+then
+    LUA_BIN=${BDK_ROOT}/bin/bdk-lua-thunder
+elif [ "${BDK_ARCH}" = "arm64" ]
+then
+    LUA_BIN=${BDK_ROOT}/bin/bdk-lua-thunder
+else
+    LUA_BIN=${BDK_ROOT}/bin/bdk-lua-x86
+fi
+
+if [ ! -x "${LUA_BIN}" ]
+then
+    echo "Unable to find executable bdk-lua at the expected path."
+    echo "Are you sure BDK_ROOT is correct?"
+    echo "BDK_ROOT=${BDK_ROOT}"
+    exit 1
+fi
+
+LUA_PATH="${LUA_PATH};${BDK_ROOT}/lua-modules/?.lua" "${LUA_BIN}" $*

@@ -1,0 +1,10 @@
+=================================
+SMI/MDIO Menu - Bus 0
+=================================
+ 1) Scan bus (Clause 22)
+ 2) Read a register (Clause 22)
+ 3) Write a register (Clause 22)
+ 4) Read a register (Clause 45)
+ 5) Write a register (Clause 45)
+ 6) Main menu
+

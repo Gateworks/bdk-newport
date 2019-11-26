@@ -1,0 +1,38 @@
+[[UART]]
+= UART
+
+The BDK doesn't contain any specific tests for the UART ports. The user
+interface of the BDK is displayed on UART0 by default. Using this interface
+validates the transmit and receive data lines. The user interface can also
+be accessed from UART1, just hit a key when connected to the UART. The console
+input and output goes to whichever UART received input last.
+
+== Changing the BAUD rate
+
+The BDK defaults to running both UARTs at 115200. This can be changed by
+modifying the file *main.lua*. In *main.lua*, there are two lines related
+to the UARTs:
+
+.UART related lines from *main.lua*
+----
+-- cavium.c.bdk_set_baudrate(cavium.MASTER_NODE, 0, 115200, true)
+-- cavium.c.bdk_set_baudrate(cavium.MASTER_NODE, 1, 115200, true)
+----
+
+. The "--" at the beginning of the line comments it out. Remove this to enable the line.
+. The first argument is the node number. This is normally zero.
+. The second argument is the uart number (0-1).
+. The third argument is the baud rate (9600, 19200, 115200, etc).
+. The fourth argument is whether flow control is enabled (true, false).
+
+To change the UART setup, uncomment the line for the correct UART line
+and change its parameters.  After making this change, run *bdk-update-all*
+to update the Lua files in all BDK images.
+
+.Shell command to run after Lua file changes
+----
+$ # Edit the main.lua file
+$ bdk-update-all
+$ # Reload the image on the target board
+----
+

@@ -1,0 +1,87 @@
+= The Virtual File System
+
+The BDK provides standard system calls for filesystem access.  The file
+system supports multiple types of files accessed through virtual name
+spaces.  All files are accessible from both native C code and Lua
+scripts.  The "File options" menu will display these files under "List
+files".
+
+== Filesystem Namespaces
+
+/rom/*::
+
+Files can be statically included into BDK applications.  Each file can
+be read be prefixing the name of the file with '/rom/'.  For example,
+the first Lua script run is located at '/rom/init.lua'.
+
+/ram/*::
+
+This is an empty filesystem where applications are free to create
+temporary files that are stored in dram.  For example, an application
+could store temporary data in '/ram/data.tmp'.
+
+/xmodem::
+
+This is a special file that translates file accesses to reads or
+writes to file transferred using XMODEM.  When opened for write the
+file to be downloaded from THUNDERX.  When opened for read the file will
+be uploaded to THUNDERX.  XMODEM, XMODEM-CRC, XMODEM-1K, and
+XMODEM-1K-CRC are all supported.
+
+/base64::
+
+This is a special file that translates file accesses to reads or writes
+to file transferred using BASE64 encoding.  When opened for write the
+file will be displayed on the console in BASE64 encoded text.  When open
+for read, base64 encoded text is accepted on the console.  Since bas64
+is clean ascii, you can use this for transferring over telnet, terminal
+servers, or any other console connection.  If you use GNU screen, the
+'exec' command can be used to set a file in the active session.
+[source,sh]
+----
+In screen: (Control A) (:) exec !! base64 FILENAME
+----
+
+/dev/n0.uart0::
+
+This is a special device representing THUNDERX's first uart.  This is
+the file that stdin, stdout, and stderr are connected to by default.
+
+/dev/n0.uart1::
+
+This is a special device representing THUNDERX's second uart.
+
+/dev/n0.mpi0::
+
+Read and write access to a SPI NOR flash connected using
+chip select 0.
+
+/dev/n0.pbus0::
+
+Read and write access to a NOR flash connected to the bootbus using
+chip select 0. If the application configures other bootbus regions to
+access NOR flash, these can be accessed through '/dev/nor/*'.
+
+/dev/n0.mem0::
+
+Read and write access to DRAM.  The file location is a raw physical
+address.
+
+/dev/n0.pcie0::
+
+Read and write access to memory on PCIe port 0.  The file location is a raw
+PCIe bus address.
+
+/dev/n0.pcie1::
+
+Read and write access to memory on PCIe port 1.  The file location is a raw
+PCIe bus address.
+
+/boot::
+
+The boot flash as a block device.
+
+/fatfs::
+
+The Fat filesystem located in the boot flash.
+

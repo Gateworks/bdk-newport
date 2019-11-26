@@ -1,0 +1,14 @@
+/***********************license start***********************************
+* Copyright (C) 2018 Marvell International Ltd.
+* SPDX-License-Identifier: BSD-3-Clause
+* https://spdx.org/licenses
+***********************license end**************************************/
+/dts-v1/;
+
+/ {
+cavium,bdk {
+	/* Timeout for the boot menu in seconds. */
+	BDK-BOOT-MENU-TIMEOUT = "0";
+};
+};
+

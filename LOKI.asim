@@ -1,0 +1,68 @@
+# ***********************license start***********************************
+# Copyright (C) 2019 Marvell International Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+# https://spdx.org/licenses
+# **********************license end**************************************
+
+# Load the CN96XX IOs
+@${ASIM}/configs/loki-1s6p.asim
+
+# Listen for uart connections on port 2000, 2001
+control n0.uaa0 connect ${UART0PORT}
+control n0.uaa1 connect ${UART1PORT}
+
+# Set GPIO strap pins (boot method)
+# SPI0_CS0 then SPI0_CS1
+control n0.gpio0 set strap 0x100a
+# eMMC_CS0 then eMMC_CS1
+#control n0.gpio0 set strap 0x0008
+
+# Set RCLK 1000, SCLK 1000
+control n0.rst0 set rclk 20
+control n0.rst0 set sclk 20
+
+# Load SPI image
+control n0.mpi0 connect 0 ${BIN_IMAGE}
+
+# Load eMMC image
+control n0.emm0 connect ${BIN_IMAGE}
+
+# Load the BDK symbols
+symbols ${SYMBOL_IMAGE}
+
+# Load the XCP ROM image
+control n0.xcp0 load ${BDK_ROOT}/target-bin/scp_bl0.exe-loki
+control n0.xcp0 stop_on_exception_mask 0
+#control n0.xcp0 gdbserver 2159
+# trace n0.xcp0 on
+
+
+# Break on BDK exceptions
+#bp 0
+#bp __bdk_exception_current_el_sync_sp0
+#bp __bdk_exception_current_el_irq_sp0
+#bp __bdk_exception_current_el_fiq_sp0
+#bp __bdk_exception_current_el_serror_sp0
+#bp __bdk_exception_current_el_sync_spx
+#bp __bdk_exception_current_el_irq_spx
+#bp __bdk_exception_current_el_fiq_spx
+#bp __bdk_exception_current_el_serror_spx
+#bp __bdk_exception_lower_el_sync_sp0
+#bp __bdk_exception_lower_el_irq_sp0
+#bp __bdk_exception_lower_el_fiq_sp0
+#bp __bdk_exception_lower_el_serror_sp0
+#bp __bdk_exception_lower_el_sync_spx
+#bp __bdk_exception_lower_el_irq_spx
+#bp __bdk_exception_lower_el_fiq_spx
+#bp __bdk_exception_lower_el_serror_spx
+
+echo
+echo
+echo "Wait for the uart program to connect to asim, then"
+echo "type:"
+echo "    start scp noap"
+echo
+
+#load -n ${BDK_ROOT}/apps/boot/boot.bin 0x120000
+#rm0 pc = 0x120000
+

@@ -1,0 +1,18 @@
+[[USB]]
+= USB
+
+Currently the BDK only supports pattern testing of USB 2.0 using the
+patterns dictated by the USB 2.0 spec.  These are exposed through the USB
+menu.  To generate test output for measurement on a scope, you need to:
+
+. Select the USB port
+. Initialize the port
+. Choose the pattern to generate
+
+.Sample USB Main Menu
+----
+include::../captures/usb_main_menu.capture[]
+----
+
+
+

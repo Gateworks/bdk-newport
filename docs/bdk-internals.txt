@@ -1,0 +1,524 @@
+//
+// This is a asciidoc document. Edit here, but view the HTML
+//
+
+= Internals
+
+Overview
+--------
+
+This document goes through the internal details of the BDK.  Its
+purpose is to help people writing applications understand how the BDK
+works.  Users of the BDK's binary applications do not need these
+details.  The BDK supplies a standard C programming environment with
+as few hardware requirements as possible.  BDK applications can be run
+directly from flash without any other software.  DRAM is optional.
+
+=== Key Aspects of the BDK Programming Environment
+* Full C library supplied using newlib.
+* Run from flash and L2 before DRAM is available.
+* Threaded programming model.
+* Stack, globals, and heap variables can be used for DMA.
+* Standard C file operations are used to present a simple filesystem.
+* Single library (libbdk.a) needed for linking.
+* Full 64bit programming model.
+* One single file, bdh.h, defines all API functions.
+* Complex makefile details abstracted out into a common include (bdk.mk).
+
+=== BDK layout
+
+.docs/
+	All documentation for the BDK.
+
+.libbdk-arch/
+	Library and C files related to THUNDERX architecture. This
+	contains the minimal code needed to write any code for THUNDERX
+	with the minimal amount of abstractions as possible. This contains
+	CSR and assembly defines and access functions . Higher level APIs
+	are not part of this library.
+
+.libbdk-dram/
+	Library and C files related to THUNDERX DRAM initialization. These
+	files are meant to be shared by all loaders and early diagnostics
+	that need to setup DRAM.
+
+.libbdk-hal/
+	Library and C files providing a API for interfacing with THUNDERX
+	hardware.
+
+.libbdk-lua/
+	Libraries for accessing THUNDERX hardware from the Lua scripting language.
+
+.libbdk-os/
+	System call support and initialization code required for the C library
+	to function.
+
+.libbdk/
+	This is a combined library and single header file for using all of
+	the libbdk-* features. Normally, this contains the only C header
+	and library that applications should ever reference. Make sure bdk.h
+	is the very first line in C files to make sure the precompiled header
+	works properly.
+
+.libc/
+	The Newlib C library configured for use with the BDK. Most all C
+	standard library functions are supported.
+
+.liblua/
+	The Lua scripting language library http://www.lua.org/.
+
+.bdk-boot/
+	The main BDK application that starts a menu driven Lua environment.
+
+.rom/
+	All files in here are included into BDK applications for access using
+	standard filesystem calls.
+
+
+Build Dependencies
+------------------
+
+For Debian 6.0 (Squeeze), the following packages msut be installed to
+build the BDK.
+
+* subversion-tools
+* build-essential
+* swig
+* gcc-multilib
+* asciidoc 8.6.5
+* doxygen 1.7.1
+* graphviz
+* luarocks
+
+Install these luarocks.
+
+[source, sh]
+----
+sudo luarocks install lua-discount
+sudo luarocks install penlight
+sudo luarocks install markdown
+----
+
+
+Memory Management
+-----------------
+
+The BDK does all memory management using the standard C library.  No
+special functions are needed for allocating DMA buffers, or other
+large block of memory.  The most useful library functions are:
+
+=== Memory Functions
+* void *memalign(size_t boundary, size_t size);
+* void *calloc(size_t nmemb, size_t size);
+* void *malloc(size_t size);
+* void free(void *ptr);
+
+The function "memalign" should be used for most DMA buffer allocations.
+Conversion between pointers and physical address are done using
+*bdk_ptr_to_phys()* and *bdk_phys_to_ptr()*.
+
+uint64_t bdk_ptr_to_phys(void *ptr)::
+
+Convert a C pointer into a physical address.  This works on
+stack data, global variables, heap data, and even code.  Note that
+there is a performance impact for using the function on global
+variables and code.  It is fastest when used with stack and heap data.
+
+void *bdk_phys_to_ptr(uint64_t physical_address)::
+
+Convert a physical address into a C pointer.  Note that
+"*bdk_phys_to_ptr(bdk_ptr_to_phys(foo))*" may not be equal to the original
+address of "foo".  The result of
+"*bdk_ptr_to_phys(bdk_phys_to_ptr(paddr))*" is guaranteed to be "*paddr*".
+
+
+Threading
+---------
+
+The BDK takes a major departure from the OCTEON SDK by choosing a
+multi-threaded model of execution versus a forked model.  Threads are
+implemented on a low overhead cooperative threading scheme.  A thread
+only yields execution specifically with a call to *bdk_thread_yield()*.
+Most functions that stall in the BDK automatically yield for you.  In
+a multi-core environment, threads will be schedule simultaneously on all
+available cores.  Each core runs the next available thread in round
+robin fashion.  You can specify a core mask to control which cores a
+thread can run on, but you normally specify zero and let the scheduler
+figure it out.
+
+=== Thead Functions
+void bdk_thread_yield(void)::
+
+Yield execution to another thread.
+
+int bdk_thread_create(uint64_t coremask, bdk_thread_func_t func, int arg0, void *arg1);::
+
+Create a new thread running 'func(arg0, arg1)'. Both 'arg0' and 'arg1' can be
+anything the application wants. The thread will run on the next 'yield'.
+
+void bdk_thread_destroy(void);::
+
+Kill the current thread of execution. Normally a thread automatically
+dies when its initial function returns. This allows premature
+termination of thread.
+
+
+Filesystem
+----------
+
+The BDK provides standard system calls for filesystem access.  The
+filesystem supports multiple types of files accessed through virtual
+name spaces.  Any file may be accessed using either the standard
+system calls (open, read, write, close, etc) or the higher level C
+interface (fopen, fread, fwrite, fclose, etc).
+
+
+Abstract Network Packet API
+---------------------------
+
+The BDK provides a high level interface to all packet based interfaces
+that are similar to ethernet.  THUNDERX's SGMII, XAUI, RGMII, ILK, Loop
+devices, and PCIe engines are all available through this common
+interface.
+
+=== Packet Functions
+int bdk_if_init(void)::
+
+Initialize all packet interfaces of all types for use.  This is the
+one call needed to get all interfaces configured.  Enable needs to be
+called on each handle before actual packets flow.
+
+int bdk_if_num_interfaces(bdk_if_t iftype)::
+
+Get the number of interfaces for the given type.
+
+int bdk_if_num_ports(bdk_if_t iftype, int interface)::
+
+For a given interface, return the number of ports supported by that
+interface.
+
+bdk_if_handle_t bdk_if_next_port(bdk_if_handle_t handle)::
+
+Get the next valid port handle after the supplied handle.  Returns the
+first port handle when argument is NULL.  This meant to make it easy
+to write loops that iterate over ports.
+
+int bdk_if_enable(bdk_if_handle_t handle)::
+
+Enable the given port for packet I/O.
+
+int bdk_if_disable(bdk_if_handle_t handle)::
+
+Disable the given port for packet I/O.
+
+bdk_if_link_t bdk_if_link_autoconf(bdk_if_handle_t handle)::
+
+Get the link status for the port and configure it for that speed.
+
+const bdk_if_stats_t *bdk_if_get_stats(bdk_if_handle_t handle)::
+
+Get the interface RX and TX counters.
+
+int bdk_if_transmit(bdk_if_handle_t handle, bdk_if_packet_t *packet)::
+
+Send a packet.
+
+int bdk_if_receive(bdk_if_packet_t *packet)::
+
+Receive a packet from any enabled interface.
+
+void bdk_if_free(bdk_if_packet_t *packet)::
+
+Free a packet back to the FPA pools.
+
+=== Example looping through all Network Interfaces
+
+The following code loops through all supported network interfaces and
+enables them.  The *switch* statement shows an example of how to do
+custom operations based on the type of interface.
+
+[source,c]
+----
+for (bdk_if_handle_t handle = bdk_if_next_port(NULL); handle != NULL; handle = bdk_if_next_port(handle))
+{
+    switch (bdk_if_get_type(handle))
+    {
+	case BDK_IF_SGMII:
+	case BDK_IF_XAUI:
+	    ...
+	    break;
+	default:
+	    break;
+    }
+    bdk_if_enable(handle);
+}
+----
+
+The BDK API
+-----------
+
+The BDK contains many functions to support THUNDERX code development.
+Here is a short list of the major areas:
+
+TIP: The doxygen generated link:api-docs/html/modules.html[BDK API Reference] can be useful.
+
+CSRs
+~~~~
+
+.Useful CSR related defines and functions
+BDK_CSR_DEFINE(name, csr)::
+
+This macro makes it easy to define a variable of the correct type for a CSR.
+
+BDK_CSR_INIT(name, csr)::
+
+This macro makes it easy to define a variable and initialize it with a CSR.
+
+BDK_CSR_READ(csr)::
+
+Macro to read a CSR. Does the right thing for 'all' types of CSRs (32bit, 64bit, config, etc).
+
+BDK_CSR_WRITE(csr, value)::
+
+Macro to write a CSR. Does the right thing for 'all' types of CSRs (32bit, 64bit, config, etc).
+
+BDK_CSR_MODIFY(name, csr, code_block)::
+
+Macro to make a read, modify, and write sequence easy. The 'code_block'
+should be replaced with a C code block or a comma separated list of
+'name.s.field = value'.
+
+BDK_CSR_WAIT_FOR_FIELD(csr, field, op, value, timeout_usec)::
+
+This macro spins on a field waiting for it to reach a value. It
+is common in code to need to wait for a specific field in a CSR
+to match a specific value. Conceptually this macro expands to:
+. Read csr
+. Check if ('csr'.s.'field' 'op' 'value')
+. If #2 isn't true loop to #1 unless too much time has passed.
+
+Signalling Errors
+~~~~~~~~~~~~~~~~~
+
+The BDK supplies a few function to make error reporting more standardized.
+
+.Error reporting
+* void bdk_fatal(const char *format, ...);
+* void bdk_error(const char *format, ...);
+* void bdk_warn(const char *format, ...);
+* bdk_warn_if(expression, format, ...);
+
+Lua Scripting
+-------------
+
+The BDK contains the scripting environment Lua.  Lua allows you to
+write simple scripts to easily control THUNDERX tests and perform remote
+operations.  Take a look at the link:lua/readme.html[documentation for
+Lua] for more information about the Lua language.  Many BDK functions
+can be called from Lua.  Under the Lua environment, a module _cavium_
+is supplied.
+
+TIP: The link:lua/contents.html[Lua Reference] can be useful.
+
+Checking THUNDERX Models
+~~~~~~~~~~~~~~~~~~~~~~~~
+cavium.is_model()::
+
+Check which chip model you are using. Pass it one of the following:
+
+* cavium.CN88XX
+* cavium.CN85XX
+
+Calling BDK Functions
+~~~~~~~~~~~~~~~~~~~~~
+cavium.c.bdk_*::
+
+Many BDK functions are exported to Lua.  The functions are exported by
+searching the symbol table at compile time, so not all functions are
+useful.  You must be careful to get the arguments right as Lua doesn't
+do any checking.
+
+.Find the current core clock rate
+[source,lua]
+----
+print (cavium.c.bdk_clock_get_rate(0,0))
+----
+
+CSR Access
+~~~~~~~~~~
+cavium.csr()::
+
+Returns an iterator suitable for use with a _for_ loop. The following code
+will print out the possible CSR names:
+
+.List all CSRs from Lua
+[source,lua]
+----
+for name in cavium.csr()
+do
+    print (name)
+end
+----
+
+cavium.csr.NAME.read()::
+
+Read a CSR and return its raw value.  _NAME_ is any valid CSR name.
+The code above will display the valid CSR names.
+
+.Read the RST_PP_AVAILABLE register
+[source,lua]
+----
+print (cavium.csr.RST_PP_AVAILABLE.read())
+----
+
+cavium.csr.NAME.write(value)::
+
+Write a raw CSR value.  _NAME_ is any valid CSR name.
+The code above will display the valid CSR names.
+
+.Force a soft reset
+[source,lua]
+----
+cavium.csr.RST_SOFT_RST.write(1))
+----
+
+
+Boot Sequence
+-------------
+On chip bootrom(at 0x87d000000000)::
+
+After reset, THUNDERX chips start executing instructions from an
+internal secure ROM located at 0x87d000000000, the address defined by
+system register RVBAR_EL3.  This ROM loads 192KB from either SPI NOR or
+eMMC/SD based on GPIO strapping.  If the chip is performing non-trusted
+boot, the code is located at flash offset 0x20000 in SPI NOR or eMMC to
+L2 address 0x120000.  If trusted boot is chosen, then code is located at
+flash offset 0x50000 and loaded to L2 address 0x150000.  The ROM then
+transfers control to the image 256 bytes in, at location 0x120100 or
+0x150100.
+
+__bdk_start(bdk-start.S at 0x120100 or 0x150100)::
+
+Main entry point for the code.  This code is running at address 0x120100
+or 0x150100, which doesn't match its link address of 0x100.  Assembly in
+bdk-start.S sets L2C_ASC_REGION* to allow the cores to access L2C and
+enables core access to L2 ways by programming L2C_WPAR_PP0.  The image
+then copies itself from the L2 scratch region, to its link address of
+zero.  After the copy, it jumps to label "after_relocate" finalizing the
+transition to the proper load address defined by the linker.
+
+after_relocate(bdk-start.S)::
+
+The icache is invalidated after the code change due to the copy above.  A
+CRC32 is calculated over the entire image and stored in register W0.  The
+stack pointer is directed at "__bdk_initial_stack_end" and the first C code
+is executed by calling "__bdk_init()".  Note that the CRC32 is the only
+argument to "__bdk_init()", allowing the image to verify itself.  This is
+done before the C code starts in case global data is modified early in the
+C code.
+
+__bdk_init(bdk-init.c)::
+
+This is the first C code run.  Full initialization has not been completed
+yet, so some normal C functions don't work yet.  This stage executes more
+initialization and then starts the first normal thread of execution.
++
+* Setup the location of exception handlers (Symbols __bdk_exception_*)
+* Setup memory accesses to be cached normal memory, no mmu
+* Disable the core 0 timer
+* Setup both uarts
+* Show the first BDK boot banner
+* Lock all of L2 so no misses can happen
+* Compare the CRC32 with the one from the image header, displaying status to the uart.
+* Create an exception level stack for the core
+* Mark the first core as alive
+* Create the first thread, __bdk_init_main()
+
+__bdk_init_main(bdk-init-main.c)::
+
+First full thread of execution where the full C environment is functional.
+Here we complete secondary hardware initialization and then transfer to
+main().
++
+* Free the initial boot stack
+* Initialize and system registers
+* Setup the environment
+* Enable uart hardware flow control
+* Perform local node initialization in __bdk_init_local_node()
+* Create a thread for executing main(), the standard C entry point.
+
+main(int argc, const char*argv[])::
+
+Control transfers to the normal C main.
+
+
+SPI or eMMC Layout for Boot
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The following table details the layout of a BDK applications stored
+in SPI or eMMC storage for booting.
+
+.SPI or eMMC Physical Layout
+[options="header"]
+|==========================================================================
+|Offset    |Size  |Description
+|0000 0000 |64KB  |Unused data. Can be replaced with a partition table. Zero by default
+|0001 0000 |256B  |Cavium CVM_CLIB header - Non trusted
+|0001 0100 |256B  |Cavium CVM_CSIB header - Non trusted
+|0001 0200 |256B  |Cavium CVM_CLIB header - Trusted
+|0001 0300 |256B  |Cavium CVM_CSIB header - Trusted
+|0001 0400 |63KB  |Reserved, should be zero
+|0002 0000 |192KB |BDK stage 1 boot image. This is 192KB loaded by the Thunder boot rom in non-trusted boot
+|0005 0000 |192KB |BDK stage 1 boot image. This is 192KB loaded by the Thunder boot rom in trusted boot
+|0008 0000 |Varies|BDK main image. Can be chain loaded by the 192KB stage 1 image
+|0040 0000 |Varies|Used for ARM Trusted Firmaware (ATF) and UEFI
+|0100 0000 |-     |End of image search area. This address and everything above it are unused
+|==========================================================================
+
+
+L2/DRAM Memory Map
+~~~~~~~~~~~~~~~~~~
+
+After a BDK application relocates into DRAM, the following table describes
+the physical address layout. Currently the BDK runs with page tables disabled
+such that the virtual address is the same as physical address. This may change
+in the future, so applications should not depend on this behavior.
+
+[options="header", cols="25,50,25"]
+|==========================================================================
+|Physical	|Symbol                                 |Description
+|0000 0000	|_start 	                        |256 byte BDK image header
+|0000 0100	|__bdk_start	                        |Beginning of code. Execution starts here
+|0000 0800	|__bdk_exception_current_el_sync_sp0    |Exception vector
+|0000 0880      |__bdk_exception_current_el_irq_sp0     | Exception vector
+|0000 0900      |__bdk_exception_current_el_fiq_sp0     | Exception vector
+|0000 0980      |__bdk_exception_current_el_serror_sp0  | Exception vector
+|0000 0a00      |__bdk_exception_current_el_sync_spx    | Exception vector
+|0000 0a80      |__bdk_exception_current_el_irq_spx     | Exception vector
+|0000 0b00      |__bdk_exception_current_el_fiq_spx     | Exception vector
+|0000 0b80      |__bdk_exception_current_el_serror_spx  | Exception vector
+|0000 0c00      |__bdk_exception_lower_el_sync_sp0      | Exception vector
+|0000 0c80      |__bdk_exception_lower_el_irq_sp0       | Exception vector
+|0000 0d00      |__bdk_exception_lower_el_fiq_sp0       | Exception vector
+|0000 0d80      |__bdk_exception_lower_el_serror_sp0    | Exception vector
+|0000 0e00      |__bdk_exception_lower_el_sync_spx      | Exception vector
+|0000 0e80      |__bdk_exception_lower_el_irq_spx       | Exception vector
+|0000 0f00      |__bdk_exception_lower_el_fiq_spx       | Exception vector
+|0000 0f80      |__bdk_exception_lower_el_serror_spx    | Exception vector
+|0000 1000      |__bdk_initial_stack_start              | Top of the stack used during early boot
+|0000 2000      |.text                                  | Bottom of the stack used during early boot and the beginning of the text segment
+|*              |.rodata                                | Read only data
+|*              |.data                                  | Static data
+|*              |.bss                                   | Zeroed static data
+|*              |_end                                   | Symbol for end of BDK code and data
+|*              |                                       | ROMFS files start immediately after the _end symbol
+|header length  |                                       | Everything up to the header length field is included in the header CRC32
+|==========================================================================
+
+Notes
+~~~~~
+* BDK images can start at any alignment. They immediately relocate to zero.
+* After relocation, a CRC32 is calculated over the entire iamge and passed
+        to the C code. This is verified as part of BDK init for every
+        application.
+* Secondary cores start executing at the __bdk_start symbol.

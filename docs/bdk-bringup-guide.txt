@@ -1,0 +1,46 @@
+= I/O Interfaces
+
+:leveloffset: 2
+include::sections/io-dram.txt[]
+include::sections/io-emmc.txt[]
+include::sections/io-gpio.txt[]
+include::sections/io-jtag.txt[]
+include::sections/io-mdio.txt[]
+include::sections/io-networking.txt[]
+include::sections/io-oci.txt[]
+include::sections/io-pcie.txt[]
+include::sections/io-qlm.txt[]
+include::sections/io-sata.txt[]
+include::sections/io-spi.txt[]
+include::sections/io-twsi.txt[]
+include::sections/io-uart.txt[]
+include::sections/io-usb.txt[]
+:leveloffset: 1
+
+== Next Steps
+
+After completing the test steps outlined in this document, most board
+I/O interfaces have been validated.  With working DRAM and validated
+I/Os, software development can start on the board.  Software should
+burn the normal bootloader into NOR flash, overwriting the BDK.  This
+can be done either using a flash programmer, or the flash menu in the
+BDK.
+
+.The Flash Menu
+----
+include::captures/flash_menu.capture[]
+----
+
+View flash::
+
+Dumps the contents of flash in a hexadecimal dump.
+
+Write flash::
+
+Allows writing a file directly to flash.  Refer to the general BDK
+documentation for information about files.
+
+TIP: During the software development process it can be useful to have
+known good binaries that exercise the board.  Keep the BDK around as
+it makes a good test bench.  One board running the BDK can be used to
+help debug software running on another board.

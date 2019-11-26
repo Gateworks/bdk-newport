@@ -1,0 +1,242 @@
+|************************************************************************
+|     ___.  ___.
+|    / . | / . |
+|   / /|=|/ /|=|     
+|  /_/ |___/ |_|   
+|  M A R V E L L
+| 
+| MARVELL SEMICONDUCTOR INC
+| Proprietary Information - NDA Required
+| Doc. No. MV-S-- -00 Rev. --
+|
+|************************************************************************
+
+This publication and its contents are proprietary to Marvell. No part of this publication may be reproduced in any form or by any means without the written permission of Marvell Semiconductor Inc.
+
+MTD revision history
+Copyright (C) 2014 - 2018, Marvell International Ltd.
+
+Confidential. 
+All rights reserved. 
+
+Release Notes for Marvell 88X32XX, 88X33XX, 88X23XX, 88E20X0 and 88E21X0 PHY API, both MACSEC and non-MACSEC versions.
+
+
+Supported SPI Flash:
+The following flash types are supported with the included slave bin file: 
+- ST Micro M25P40/M25P20
+- Microchip SST25PF040B/020B
+- SST25VF040B/020B, SST25PF040C
+- Winbond W25X20CL
+- Winbond W25Q128JV
+- Micron M25Q
+
+
+Instructions
+------------
+
+This source code is provided as a function library for configuring/controlling and querying status of the Marvell 88X32xx, 88X33XX, 88X23XX, 88E20X0 and 88E21X0 Ethernet PHYs. 
+
+The header files (e.g. mtdAPI.h) together with the API Application Notes and datasheet comprise the documentation for using this API to interface to the PHY.
+
+Refer to the spreadsheet, 'mtdAPI summary.xlsx' for a complete list of API functions and descriptions. Not all functions in the spreadsheet apply to every device. For example copper link functions do not apply to the 88X23xx device and MACSEC functions do not apply to non-MACSEC devices.
+
+The following files are designed to be compiled/linked with the host processor's code as-is:
+    mtdAPI.c
+    mtdAPIInternal.c
+    mtdCunit.c
+    mtdDiagnostics.c
+    mtdDiagnosticsRegDumpData.c
+    mtdEEE.c
+    mtdFwDownload.c
+    mtdHunit.c
+    mtdHXunit.c
+    mtdInitialization.c
+    mtdIntr.c
+    mtdSemaphore.c
+    mtdUtils.c
+    mtdXgFastRetrain.c
+    mtdXunit.c
+Following files contain the MACSEC and PtP features:
+    aescrypt.c
+    aeskey.c
+    aestab.c
+    mtdHwMsecPtpCntl.c
+    mtdMsecApi.c
+    mtdMsecInternal.c
+    mtdPtpApi.c
+    mtdPtpConst.c
+    mtdPtpInit.c
+    mtdPtpInternal.c
+    mtdPtpUtils.c
+
+The file mtdHwCntl.c is meant to be specific to the host processor's hardware and may need to be modified accordingly. The sample code in the hardware-specific files contains code which was used to test the API and was compiled/linked with a test program using MSVC and executed on a Window's-based PC to access a USB-to-MDIO interface in order to test with the PHY evaluation board. 
+
+The function mtdLoadDriver() is designed to allow initializing the driver with function pointers for the host's MDIO read/write functions without having to modify any API code. If mtdLoadDriver() is used, only mtdWait() must be ported in mtdHwCntl.c to call the hosts delay function.
+
+The define DB_TEST_ENVIRONMENT in mtdApiTypes.h should be set to 0 for the host environment to remove the PHY test board hardware-specific code.
+
+mtdDiagnostics.h and mtdFwDownload.h contain prototypes of the useful API functions for diagnostics and PHY firmware download. mtdAPIInternal.h contains functions called by mtdFwDownload and provide no high level API interface. No modifications are needed. x3240flashdlslave_0_6_5_0_9501.bin is a PHY firmware image used during firmware download to flash in order to accelerate the download process. The contents of this file must be passed as an input parameter (MTD_U8 slaveData[]) to the mtdUpdateFlashImage function. Similarly the new PHY image to be stored in flash must be provided as an input (MTD_U32 appSize). This PHY firmware image file (.hdr) may be found in the PHY firmware release package.
+
+The following flash types are supported with the included slave bin file: ST Micro M25P40/M25P20, Microchip SST25PF040B/020B, SST25VF040B/020B, SST25PF040C, Winbond W25X20CL, Winbond W25Q128JV or Micron M25Q.
+
+API Errata
+----------
+- 88X3340 PHY does not support Revision Z2
+- Semaphores are not fully supported in this release. We suggest not using them but instead adding a semaphore on the higher layer if multi-tasking is being used by the host software
+- Call to mtdLoadDriver() for Macsec/PTP must pass macsecIndirectAccess as MTD_TRUE for all A0 and earlier silicon for 88X32X0 devices.
+- Because the parallel LEDs(88E2180 only) and serial LEDs(88E2110 and 88E2180) are disabled by default in the 88X21x0 PHY, sample functions are provided to enable LEDs in mtdSample.c
+
+Refer to the Marvell® 10GBASE-T PHY API Application Notes (document MV-S302449) for instructions on how to use this API. This document is available on the Marvell Extranet Portal.
+
+API revision history
+--------------------
+API version 2.4
+- Added support for E2180 Rev A1 and E2110 Rev A0 #23709
+- Added support for 5GR/2.5GX/SGMII with Auto-Negotiation on E2110 in mtdSetMacInterfaceCopperOnlyPhy() #23656
+- Configured temperature sensor to use average reading mode in mtdEnableTemperatureSensor(). See the function header for details of this change. #23638
+- Enforced using write-only operation when switching to/from parallel write mode in mtdPutPhyInParallelWriteMode(), mtdRemovePhyFromParallelWriteMode() #23654
+- Added support for higher-speed MDIO download in mtdUpdateFlashImage(), mtdUpdateRamImage(), mtdParallelUpdateRamImage(), mtdParallelUpdateFlashImage(),
+  also improved the error checking and error messages and modified code to use the new slave binary file for flash updates.  #23634, #23496
+- Added the build ID parameter in mtdGetAPIVersion() #23708
+- Updated slave binary file to x3240flashdlslave_0_6_5_0_9501.bin
+  - Supports higher-speed MDIO #23496
+  - Adds Winbond W25Q128JV serial flash support
+  - Adds Micron MT25Q serial flash support
+  - New command to both erase and verify erased sections
+
+--------------------
+API version 2.3
+- Added workaround for 1G data activity LED stuck on link drop when putting PHY into low power mode #23633
+- Fixed the incorrect bit setting for the ingress check action late field in the internal APIs mtd_msec_set_igr_chk_act() and mtd_msec_get_igr_chk_act() #23609
+- Corrected the eye height value in the eye diagram measurement #23616
+- Added support for EEE 0.5 micro-second latency resolution for exit timer #23611
+- Added support for enabling/disabling and restarting the 802.3ap Clause 73 Auto-Negotiation for 88E21X0 in mtdSetANKRControl #23622
+- Updated slave binary file to x3240flashdlslave_0_4_3_0_9256.bin with support for Winbond W25X20CL and Microchip SST25PF040C flash types #23597 #23626
+- Updated the temperature sensor APIs to support all the device families #23612
+- Added diagnostic APIs to support the H unit,  X unit and T unit loopbacks #23631
+- Added code and changes to provide full support for the 88E21x0 device #23590, #23615, #23567
+- Added several APIs in the mtdIntr.c to provide support for setting various interrupt operations and retrieving the interrupt status  #23630
+- The mtdCopyright.h file is removed and the copyright header is added to all source files to be in compliance with the software licensing.
+- Added following sample functions and macros:
+    - added macros for setting the Force-Link-Good in the mtdSample.h
+    - mtdSampleSystemInitDrv for multiple device API initialization 
+    - mtdSampleGetChipIntrStatus to retrieve interrupt status
+    - mtdSampleE21X0EnableSerialLED to enable the serial LEDs for 88E2110 and 88E2180 only  #23617
+    - mtdSampleE2180EnableParallelLED to enable the parallel LEDs for 88E2180 only  #23617
+
+API version 2.2
+- Added support and features for the 88E21X0 devices #23590; #23567; #23571
+    APIs for the copper only PHY:
+      mtdSetMacInterfaceCopperOnlyPhy
+      mtdGetMacInterfaceCopperOnlyPhy
+      mtdSetMacInterfaceRateMatchingSpeedCopperOnlyPhy
+      mtdGetMacInterfaceRateMatchingSpeedCopperOnlyPhy
+      mtdGetMultiUSXGMIIConfigurationCopperOnlyPhy
+- Added API support for temperature sensor reading API #23550  
+- Fixed the link drop counter reset and clear issues #23591, #23592 
+- mtdRerunSerdesAutoInitializationUseAutoMode long API name is abbreviated to mtdRerunSerdesAutoInitUseAutoMode #23572
+- mtdTunitConfigure10GLinkDrop and mtdTunit10GGetLinkDrop are renamed to match the API prototypes #23556
+- mtdChipHardwareReset() is fixed to use the correct port for reset  #23554
+- Added a fix to stop fragments being sent with HX packet generator by stopping the traffic before disabling the packet generator #23585
+- Removed USXGMII Mactype 0x7 from 88X32XX parts. USXGMII is only applicable to 88X33XX parts  #23503
+- Created 2nd set of names for mtdxxx10GBRxxx APIs using “USXGMII” instead of “10GBR”
+- Corrected the link partner 5GBT fast retrain status bit in mtdLP5GBTFR API  #23594
+- Added the auto negotiation re-enable and restart in the fast retrain advertising APIs #23595
+- In MACSec operation, added fix to enable the ingress check action for drop action in ILU. #23593
+- Added MACSec APIs, mtd_msec_set_10g_mac_pause_fwd and mtd_msec_get_10g_mac_pause_fwd, allowing pause frames to be forwarded. #23586
+
+API version 2.1
+- Added support for several new PHYs including 88X33XX A1 and 88E20X0 A1 PHYs.  #23515, 23504
+- Deleted mtdSpecialSoftwareReset(). This API is no longer useful. Use mtdTunitHwReset() instead. #23546
+- Fixed a bug in mtdRerunSerdesAutoInitializationUseAutoMode() that would have caused it to be ignored in copper mode
+- Added a new mtdGetLPAdvertisedSpeeds() function for getting link partner advertised speeds.  #23537
+- Added support for Clause 22 MDIO for 88X3310/88E2010. #23531
+- Added APIs to invert the input or output polarity of lanes 0-3 for XAUI mode
+- Added APIs to enable or disable AN+KR feature and retrieve AN+KR status on the H unit
+- Added the eye diagram plotting feature support.
+- Added the H/X unit PRBS feature support.
+- Added the T unit packet generator feature support. #23514
+- Corrected the MACSec local fault register setting.  #23541
+- Corrected the intermittent failure in MACSec Indirect Register Reads. #23540
+- Port lockup with EEE enable + MACSec encryption/decryption enable. CQ6980
+- Packet loss issue with MACSec rate matching mode when flow control enabled. CQ6963
+- Added mtdSample.c source file with several sample functions calling the MTD APIs 
+- Fixed error in mtd_set_mac_speed function in mtd_msecApi.c. 8419
+
+API version 2.0
+- Added support for 88X33X0/E20X0 Revision A0. This includes speeds of 2.5/5G for fast retrain, EEE, and serdes interface control/status, fiber type for 2.5/5G, Macsec/Ptp and downshift control/status.
+- Added support for 1G test modes
+- Added a new function, mtdRerunSerdesAutoInitializationUseAutoMode() to rerun serdes auto configuration code and added a parameter to run it when changing H or X unit interface configuration
+- New slave download BIN file to support 88X3X0/E20X0 Revision A0 for flash download.
+- Added extra error checking for firmware RAM download to check checksum against checksum in HDR file.
+- Increased software reset timeout timer bugs #23509, 23510, 23511.
+- Added some new BIST checking to match latest firmware.
+- Fixed a logic error in mtdHwXmdioWrite/mtdHwXmdioRead
+- Fixed Macsec port lockup condition when change frame size on the fly, CQ6563.
+- Fixed Macsec packet drop condition in Macsec 10G mode, CQ6810
+- Added Macsec support for 2.5/5G on 33X0/E20X0 devices
+
+
+API version 1.1
+- Added support for advertising and checking resolution for 2.5G/5G for 88X33X0 Rev Z2 PHY.
+- Modified mtdChipHardwareReset() to handle 88X33X0 correctly (requires chip reset to be used on last port)
+- Put in workaround for EEE control register to use register in T unit space 1.C033 in place of 31.F003.NOTE: Requires firmware 0.3.8.0 or later for this feature.
+- 88X3340 for Macsec always uses direct access to Macsec registers. This is forced in this version of the API.
+- Added code for workarounds/fixes for Macsec/PTP bugs #23484, 23485, 23492.
+
+
+API version 1.0
+- Added Macsec and PTP. See release spreadsheet for a list of new functions.
+- Added a new function, mtdLoadDriver() to initialize the phy type and pointers to hosts MDIO read/write functions. Calling mtdLoadDriver() is required if
+  host is using Macsec/PTP or firmware download. PHY and firmware download functions may be used without passing in host MDIO read/write function pointers
+  to mtdLoadDriver(), however, if the host plans to use Macsec/PTP functions, function pointers for host MDIO read/write functions must be passed into
+  mtdLoadDriver.
+  Summary for porting instructions: 
+  1) If only using PHY functions and no firmware download/Macsec/PTP, can just port the 3 hardware-dependent functions in mtdHwCntl.c. No call to mtdLoadDriver() 
+     is needed. 
+  2) If only using the PHY functions + firmware download (no Macsec/PTP), need to call mtdLoadDriver() but can pass NULL pointers for MDIO read/write 
+     functions but must port the 3 hardware-dependent functions in mtdHwCntl.c. 
+  3) If using PHY + Macsec/PTP, must call mtdLoadDriver() with function pointers to hosts MDIO read/write functions. Only port mtdWait() in mtdHwCntl.c.
+     mtdHwXmiodRead() and mtdHwXmdioWrite() will use the function pointers for all PHY IO.
+- Modified all PHY functions to pass the new MTD_DEV pointer through to the bottom layer IO functions in place of the previously unused context pointer.
+- Modified mtdGetPhyRevision() to support all current revisions of this family of PHYs, including X32X0P, X32X0, X33X0P, X33X0, X23X0P and X23X0. The new
+  PHY revision type is incompatible with the previous type. See the definition for MTD_DEVICE_ID in mtdApiTypes.h. There are new macros for testing
+  family of PHY and also for testing features within a PHY (such as Macsec or Copper/Tunit).
+- Added new functions for controlling, reading the status of, and disabling the internal processors initialization of the H and X unit serdes:
+  mtdSetSerdesOverrideReach(), mtdGetSerdesOverrideReach(), mtdRerunSerdesAutoInitialization(), mtdGetSerdesAutoInitialization(), mtdSetSerdesAutoInitialization()
+  and mtdGetSerdesAUtoInitSpeed().
+- Modified mtdEeeBufferConfig() to force using the buffer in the Macsec block instead of the legacy buffer, if the PHY has a Macsec. Function returns an error
+  on PHYs which have a Macsec when attempting to configure the legacy buffer outside the Macsec.
+- There are some new files and renamed/reorganized files (and some deleted files). This became necessary while integrating Macsec/PTP.
+
+  
+API version 0.5a
+- Rolled back version of x3240flashdlslave.bin file to 0.4.0.0. API Version 0.4 and 0.5 are not compatible with version 0.5.0.0.
+
+
+API version 0.5
+- Added a new function to read the serdes eye data, mtdGetSerdesEyeStatistics()
+- Modified MacSec read/write functions to use a new indirect addressing method provided through the firmware to address an errata in the MacSec. Added a new function for doing a double write to the MacSec, mtdHwMsecDoubleWrite().
+
+
+API version 0.4
+- Added a new diagnostic function for reading and logging registers, mtdCopyRegsToBuf(). Provided initial definitions for registers to be logged. 
+- Made a major change to  mtdGetPhyRevision() in mtdDiagnostics.c so that the function will work with IC revisions 88X3220 A0/Z2 and 88X3240 A0/Z2.
+  NOTE: The 88X3220 A0 must use firmware version 0.3.1.0 or later.
+- Updated version of x3240flashdlslave.bin file to 0.5.0.0. The new version supports higher speed downloads.
+- Fixed a bug in mtdAPIInternal.c that caused a problem on some compilers (variable uninitialized) in flash download.
+
+
+API version 0.3
+- Swapped logic sense of 10GBASE-R block lock variable. Added new functions mtdGetPhyRevision(), mtdIsTunitInLowPowerMode(), mtdIsTunitResponsive(), mtdGetTunitBISTStatus(), mtdGetTunitFirmwareMode() in preparation for A0 support.
+
+
+API version 0.2
+- Added functions for the host interface (H unit) and fiber interface (X unit) in files mtdHunit.h, mtdHxunit.h, and mtdXunit.h. 
+
+
+API version 0.1
+- Initial release. 
+- Supports 88X3240/20 PHY. 
+

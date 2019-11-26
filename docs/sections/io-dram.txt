@@ -1,0 +1,158 @@
+[[DRAM]]
+= Configure and Test DDR
+
+Configuring DDR for a board can be quite involved, so it is best to
+start with a working configuration and customize it.  The recommended
+procedure is to copy an existing DDR configuration for one of Cavium's
+evaluation boards and then perform the minimal changes needed for the
+new board.  Starting in the DDR menu, follow these steps.
+
+.Sample DDR Menu
+----
+include::../captures/ddr_menu.capture[]
+----
+
+== Copy an Existing Configuration
+
+Choose one of the menu options which most closely matches the board.
+Make sure to pick a board configuration that has the same Cavium chip.
+
+== Set the DDR Clock Frequency
+
+Choose the DDR frequency which memory will be clocked at.  The
+frequency specified here is the base frequency of the clock.  DDR
+DIMMs are generally labeled by data rate instead of clock rate.  Since
+data is transferred on every clock edge, the clock rate is always half
+the data rate.  For example, a DIMM labeled "DDR3 - 1333" has a
+maximum data rate of 1333 64bit words per second, corresponding to a
+clock rate of 666.5 Mhz.  This clock rate would be entered as
+'666500000'.  During initial configuration, start with a low clock
+rate and raise it later after DRAM is tested.  A good starting clock
+rate is 500Mhz, so enter '500000000'.
+
+== Enter DIMM SPD Addresses
+
+When designing the board, the DIMM slots must be connected to one of
+THUNDERX's TWSI buses to allow for access to the DIMM SPD.  DDR
+configuration must include the TWSI bus and address used for the
+board.  Choose the menu option 'Set SPD TWSI addresses'.
+
+.Sample SPD Entry
+----
+DDR interface (0 - 3): (14INS)> 0
+TWSI interface number  (0-4): (15INS)> 0
+Enter SPD address of 0 to end input.
+
+SPD address for dimm 0: (16INS)> 0x50
+SPD address for dimm 1: (17INS)> 0x51
+SPD address for dimm 2: (18INS)> 0
+----
+
+== Apply the new Configuration
+
+Now that your DDR configuration has been customized for the board.
+Apply the configuration using the menu option.  Choose 'Initialize DDR
+controller using current config'.
+
+== Test DDR
+
+Once DRAM is configured, test to make sure memory is working.  Testing is
+contained in a submenu for the DRAM menu.
+
+.Sample DDR Test Menu
+----
+include::../captures/ddr_test_menu.capture[]
+----
+
+.Bringup Cores for multi-core testing
+
+A single CPU core is limited in the amount of DRAM load it can produce.
+It is recommended that you select this option to make sure all CPU cores
+are active and available for testing.
+
+.Number of time to repeat the test (1)
+
+Once initial tests pass, this option can be used run tests over long time
+periods.  Stable memory is required for Uboot and the SDK to work
+properly.  Note that if you have a specific DRAM test that is failing,
+this option can repeat the test to help in connecting scopes to the board.
+
+.Starting address (0x0) and Length of the range to check (All)
+
+Choose the memory range to test.  The default will check all of memory,
+except for a small segment containing the BDK.  The BDK is loaded as
+address zero and takes up a linear range.  The starting address will
+automatically be adjusted to be above the BDK.  This normally causes the
+lower couple of megabytes to not be tested.  Lengths that extend passed
+the end of configured memory are automatically truncated.
+
+.Set test range from 64MB to 128MB
+
+It is recommended you start testing with a small memory range as a sanity
+test before covering all of memory.  This options creates an easy default
+range.
+
+.Run all DRAM tests
+
+This option runs all the other DRAM tests over the supplied range.  Each
+test is run sequentially, one after the other.  Any DRAM error will stop
+testing and return to the menu.
+
+== Dealing with Complex DDR Customization
+
+The menu interface presents option to configure DDR on the most common
+board configurations.  In the event that the board needs further
+customization.  DDR configurations can be saved and restored from
+files.  All DDR options may be customized by first saving a
+configuration to a file.  Use either XMODEM or the builtin TFTP server
+to transfer the file off of THUNDERX.  After editing the configuration
+file, transfer it back to THUNDERX.
+
+CAUTION: The DDR configuration file format may change in future BDKs.
+Be sure to track your specific changes such that they can be applied
+to a new configuration exported from a future BDK.
+
+== DDR Customization with Fixed SPDs
+
+DDR Configurations requiring fixed SPD data not read from a DDR DIMM
+requires the use of the save/modify/load update procedure.
+
+. Use "Load current DDR config using XXX" to load a sample DDR configuration.
+. Save the sample configuration using "Save current DDR config to a file".
+. Open the DDR config in a text editor.
+. Change the SPD addresses to zero for configurations that need it.
++
+----
+    config.ddr_config[1].dimm_config_table[1].spd_addr = 0
+----
+. Set the SPD data as a Lua string.
++
+----
+    config.ddr_config[1].dimm_config_table[1].spd_ptr =
+        "\x92\x10\x0b\x02\x02\x11\x00\x09\x0b\x52\x01\x08\x0c\x00\x3c\x00" ..
+        "\x69\x78\x69\x30\x69\x11\x20\x89\x70\x03\x3c\x3c\x00\xf0\x83\x05" ..
+        "\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" ..
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0f\x11\x04\x01" ..
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" ..
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" ..
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" ..
+        "\x00\x00\x00\x00\x00\x01\x61\x00\x09\x00\x00\x00\x00\x00\x99\xc0" ..
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" ..
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" ..
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+----
+. Load the configuration using "Load current DDR config from a file".
+. Initialize DRAM with "Initialize DDR controller using current config".
+
+
+== Asking for Help with DRAM
+
+When contacting Cavium's customer support, the following information
+will be needed.  Detailed logs are _very_ important for diagnosing
+DDR problems, so be sure to capture all output given.
+
+. Give details about the board's configuration
+. Enable Verbose Output
+. Display the current DDR config
+. Initialize DDR controller using current config
+

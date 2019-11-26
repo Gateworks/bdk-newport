@@ -1,0 +1,96 @@
+[[TWSI]]
+= TWSI (I2C)
+
+The BDK support probing TWSI (I2C) using basic operations.  Testing
+general connectivity is done using an automated device address scan.
+Further details about individual TWSI devices can be probed using
+manual reads and writes.  The first step is to choose a TWSI
+bus for testing.  This is done in the main TWSI menu.
+
+.Sample TWSI Main Menu
+----
+include::../captures/twsi_main_menu.capture[]
+----
+
+Once a bus is selected, the TWSI sub menu allows operations on the bus.
+
+.Sample TWSI Sub Menu
+----
+include::../captures/twsi_sub_menu.capture[]
+----
+
+== Initialize TWSI
+
+Perform one time bus initialization of the TWSI controller.
+This needs to be done once before any other transactions are issued.
+
+
+== Scan TWSI
+
+Scan all valid TWSI addresses looking for devices.  Each device that
+responds is displayed in a list.  This can be useful way of
+determining what devices are available on a board.  Below is sample
+scan from a EBB6800 board.
+
+.TWSI Bus 0 scan on an EBB6800
+----
+TWSI0: Scanning bus...
+TWSI0: Address   0 (0x00) responded
+TWSI0: Address   1 (0x01) responded
+TWSI0: Address   2 (0x02) responded
+TWSI0: Address   3 (0x03) responded
+TWSI0: Address   4 (0x04) responded
+TWSI0: Address   5 (0x05) responded
+TWSI0: Address   6 (0x06) responded
+TWSI0: Address   7 (0x07) responded
+TWSI0: Address   8 (0x08) responded
+TWSI0: Address  27 (0x1b) responded
+TWSI0: Address  76 (0x4c) responded
+TWSI0: Address  86 (0x56) responded
+TWSI0: Address  88 (0x58) responded
+TWSI0: Address  90 (0x5a) responded
+TWSI0: Address  91 (0x5b) responded
+TWSI0: Address  96 (0x60) responded
+TWSI0: Address 104 (0x68) responded
+TWSI0: Address 112 (0x70) responded
+TWSI0: Address 113 (0x71) responded
+TWSI0: Address 116 (0x74) responded
+TWSI0: Address 124 (0x7c) responded
+TWSI0: Address 125 (0x7d) responded
+TWSI0: Address 126 (0x7e) responded
+TWSI0: Address 127 (0x7f) responded
+----
+
+TIP: Be sure to note the address and bus of any DIMMs.  Later when
+DDR3 is tested, SPD data will need to be read from TWSI using these
+addresses.
+
+== Read
+
+Perform a TWSI read.  Prompts will ask for the device address,
+internal address width, internal address, and number of bytes to read
+(1,2,4).
+
+.Sample TWSI read
+----
+Device address(13INS)> 1
+Internal address width (0, 1, or 2)(14INS)> 0
+Number of bytes to read(15INS)> 1
+Result: 246 (0xf6)
+----
+
+== Write
+
+Perform a TWSI write.  Prompts will ask for the device address,
+internal address width, internal address, number of bytes to write
+(1,2,4), and the data to write.
+
+.Sample TWSI write
+----
+Device address(10INS)> 11
+Internal address width (0, 1, or 2)(11INS)> 1
+Internal address(12INS)> 0
+Number of bytes to write(13INS)> 4
+Data to write(14INS)> 0x11223344
+----
+

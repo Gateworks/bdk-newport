@@ -1,0 +1,47 @@
+[[MDIO]]
+= SMI / MDIO
+
+SMI/MDIO buses are used to communicate with Ethernet PHYs.  PHYs
+support one of two protocols, clause 22 and clause 45.  Both of these
+protocols are supported through the BDK menuing interface.  The main
+SMI/MDIO menu selects which of the buses to access.
+
+.Sample SMI/MDIO Main Menu
+----
+include::../captures/mdio_main_menu.capture[]
+----
+
+Once a bus is selected, various operations are available for both
+protocol types.
+
+.Sample SMI/MDIO Sub Menu
+----
+include::../captures/mdio_sub_menu.capture[]
+----
+
+== Scan bus (Clause 22)
+
+Performs a read from all possible SMI/MDIO addresses and list the
+addresses where the reads succeeded.  This can be used to quickly find
+all the device connected to the bus.  Note that the scan performs
+clause 22 reads and may not show clause 45 only devices.
+
+TIP: Note that the PHY address found here should match the PHY address
+set in the configuration menu.
+
+Read a register (Clause 22)::
+
+Performs a SMI/MDIO read using the clause 22 protocol.
+
+Write a register (Clause 22)::
+
+Performs a SMI/MDIO write using the clause 22 protocol.
+
+Read a register (Clause 45)::
+
+Performs a SMI/MDIO read using the clause 45 protocol.
+
+Write a register (Clause 45)::
+
+Performs a SMI/MDIO write using the clause 45 protocol.
+

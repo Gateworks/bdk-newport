@@ -1,0 +1,9 @@
+[[JTAG]]
+= JTAG and EJTAG
+
+EJTAG is supported through the *bdk-remote* utility.  See the host
+utilities and booting sections for more information.
+
+NOTE: JTAG is currently not supported by the BDK.
+
+

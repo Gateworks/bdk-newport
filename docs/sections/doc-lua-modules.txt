@@ -1,0 +1,508 @@
+= Lua Modules
+
+Lua functions are organized in terms of packages. Each package implements
+many functions related to a specific task. THUNDERX's Lua contains the default
+Lua packages along with some new packages specifically designed for remote
+control and testing of THUNDERX based hardware.
+
+.Lua Base Modules
+[options="header"]
+|==========================================================================
+|Standard Lua Module	|Lua documentation
+|Basic functions	|link:lua/manual.html#6.1[]
+|coroutine		|link:lua/manual.html#6.2[]
+|package		|link:lua/manual.html#6.3[]
+|string			|link:lua/manual.html#6.4[]
+|table			|link:lua/manual.html#6.5[]
+|math			|link:lua/manual.html#6.6[]
+|bit32			|link:lua/manual.html#6.7[]
+|io			|link:lua/manual.html#6.8[]
+|os			|link:lua/manual.html#6.9[]
+|debug			|link:lua/manual.html#6.10[]
+|socket			|link:luasocket/introduction.html[]
+|==========================================================================
+
+== Modules Available on both Host and Target
+
+Cavium Networks provides some Lua modules specific for running Lua on
+a target THUNDERX.  When run on a host system, these modules
+automatically translate operations into remote procedure calls.  Any
+modules written in pure Lua can be used on both the host and target.
+These modules are loaded using the standard *require()* function call
+in Lua.
+
+=== cavium
+
+cavium.is_model(model)::
+
+Returns true if the current chip matches the supplied model.
+* model = One of the `cavium.CN*` constants.
+** cavium.CN88XX
+** cavium.CN85XX
+
+cavium.BDK_CONFIG_*::
+
+Constants for use with cavium.c.bdk_config_get_int() and
+cavium.c.bdk_config_set_int().
+
+cavium.csr()::
+
+Returns an iterator that iterates through the possible CSR names.
++
+.List all CSRs from Lua
+[source,lua]
+----
+for name in cavium.csr()
+do
+    print (name)
+end
+----
+
+cavium.csr.NAME.read()::
+
+Read the value of the CSR `NAME`.  `NAME` is name such as "CIU_FUSE"
+or "CIU_INTX_SUM0(0)".
+* Returns the CSR value
+
+cavium.csr.NAME.write(value)::
+
+Write the value of the CSR `NAME`.  `NAME` is name such as "CIU_FUSE"
+or "CIU_INTX_SUM0(0)".
+* value = Value to write
+* No return value.
+
+cavium.csr.NAME.display(optional_value)::
+
+Uses *optional_value* as a numeric value for the CSR.  It then decodes
+each field and display it.  If *optional_value* is not supplied the actual
+value is read from the hardware.
+* optional_value = If supplied, value of CSR to decode.
+* No return value.
+
+cavium.csr.NAME.decode(optional_value)::
+
+Uses *optional_value* as a numeric value for the CSR.  It then decodes
+each field and returns a Lua table containing the fields.  If
+*optional_value* is not supplied the actual value is read from the
+hardware.
+* optional_value = If supplied, value of CSR to decode.
+* Returns a table of the decoded values.
++
+.Decode example
+[source, lua]
+----
+pprint(cavium.csr.RST_PP_AVAILABLE.decode())
+----
++
+.Decode output
+[source, lua]
+----
+{
+    FUSE = 63
+    RESERVED_6_63 = 0
+}
+----
+
+cavium.csr.NAME.encode(table)::
+
+Converts a table of CSR fields into a CSR value and writes it to the
+hardware.  The format of the table is identical to the *decode()*
+format.  Missing fields are filled with zeros.
+* table = Table of fields to encode.
+* No return value.
+
+cavium.csr.NAME.FIELD::
+
+Reads the CSR and returns the value of a specific field.
+
+cavium.csr.NAME.FIELD = value::
+
+Performs a read, modify, and write of a CSR changing the specified field.
+
+cavium.c.*::
+
+Many low level C functions are directly exported through this
+interface.  No argument checking is performed on these functions, so
+it is very important to get the arguments correct.  Errors may crash
+the system.
+
+cavium.readline(prompt, completion, timeout_us)::
+Prompt the user for input with full line editing and history. Useful for
+creating interactive command lines and menus.
+* prompt = Prompt to show the user
+* completion = Should be nil for now (unsupported)
+* timeout_us = Microseconds to wait for input, of zero for no timeout.
+
+
+=== cavium.trafficgen
+
+The module *cavium.trafficgen* allows Lua to generate and receive ethernet
+traffic on all chip interfaces. A user friendly interactive interface is
+available through *trafficgen.lua*.
+
+cavium.trafficgen.get_port_names()::
+* Return all port names as an array of strings
+
+cavium.trafficgen.get_config(port_name)::
+* port_name = String port name to get the configuration for.
+* Returns a table containing the port configuration.
+
+cavium.trafficgen.set_config(port_name, config_table)::
+* port_name = String port name to set the configuration for.
+* config_table = Table containing the configuration items to change.
+* No return value.
+
+cavium.trafficgen.start(port_array)::
+* port_array = Array of port names to start transmitting on.
+* No return value.
+
+cavium.trafficgen.stop(port_array)::
+* port_array = Array of port names to stop transmitting on.
+* No return value.
+
+cavium.trafficgen.is_transmitting(port_array)::
+* port_array = Array of port names to check if they are transmitting.
+* Returns a boolean true or false depending on if any ports are transmitting.
+
+cavium.trafficgen.clear(port_array)::
+* port_array = Array of port names to clear statistics for.
+* No return value.
+
+cavium.trafficgen.reset(port_array)::
+* port_array = Array of port names to clear statistics and reset config for.
+* No return value.
+
+cavium.trafficgen.update(do_clear)::
+* do_clear = True if the current statistics counters should be cleared for deltas.
+* Table index by port name where each entry is a table of statistics.
+
+.cavium.trafficgen configuration fields
+----
+    number	dest_ip
+    number	dest_mac
+    number	dest_port
+    boolean	display_packet
+    boolean	do_checksum
+    number	ip_tos
+    number	output_count
+    boolean	output_enable
+    number	output_packet_size
+    number	output_rate
+    boolean	output_rate_is_mbps
+    number	src_ip
+    number	src_mac
+    number	src_port
+    boolean	validate
+----
+
+.cavium.trafficgen statistics fields
+----
+    number	rx_backpressure
+    number	rx_bits
+    number	rx_dropped_octets
+    number	rx_dropped_packets
+    number	rx_errors
+    number	rx_octets
+    number	rx_octets_total
+    number	rx_packets
+    number	rx_packets_total
+    number	rx_validation_errors
+    number	tx_bits
+    number	tx_octets
+    number	tx_octets_total
+    number	tx_packets
+    number	tx_packets_total
+----
+
+
+=== menu
+
+The *menu* module provides a few simple functions for interacting with the user.
+
+menu.show(choices)::
+Show a menu to the user and prompt for a choice.
+* choices = Table array of menu strings
+* Return the selection number
+
+menu.prompt_string(prompt)::
+Prompt the user for a string. Throw an error if the user aborts input.
+* prompt = Prompt to display to the user
+* Returns the input
+
+menu.prompt_filename(prompt)::
+Prompt the user for a filename. Throw an error if the user aborts input.
+* prompt = Prompt to display to the user
+* Returns the input
+
+menu.prompt_number(prompt)::
+Prompt the user for a number. Throw an error if the user aborts input.
+* prompt = Prompt to display to the user
+* Returns the input
+
+menu.dofile(filename)::
+Execute a Lua file, searching the Lua path as needed to find it
+* filename = Filename to execute without the ".lua" extension
+* Returns the results of the file
+
+
+=== strict
+
+Cavium Networks provides the *strict* module written by Thomas Lauer
+to help in writing scripts.  By default Lua considers any new variable
+names to be global.  This can make typos and programming errors very
+difficult to find.  The *strict* module changes this behavior so that
+all variables must be specifically defined.  Cavium Networks recommends
+this to promote more robust script development.  Below is the original
+description from Thomas Lauer.
+
+----
+* Lua Strict by Thomas Lauer
+* http://thomaslauer.com/comp/LuaStrict
+
+Strict implements a somewhat stricter handling of global variables than
+Lua. There are two basic modes: weak and strong. In the weak mode you
+don't need to declare a global but you'd have to initialize it in the
+main part of your program (i.e not inside a function).
+
+In strong mode anything not formally declared  (including non-local
+functions) gets the whip.
+
+See the examples for more on how to use the module.
+
+Anything wrong or not working? An idea how to make this better? Please
+send comments to thomas.lauer@gmail.com or visit my contact page:
+http://thomaslauer.com/start/Contact.
+----
+
+=== utils
+
+The *utils* module is a set of Lua functions written by Cavium
+Networks to ease writing scripts that deal with THUNDERX's registers.
+Below is a list of the functions provided.
+
+printf::
+
+C style printf function.  printf("format", ...).  See
+link:lua/manual.html#pdf-string.format[string.format] for format
+specification rules.
+
+str = "format" % {...}::
+
+Python style string formatting.See
+link:lua/manual.html#pdf-string.format[string.format] for format
+specification rules.
+* str = "format" % value
+* str = "format" % {...}
+
+pprint(...)::
+
+Pretty print and data in a human readable format.  Tables are printed
+recursively.
+
+table.sorted_keys(table)::
+
+Return a table's keys in sorted order.
+
+table.sorted_values(table)::
+
+Return a table's values in sorted order.
+
+isglobal(variable_name)::
+
+Determine if a global variable is defined. Use this function to check if
+a global is defined without setting off the *strict* module checking.
+* variable_name = String name of a variable to check.
+* Returns true if the global exists, false if it doesn't exist.
++
+[source,lua]
+----
+if isglobal("cavium") then
+    -- We're running natively on THUNDERX
+    print(cavium.csr.CIU_FUSE.FUSE)
+end
+----
+
+=== pcie
+
+The *pcie* module provides access to PCIe bus initialization, scanning,
+and enumeration to Lua scripts.  The function *pcie.initialize(port)*
+returns a *pcie_root* object.  This object can then be used to perform
+operations on the PCIe port.
+
+pcie_root = pcie.initialize(pcie_port)::
+
+Initialize a PCIe root complex port and bring the link up.  The return
+value is a *pcie_root* object for use in the calls below.
+* pcie_port = Hardware port to initialize (0 - 1)
+* Returns a pcie_port object or throws an error on failure
+
+pcie_root:scan()::
+
+Scan a PCIe root complex for all devices attached.
+
+pcie_root:enumerate()::
+
+Assign address regions and other resources to all device on the PCIe
+root complex.  If *scan()* has not already been called, a device scan
+will be performed before enumeration.
+
+pcie_root:display()::
+
+Display all devices on the PCIe root complex in a human readable
+format.
+
+pcie_root:get_devices()::
+
+Get an array containing all devices on the PCIe root complex.  Each
+*pcie_device* in the array is a PCIe function directly connected to
+THUNDERX.  If the device is a bridge/switch then *pcie_device.isbridge*
+will be *true* and *pcie_device.devices* will be an array containing
+all children of the device.
+
+pcie_root:shutdown()::
+
+Shutdown a PCIe root complex.
+
+value = pcie_device:read8(config_register)::
+
+Read an 8 bit PCIe config register and return its value.
+* config_register = Register address to read.
+* Returns the register's value.
+
+value = pcie_device:read16(config_register)::
+
+Read a 16 bit PCIe config register and return its value.
+* config_register = Register address to read.
+* Returns the register's value.
+
+value = pcie_device:read32(config_register)::
+
+Read a 32 bit PCIe config register and return its value.
+* config_register = Register address to read.
+* Returns the register's value.
+
+pcie_device:write8(config_register, value)::
+
+Write an 8 bit PCIe config register.
+* config_register = Register address to write.
+* value = Value to write.
+* No return value.
+
+pcie_device:write16(config_register, value)::
+
+Write a 16 bit PCIe config register.
+* config_register = Register address to write.
+* value = Value to write.
+* No return value.
+
+pcie_device:write32(config_register, value)::
+
+Write a 32 bit PCIe config register.
+* config_register = Register address to write.
+* value = Value to write.
+* No return value.
+
+pcie_device:display()::
+
+Display a device and all of its children.
+
+pcie_device:isbridge::
+
+Set to *true* if the device is a switch or bridge, otherwise set to *false*.
+
+=== bit64
+
+The module *bit64* is specific to the THUNDERX BDK.  It supports
+standard bit operations on 64 bit numbers.  In general this should be
+used instead of *bit32*.
+
+output = bit64.arshift(input, shift)::
+
+Perform arithmetic right shift.
+
+output = bit64.band(input1, input2, ...)::
+
+Bitwise AND all arguments together and return the result.
+
+output = bit64.bnot(input)::
+
+Bit invert the input.
+
+output = bit64.bor(input1, input2, ...)::
+
+Bitwise OR all arguments together and return the result.
+
+output_bool = bit64.btest(input1, input2, ...)::
+
+Bitwise AND all arguments together and return true if any bits are set.
+
+output = bit64.bxor(input1, input2, ...)::
+
+Bitwise XOR all arguments together and return the result.
+
+output = bit64.lrotate(input, shift)::
+
+Perform rotate left.
+
+output = bit64.lshift(input, shift)::
+
+Perform left shift.
+
+output = bit64.rrotate(input, shift)::
+
+Perform rotate right.
+
+output = bit64.rshift(input, shift)::
+
+Perform right shift, filling zeros on the left.
+
+output = bit64.bextract(input, start, stop)::
+
+Extract the bits [stop:start] from input and return them. If stop is not
+supplied, it defaults to start.
+
+output = bit64.binsert(original, input, start, stop)::
+
+Bits [stop:start] from original are replaced with input. If stop is not
+supplied, it defaults to start.
+
+
+=== fileio
+
+The BDK supports access to many hardware blocks through virtual device
+files.  The module *fileio* provides simple functions for common file
+operations with error checking.  Any error causes a Lua error() to be
+raised.
+
+handle = fileio.open(filename, mode, seek_to)::
+
+Open a file and optionally seek to a location.
+* filename = Name of the file to open
+* mode = Lua io.open() mode
+* seek_to = Optional seek location, may be nil.
+* Returns a file handle or throws an error.
+
+transfer_count = fileio.transfer(source_handle, dest_handle, length)::
+
+Transfers bytes from one file to another.
+* source_handle = Source file handle to transfer from.
+* dest_handle = Destination file handle to transfer to.
+* length = Optional length to transfer. If nil, all bytes until the end of source_handle are transferred.
+* Returns the number of bytes transferred or raises as error.
+
+transfer_count = fileio.copy(source, source_seek, dest, dest_seek, length)::
+
+Copy part of one file into another file.
+* source = Source filename.
+* source_seek = Optional start location in source. Use nil to start at the front.
+* dest = Destination filename.
+* dest_seek =  Optional start location in dest. Use nil to start at the front.
+* length = Optional length to transfer. If nil, all bytes until the end of source are transferred.
+* Returns the number of bytes transferred or raises as error.
+
+fileio.hexdump(source, seek_to)::
+
+Displays a file in hex on the console.
+* source = File to display
+* seek_to = Optional seek start location, may be nil.
+

@@ -1,0 +1,9 @@
+=================================
+TWSI Menu - Bus 0
+=================================
+ 1) Initialize bus
+ 2) Scan bus
+ 3) Read
+ 4) Write
+ 5) Main menu
+

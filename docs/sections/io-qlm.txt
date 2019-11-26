@@ -1,0 +1,70 @@
+[[QLM]]
+= SERDES QLM or DLM
+
+Low level QLM signalling can be configured and tested using "QLM
+Options" from the main menu.  The QLM options menu is most useful for
+checking SERDES lane signalling.
+
+.Sample QLM Main Menu
+----
+include::../captures/qlm_main_menu.capture[]
+----
+
+Once a QLM number is chosen from the main QLM menu, a sub menu of QLM
+options is displayed.
+
+.Sample QLM Sub Menu
+----
+include::../captures/qlm_sub_menu.capture[]
+----
+
+WARNING: Many QLM menu items place the SERDES in diagnostic modes
+where normal operation is not possible.  Power cycle the board after
+using the QLM menu options.
+
+QLM#: Show configuration::
+
+Displays the current configuration mode of the QLM.  The mode was
+determined based on the hardware strapping of the chip.
+
+QLM#: Measure clock::
+
+Measures the clock rate of the QLM's reference clock, using THUNDERX's
+clock as a reference.  Verify that the reported value is correct for
+the QLM configuration.
+
+QLM#: Change de-emphasis and margin::
+
+Allows manual configuration of the QLM de-emphasis and margin
+(amplitude).
+
+QLM#: Reset and power down::
+
+Places the QLM into a low power reset state.
+
+QLM#: Shallow loopback::
+
+Configure the QLM to repeat all received traffic at the SERDES level.
+This allows signal traces to be verified using an external signal
+generator.  Some chips can only loopback a limited number of
+lanes at a time.  If this is the case, this menu will show the
+possible combinations.
+
+QLM#: PRBS::
+
+The QLM begins generation PRBS signal patterns and the receive lanes
+lock on the incoming signal.  Statistics are displayed every 5
+seconds showing the number of PRBS errors detected.
+
+QLM#: Read JTAG field::
+
+Provides a low level interface for reading fields internal to the QLM.
+Only use this option at the specific direction of Cavium technical
+support.
+
+QLM#: Write JTAG field::
+
+Provides a low level interface for controlling fields internal to the
+QLM.  Only use this option at the specific direction of Cavium
+technical support.
+

@@ -1,0 +1,329 @@
+/***********************license start***********************************
+* Copyright (C) 2019 Marvell International Ltd.
+* SPDX-License-Identifier: BSD-3-Clause
+* https://spdx.org/licenses
+***********************license end**************************************/
+/ {
+cavium,bdk {
+	/* Some boards shipped with BOARD-MAC-ADDRESS-NUM programmed
+	incorrectly. This value overrides the setting in flash of
+	BOARD-MAC-ADDRESS-NUM, allowing correction of the value. This
+	should normally not be used.
+	 */
+	//BOARD-MAC-ADDRESS-NUM-OVERRIDE = "-1";
+
+	/* On-chip TWSI port connected to the BMC for IPMI traffic.
+	-1 = No connection exists. 0+ is TWSI bus number. */
+	//BMC-TWSI = "-1";
+
+	/* This specifies a watchdog timer should run during boot and reset
+	the chip if boot hangs for some reason. The timeout is specified
+	in milliseconds. Zero disables the watchdog. */
+	//WATCHDOG-TIMEOUT = "0";
+
+	/* Allow a sequence of TWSI writes to be performed during boot. Each
+	string in the list line is executed in sequence. The TWSI write
+	format is:
+	    node,twsi_id,dev_addr,internal_addr,num_bytes,ia_width_bytes,data
+	    sleep,ms
+	    gpio,node,gpio_num,state
+	node           = Node ID the twsi bus is on. -1 means the local node
+	twsi_id        = TWSI bus to use
+	dev_addr       = TWSI bus address
+	internal_addr  = TWSI internal address, zero if not used
+	num_bytes      = Number of bytes to write (1-8)
+	ia_width_bytes = Internal address width in bytes (0-2)
+	data           = Data to write as a 64bit number
+	sleep,ms       = This on a line delays for 'ms' milliseconds
+	gpio,...       = This sets the state of a GPIO gpio_num to 0 or 1 */
+    /*
+       Below GPIO pins 50 and 55 by default its pulled up to avoid
+       I2C address conflicts when many QSFP's connected on the same bus.
+       LIO3 has one QSFP per TWSI bus so this can be enabled by default 
+       to enable accessing QSFP I2C's.
+     */
+	TWSI-WRITE = "gpio,0,50,0",
+                 "gpio,0,55,0";
+
+	/* PCIE Endpoint Mode Transmit Preset Value to Use ONLY when tap override
+	is used (ERRATA 36412). This can be used for GEN2 selection and also
+	GEN3 selection.  GEN1 is always fixed. GEN2 uses preset 0 for -6 db,
+	and preset 1 for -3.5 db de-emphasis. GEN3 can be preset 0 thru 10.
+	This preset is not a vector, but an integer from 0 to 10.
+	    GEN1 - do nothing, this value ignored
+	    GEN2 - set to 0 for -6 db
+	    GEN2 - set to 1 for -3.5 db
+	    GEN3 - set to 0 to 10
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+        PCIE-TX-PRESET-EP-OVERRIDE.N0.PORT0 = "8";
+
+	/* Configure the electrical idle refset detect value.  This specifies the
+	voltage swing at the input of the QLM receiver. A signal level less than this
+	value is considered electrical idle.  Testing done in the lab showed that
+	slower parts required an idle detect of 6. However, some other testing
+	showed a value of 4 produced improved results. It depends on the channel
+	loss obviously, since these values represent millivolts. This value should
+	be used on platforms that will operate in EP/RC mode.
+	   0 = 23.0 mV
+	   1 = 27.4 mV
+	   2 = 31.8 mV
+	   3 = 36.2 mV
+	   4 = 40.6 mV
+	   5 = 45.0 mV
+	   6 = 49.4 mV
+	   7 = 53.8 mV
+	   8 = 58.2 mV
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-IDLE-REFSET-VALUE.N%d.QLM%d = "6";
+
+	/* PCIe device ID for endpoints.
+	Defaults to 0xb200177d, see PCIEEPX_ID.
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	PCIE-EP-ID.N0.PORT0 = "0x3380177d";
+
+	/* PCIe class and REV ID for endpoints.
+	Defaults to 0x0b800000, see PCIEEPX_REV.
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	PCIE-EP-REV.N0.PORT0 = "0x02000000";
+
+	/* Number of physical functions (PFs) to expose on a PCIe endpoint.
+	Valid values are 1-16. Defaults to 1.
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-NUM-PFS.N%d.PORT%d = "1";
+
+	/* PCIe endpoint BAR size as a power of 2. A value of zero disables the BAR.
+	BAR0 defaults to 23 bits, or 8MB
+	BAR2 defaults to 28 bits, or 256MB
+	BAR4 defaults to 26 bits, or 64MB
+	Only applies to CN9XXX.
+	Parameters:
+	    BAR#: Must be BAR0, BAR2, or BAR4.
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-BAR%d-SIZE.N%d.PORT%d = "-1";
+
+	/* PCIe endpoint expansion ROM size as a power of 2. A value of zero disables the ROM.
+	Defaults to 0, disabled
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-ROM-SIZE.N%d.PORT%d = "0";
+
+	/* Number of virtual functions (VFs) to expose on a PCIe endpoint.
+	Valid values are 0-240. Defaults to 128.
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-NUM-VFS.N%d.PORT%d = "0x80";
+
+	/* PCIe SRIOV device ID for endpoints.
+	Defaults to 0xb203, see PCIEEPX_SRIOV_DEV.
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	PCIE-EP-SRIOV-DEV.N0.PORT0 = "0x3383";
+
+	/* PCIe endpoint VBAR size as a power of 2. A value of zero disables the BAR.
+	BAR0 defaults to 20 bits, or 1MB
+	BAR2 defaults to disabled, recommended
+	BAR4 defaults to disabled, recommended
+	Only applies to CN9XXX.
+	Parameters:
+	    BAR#: Must be BAR0, BAR2, or BAR4.
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-SRIOV-BAR%d.N%d.PORT%d = "-1";
+
+	/* For evaluation boards, query the MCU for QLM/DLM setup
+	information. The MCU supplies a TWSI protocol for the SOC to
+	query the modules plugged in and automatically set the QLMs or
+	DLMs to the correct mode. This should only be enabled(1) on
+	EBB8XXX boards. Other boards should have it disabled(0). */
+	QLM-AUTO-CONFIG = "0";
+
+	/* Specify a on-chip GPIO used to control power for a USB port. When
+	set, the USB host controller will toggle the GPIO automatically
+	during USB reset events. The default value assumes the SOC has no
+	control of the USB power and it is always on. */
+	//USB-PWR-GPIO.N%d.PORT%d = "-1";
+	USB-PWR-GPIO.N0.PORT0 = "6";
+	USB-PWR-GPIO.N0.PORT1 = "7";
+
+	/* Specify the polarity of a on-chip GPIO used to control power for
+	a USB port. The GPIO used is specified by USB-PWR-GPIO. Setting this
+	GPIO low. The default value drives the GPIO high. */
+	//USB-PWR-GPIO-POLARITY.N%d.PORT%d = "1";
+        USB-PWR-GPIO-POLARITY = "1";
+
+	/* Specify reference clock source for SuperSpeed and HighSpeed PLL.
+	Possible sources:
+	 USB_REF_CLK pin
+	Additional sources for CN81XX/CN80XX chips
+	 DLMC_REF_CLK0 pin
+	 DLMC_REF_CLK1 pin
+	 PLL_REF_CLK
+	Clock used by usb needs to run at 100MHz frequency except PLL_REF_CLK
+	which requires 50MHz frequency.
+	Encoding:
+	0 - SS(USB_REF_CLK)   HS(USB_REF_CLK)
+	1 - SS(DLMC_REF_CLK0) HS(DLMC_REF_CLK0)
+	2 - SS(DLMC_REF_CLK1) HS(DLMC_REF_CLK1)
+	3 - SS(USB_REF_CLK)   HS(PLL_REF_CLK)
+	4 - SS(DLMC_REF_CLK0) HS(PLL_REF_CLK)
+	5 - SS(DLMC_REF_CLK1) HS(PLL_REF_CLK)
+	The default is 0 : USB_REF_CLK. */
+	//USB-REFCLK-SRC.N%d.PORT%d = "0";
+
+	/* Temperature where THERMAL_TRIP_N is asserted. When the chip reaches
+	this temperature THERMAL_TRIP_N will assert, signalling the board
+	to emergency power off. The default value is the recommended
+	maximum temperature of the chip. Values between 0 and 110 degrees
+	Celsius. */
+	//VRM-TEMP-TRIP.N%d = "0x6e";
+
+	/* Temperature where maximum throttling is applied to the chip. Chip
+	performance will be greatly reduced to keep the temperature below
+	thermal trip (VRM-TEMP-TRIP). The default value is the
+	recommended maximum operating temperature of the chip. Values
+	between 0 and 110 degrees Celsius. */
+	//VRM-TEMP-HIGH.N%d = "0x6e";
+
+
+	/* Minimum Core clock (RCLK) frequency in MHz. DVFS control will vary the
+	actual RCLK frequency depending on Tj, power budget, and system load;
+	this sets the lower bound.  Default value 500MHz.  WARNING- setting
+	this above 500MHz may result in excess power consumption and sudden
+	thermal shutdown. Valid range is 500MHz-3300MHz. Doesn't apply to
+	CN8XXX chips. */
+	//RCLK-FREQ-MIN.N%d = "0x1f4";
+
+	/* The highest vdd_core voltage supported by the board in mV. Valid
+	range is 250mV to 1275mV. Default is 1275mV. Doesn't apply to
+	CN8XXX chips. */
+	//VDD-CORE-MAX.N%d = "0x4fb";
+
+	/* The lowest vdd_core voltage supported by the board in mV. Valid
+	range is 250mV to 1275mV. Default is 250mV. Doesn't apply to CN8XXX
+	chips. */
+	//VDD-CORE-MIN.N%d = "0xfa";
+
+	/* The +/- control accuracy of the vdd_core supply as measured at the
+	chip. Encoded as percentage * 10.  For example, a VRM with +/-0.5%
+	accuracy would be 5.  Default is +/-0.5%. Doesn't apply to CN8XXX chips. */
+	//VDD-CORE-ACCURACY.N%d = "5";
+
+	/* DVFS control will assert the THERMAL_HOT_L pin when the highest
+	observed temperature on the chip is at or above this value. This
+	value is recommended to be 10 degrees Celsius below BDK_CONFIG_DVFS_MAX_TJ.
+	The default value is the recommended maximum temperature of
+	the chip minus 10. Values between 0 and 110 degrees Celsius. Doesn't
+	apply to CN8XXX chips. */
+	//DVFS-THERMAL-HOT.N%d = "0x64";
+
+	/* The percentage that the DVFS control should attempt to reduce the chip
+	power when the board asserts THERMAL_HOT.  A value of 30 means reduce
+	power 30%, etc.  Allowed values 0 to 100.  Default is 50. Doesn't
+	apply to CN8XXX chips. */
+	//DVFS-THERMAL-HOT-BACKOFF.N%d = "0x32";
+
+	/* This timeout detects boot failures in when booting from the primary
+	boot device, and causes a reboot from secondary. In seconds. Doesn't
+	apply to CN8XXX chips.
+	Parameters:
+	N#: Setting can be different for each node. This specifies
+	which node the value is for. Node must be 0-3. Optional. */
+	SCP-FAILSAFE-TIMEOUT.N0 = "60";
+
+	/* Timeout for the boot menu in seconds. */
+	BDK-BOOT-MENU-TIMEOUT = "1";
+
+	/* Internal source for GPIO pins. The enumeration GPIO_PIN_SEL_E
+	details the possible internal sources for GPIO pins in the chip.
+	The value of this setting is the numeric value from the GPIO_PIN_SEL_E
+	enumeration. The default value(-1) leaves the pin at the hardware
+	default, which is to connect the pin to the GPIO block for manual
+	control.
+	Parameters:
+	    GPIO#: Which GPIO pin to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//GPIO-PIN-SELECT-GPIO%d.N%d = "-1";
+	GPIO-PIN-SELECT-GPIO32 = "0x288"; // SPI1_IO0
+	GPIO-PIN-SELECT-GPIO33 = "0x289"; // SPI1_IO1
+	GPIO-PIN-SELECT-GPIO34 = "0x28a"; // SPI1_IO2
+	GPIO-PIN-SELECT-GPIO35 = "0x28b"; // SPI1_IO3
+	GPIO-PIN-SELECT-GPIO36 = "0x280"; // SPI1_CLK
+	GPIO-PIN-SELECT-GPIO37 = "0x284"; // SPI1_CS0
+	GPIO-PIN-SELECT-GPIO28 = "0x298"; // TWSI4_SCL
+	GPIO-PIN-SELECT-GPIO29 = "0x29e"; // TWSI4_SDA
+
+	/* Set the polarity of GPIO pins. GPIO pins are normally high=1 and
+	low=0. Setting this configuration item to '1' inverts this, so
+	high=0 and low=1. The inversion applies to both input and output.
+	The default value of '0' configures high=1 and low=0.
+	Parameters:
+	    GPIO#: Which GPIO pin to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//GPIO-POLARITY-GPIO%d.N%d = "0";
+	GPIO-POLARITY-GPIO32 = "0"; // SPI1_IO0
+	GPIO-POLARITY-GPIO33 = "0"; // SPI1_IO1
+	GPIO-POLARITY-GPIO34 = "0"; // SPI1_IO2
+	GPIO-POLARITY-GPIO35 = "0"; // SPI1_IO3
+	GPIO-POLARITY-GPIO36 = "0"; // SPI1_CLK
+	GPIO-POLARITY-GPIO37 = "0"; // SPI1_CS0
+
+	/* Configure a PBUS region. The encoding of this value is the exact
+	register contents of PBUS_REGX_CFG. Note that the base is
+	overwritten by the BDK to fix addressing in the code.
+	Parameters:
+	    REGION#: Which PBUS region to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//PBUS-CFG.REGION%d.N%d = "0";
+
+	/* Configure a PBUS region timing. The encoding of this value is the
+	exact register contents of PBUS_REGX_TIM.
+	Parameters:
+	    REGION#: Which PBUS region to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//PBUS-TIM.REGION%d.N%d = "0";
+}; /* cavium,bdk */
+}; /* / */

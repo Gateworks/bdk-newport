@@ -1,0 +1,1075 @@
+/***********************license start***********************************
+* Copyright (C) 2018 Marvell International Ltd.
+* SPDX-License-Identifier: BSD-3-Clause
+* https://spdx.org/licenses
+***********************license end**************************************/
+/dts-v1/;
+
+/include/ "ddr4-cn9xxx.dtsi"
+
+/ {
+cavium,bdk {
+	/* Some boards shipped with BOARD-MAC-ADDRESS-NUM programmed
+	incorrectly. This value overrides the setting in flash of
+	BOARD-MAC-ADDRESS-NUM, allowing correction of the value. This
+	should normally not be used. */
+	//BOARD-MAC-ADDRESS-NUM-OVERRIDE = "-1";
+
+	/* On-chip TWSI port connected to the BMC for IPMI traffic.
+	-1 = No connection exists. 0+ is TWSI bus number. */
+	//BMC-TWSI = "-1";
+
+	/* This specifies a watchdog timer should run during boot and reset
+	the chip if boot hangs for some reason. The timeout is specified
+	in milliseconds. Zero disables the watchdog. */
+	//WATCHDOG-TIMEOUT = "0";
+
+	/* Allow a sequence of TWSI writes to be performed during boot. Each
+	string in the list line is executed in sequence. The TWSI write
+	format is:
+	    node,twsi_id,dev_addr,internal_addr,num_bytes,ia_width_bytes,data
+	    sleep,ms
+	    gpio,node,gpio_num,state
+	node           = Node ID the twsi bus is on. -1 means the local node
+	twsi_id        = TWSI bus to use
+	dev_addr       = TWSI bus address
+	internal_addr  = TWSI internal address, zero if not used
+	num_bytes      = Number of bytes to write (1-8)
+	ia_width_bytes = Internal address width in bytes (0-2)
+	data           = Data to write as a 64bit number
+	sleep,ms       = This on a line delays for 'ms' milliseconds
+	gpio,...       = This sets the state of a GPIO gpio_num to 0 or 1 */
+	//TWSI-WRITE = "";
+	TWSI-WRITE =
+		"0,3,0x38,0,1,0,0xee", /* Reset SGMII and 5123 PHY, bit 4 and bit 0 of U110 */
+		"sleep,10", /* Hold for 10ms */
+		"0,3,0x38,0,1,0,0xff"; /* Unreset SGMII and 5123 PHY, bit 4 and bit 0 of U110 */
+
+	/* Allow a sequence of MDIO writes to be performed during boot. Each
+	string in the list line is executed in sequence. The MDIO write
+	format is:
+	    clause,node,bus_id,phy_id,device,location,val
+	    sleep,ms
+	    gpio,node,gpio_num,state
+	clause   = MDIO clause for the write (22 or 45)
+	node     = Node the MDIO bus is connected, -1 for local
+	bus_id   = MDIO bus to use
+	phy_id   = MDIO address
+	device   = Clause 45 internal device address, zero for clause 22
+	location = MDIO register
+	val      = Value to write
+	sleep,ms = This on a line delays for 'ms' milliseconds
+	gpio,... = This sets the state of a GPIO gpio_num to 0 or 1 */
+	//MDIO-WRITE = "";
+
+	/* Specify devices external to the chip that can't be probed through
+	PCIe or USB. Generally these are devices connect to TWSI or
+	GPIOs. The format of this is list of strings where each string
+	represents an external device. The format of each string varies
+	based on the device. See the BDK manual for the details. */
+	//DEVICES = "";
+	DEVICES =
+                "U194-1,type=TWSI-PCA9548,twsi=N0.TWSI4,addr=0x71,chan=1",
+                "U47,type=PWM-ISL6813X,twsi=U194-1,addr=0x40", /* Core converter */
+                "U110,type=GPIO-PCA8574,twsi=N0.TWSI3,addr=0x38",
+                "U115,type=GPIO-PCA8574,twsi=N0.TWSI3,addr=0x39",
+                "U222,type=GPIO-PCA8574,twsi=N0.TWSI3,addr=0x3b",
+                "U116-0,type=TWSI-PCA9548,twsi=N0.TWSI3,addr=0x70,chan=0",
+                "U116-1,type=TWSI-PCA9548,twsi=N0.TWSI3,addr=0x70,chan=1",
+                "U116-2,type=TWSI-PCA9548,twsi=N0.TWSI3,addr=0x70,chan=2",
+                "J105,type=NETPORT-QSFP28,twsi=U116-1,max_power=5000,modsel=U110(2),reset=U110(1),modprs=U222(0),int=U222(1),lpmode=U110(3)", /* QSFP2, QLM6, CGX2 */
+                "J106,type=NETPORT-QSFP28,twsi=U116-0,max_power=5000,modsel=U110(6),reset=U110(5),modprs=U222(2),int=U222(3),lpmode=U110(7)", /* QSFP1, QLM7, CGX0 */
+                "J107,type=NETPORT-SFP28,twsi=U116-2,tx_fault=U115(3),tx_dis=U115(2),pres=U115(0),rs0=U115(4),rx_los=U115(1),rs1=U115(5)", /* SFP28(Port9), DLM5.0, CGX1 */
+                "QLM7_LANE0_ACT,type=LED-GPIO,dev=N0.GPIO0,gpio=48,active_high=0,tristate=0",
+                "QLM7_LANE1_ACT,type=LED-GPIO,dev=N0.GPIO0,gpio=49,active_high=0,tristate=0",
+                "QLM7_LANE2_ACT,type=LED-GPIO,dev=N0.GPIO0,gpio=50,active_high=0,tristate=0",
+                "QLM7_LANE3_ACT,type=LED-GPIO,dev=N0.GPIO0,gpio=51,active_high=0,tristate=0",
+                "QLM6_LANE0_ACT,type=LED-GPIO,dev=N0.GPIO0,gpio=52,active_high=0,tristate=0",
+                "QLM6_LANE1_ACT,type=LED-GPIO,dev=N0.GPIO0,gpio=53,active_high=0,tristate=0",
+                "QLM6_LANE2_ACT,type=LED-GPIO,dev=N0.GPIO0,gpio=54,active_high=0,tristate=0",
+                "QLM6_LANE3_ACT,type=LED-GPIO,dev=N0.GPIO0,gpio=55,active_high=0,tristate=0",
+                "PORT9_LINK_L,type=LED-GPIO,dev=U115,gpio=6,active_high=0,tristate=0", /* SFP28(Port9), DLM5.0, CGX1 */
+                "QLM5_LANE0_ACT,type=LED-GPIO,dev=N0.GPIO0,gpio=56,active_high=0,tristate=0", /* SFP28(Port9), DLM5.0, CGX1 */
+                "SGMII_LINK_L,type=LED-GPIO,dev=U115,gpio=7,active_high=0,tristate=0", /* SGMII, RJ45, DLM5.1, CGX1 */
+                "SGMII_PORT_ACT,type=LED-GPIO,dev=N0.GPIO0,gpio=57,active_high=0,tristate=0", /* SGMII, RJ45, DLM5.1, CGX1 */
+                "U212,type=PHY-88X5123,smi=1,addr=2,qlm0=7,qlm1=6,host_order0=0x0123,line_order0=0x3210,host_order1=0x0123,line_order1=0x3120", /* 88x5123 PHY connected to QLM 7-6 */
+                "U131,type=PHY-88E1514,smi=0,addr=1,qlm=5,qlm_lane=1"; /* 88e1514 PHY connected to DLM5.1 */
+
+	/* PHY address encoding:
+	    Bits[31:24]: Node ID, 0xff for node the ethernet device is on
+	    Bits[23:16]: Only used for TWSI
+	    Bits[15:12]: PHY connection type (0=MDIO, 1=Fixed, 2=TWSI)
+	For MDIO:
+	    Bits[31:24]: Node ID, 0xff for node the ethernet device is on
+	    Bits[23:16]: 0
+	    Bits[15:12]: 0=MDIO
+	    Bits[11:8]: MDIO bus number
+	    Bits[7:0]: MDIO address
+	For Fixed:
+	    Bits[31:24]: 0
+	    Bits[23:16]: Zero
+	    Bits[15:12]: 1=Fixed
+	    Bits[11:0]:  0 = 1Gb, 1 = 100Mb
+	For TWSI:
+	    Bits[31:24]: Node ID, 0xff for node the ethernet device is on
+	    Bits[23:16]: TWSI internal address width in bytes (0-2)
+	    Bits[15:12]: 2=TWSI
+	    Bits[11:8]: TWSI bus number
+	    Bits[7:0]: TWSI address */
+	//PHY-ADDRESS.N%d.BGX%d.P%d = "-1";
+
+	/* Independent enables for each on-chip BGX port. Use this to
+	disable ports that are not wired on a board. Default is that all
+	ports are enabled.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    BGX#: Parameter can be different for BGX/CGX. Optional.
+	    PORT#: Parameter can be different for each BGX/CGX port. Optional. */
+	//BGX-ENABLE.N%d.BGX%d.P%d = "1";
+
+	/* Define a LED to light when the CGX port is up, but running at
+	less than its maximum speed.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    CGX#: Parameter can be different for CGX. Optional.
+	    PORT#: Parameter can be different for each CGX port. Optional. */
+	//NETWORK-LED-LINK-SLOW.N%d.CGX%d.P%d = "";
+	NETWORK-LED-LINK-SLOW.N0.CGX1.P2 = "PORT9_LINK_L"; /* DLM5.0 */
+	NETWORK-LED-LINK-SLOW.N0.CGX1.P3 = "SGMII_LINK_L"; /* DLM5.1 */
+
+	/* Define a LED to light when the CGX port is up and running at
+	its maximum speed.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    CGX#: Parameter can be different for CGX. Optional.
+	    PORT#: Parameter can be different for each CGX port. Optional. */
+	//NETWORK-LED-LINK-FAST.N%d.CGX%d.P%d = "";
+
+	/* Define a LED to light when the CGX is active
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    CGX#: Parameter can be different for CGX. Optional.
+	    PORT#: Parameter can be different for each CGX port. Optional. */
+	//NETWORK-LED-ACTIVITY.N%d.CGX%d.P%d = "";
+	NETWORK-LED-ACTIVITY.N0.CGX0.P0 = "QLM7_LANE0_ACT"; /* QLM7 */
+	NETWORK-LED-ACTIVITY.N0.CGX0.P1 = "QLM7_LANE1_ACT";
+	NETWORK-LED-ACTIVITY.N0.CGX0.P2 = "QLM7_LANE2_ACT";
+	NETWORK-LED-ACTIVITY.N0.CGX0.P3 = "QLM7_LANE3_ACT";
+	NETWORK-LED-ACTIVITY.N0.CGX1.P2 = "QLM5_LANE0_ACT"; /* DLM5.0 */
+	NETWORK-LED-ACTIVITY.N0.CGX1.P3 = "SGMII_PORT_ACT"; /* DLM5.1 */
+	NETWORK-LED-ACTIVITY.N0.CGX2.P0 = "QLM6_LANE0_ACT"; /* QLM6 */
+	NETWORK-LED-ACTIVITY.N0.CGX2.P1 = "QLM6_LANE1_ACT";
+	NETWORK-LED-ACTIVITY.N0.CGX2.P2 = "QLM6_LANE2_ACT";
+	NETWORK-LED-ACTIVITY.N0.CGX2.P3 = "QLM6_LANE3_ACT";
+
+	/* Define a LED to light when the CGX request identification
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    CGX#: Parameter can be different for CGX. Optional.
+	    PORT#: Parameter can be different for each CGX port. Optional. */
+	//NETWORK-LED-ID.N%d.CGX%d.P%d = "";
+
+	/* Define a network port connected to the CGX
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    CGX#: Parameter can be different for CGX. Optional.
+	    PORT#: Parameter can be different for each CGX port. Optional. */
+	//NETWORK-PORT.N%d.CGX%d.P%d = "";
+	NETWORK-PORT.N0.CGX0.P0 = "J106"; /* QSFP1, QLM7 */
+	NETWORK-PORT.N0.CGX1.P2 = "J107"; /* SFP28(Port9), DLM5.0 */
+	NETWORK-PORT.N0.CGX2.P0 = "J105"; /* QSFP2, QLM6 */
+
+	/* Optional mode flags for a network port. These can be ORed together
+	to creates combinations:
+	    0: No flags (Default)
+	    1: Use FEC
+	    2: Use RS-FEC
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    CGX#: Parameter can be different for CGX. Optional.
+	    PORT#: Parameter can be different for each CGX port. Optional. */
+	//NETWORK-FLAGS.N%d.CGX%d.P%d = "0";
+
+	/* Lane order of QLM/DLM lanes connected to a network port. Each of the 4
+	digit (in hex) corresponds to a DLM/QLM lane. Lane 0 is the least
+	significant digit, while lane 3 is the most significant digit. The
+	default value of 0x3210 represents non-swizzled lanes. For network ports
+	spanning two DLMs, the first DLM is lane 0 and 1, the second is lane
+	2 and 3.
+	Examples:
+	    0x3210: Default connection, lanes in order
+	    0x0123: All lanes are swizzled. 0->3, 1->2, 2->1, 3->0
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    CGX#: Parameter can be different for CGX. Optional. */
+	//NETWORK-LANE-ORDER.N%d.CGX%d = "0x3210";
+	NETWORK-LANE-ORDER.N0.CGX0 = "0x0123"; /* QSFP1, QLM7, host side swizzled */
+	NETWORK-LANE-ORDER.N0.CGX1 = "0x3210"; /* SFP28(Port9) + SGMII, direct connect */
+	NETWORK-LANE-ORDER.N0.CGX2 = "0x0123"; /* QSFP2, QLM6, host side swizzled */
+
+	/* Controls whether the BDK displays link status messages. */
+	//BDK-SHOW-LINK-STATUS = "1";
+
+	/* Controls the cores used by the BDK. Zero means all cores. */
+	//BDK-COREMASK = "0";
+
+	/* Timeout for the boot menu in seconds. */
+	//BDK-BOOT-MENU-TIMEOUT = "0xa";
+
+	/* BDK trace level. This is a bitmask of the enumeration defined in
+	bdk-warn.h. Each bit turns on tracing of a specific BDK
+	component. */
+	//BDK-CONFIG-TRACE = "0";
+
+	/* Enforcing stronger PCIe ordering. Use this option if a PCIe card
+	is having compatibility issues.
+	    0 = Don't wait for commit, default for best performance.
+	    1 = Wait for commit, use conservative ordering. */
+	//PCIE-ORDERING = "0";
+
+	/* Specifies the preset request vector (PCIERCX_GEN3_EQ_CTL/PCIERCX_CFG554[PRV]).
+	Requesting of presets during the initial part of the EQ master phase.
+	Encoding scheme as follows:
+	    Bit [15:0] = 0x0: No preset is requested and evaluated in the EQ master phase.
+	    Bit [i] = 1: Preset=i is requested and evaluated in the EQ master phase.
+	    0000000000000000: No preset req/evaluated in EQ master phase
+	    00000xxxxxxxxxx1: Preset 0 req/evaluated in EQ master phase
+	    00000xxxxxxxxx1x: Preset 1 req/evaluated in EQ master phase
+	    00000xxxxxxxx1xx: Preset 2 req/evaluated in EQ master phase
+	    00000xxxxxxx1xxx: Preset 3 req/evaluated in EQ master phase
+	    00000xxxxxx1xxxx: Preset 4 req/evaluated in EQ master phase
+	    00000xxxxx1xxxxx: Preset 5 req/evaluated in EQ master phase
+	    00000xxxx1xxxxxx: Preset 6 req/evaluated in EQ master phase
+	    00000xxx1xxxxxxx: Preset 7 req/evaluated in EQ master phase
+	    00000xx1xxxxxxxx: Preset 8 req/evaluated in EQ master phase
+	    00000x1xxxxxxxxx: Preset 9 req/evaluated in EQ master phase
+	    000001xxxxxxxxxx: Preset 10 req/evaluated in EQ master phase
+	    All other encodings: Reserved
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-PRESET-REQUEST-VECTOR.N%d.PORT%d = "0x312";
+
+	/* Specifies the level of deemphasis on the downstream device for PCIe Gen2 (5GT/s).
+	    0 = -6 dB (default)
+	    1 = -3.5 dB
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-GEN2-DEEMPHASIS.N%d.PORT%d = "0";
+
+	/* Override the auto detected width of a PCIe port. The width of a PCIe
+	port is normally auto detected. Some boards do not wire all PCIe lanes,
+	which causes the port assume more lanes than are actually possible. Use
+	this value to limit the maximum lanes the port can support. The default
+	value of -1 lets the hardware decide.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-WIDTH.N%d.PORT%d = "-1";
+
+	/* PCIe Transmit Prefix Value to use only when tap override is used
+	(ERRATA 36412). This is for GEN3 only and is a vector of transmit presets
+	to used for transmit equalization.  Normally equalization sets the value, but that
+	is disabled when EN_TX_DRV set. This is only for CN9XXX A0 parts.
+	Select a vector such as 0x393. There are 11 possible presets, up to 0x7FF,
+	but typically not all of the presets are used.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-TX-PRESET-TAP-OVERRIDE-VECTOR.N%d.PORT%d = "0x393";
+
+	/* PCIE Endpoint Mode Transmit Preset Value to Use ONLY when tap override
+	is used (ERRATA 36412). This can be used for GEN2 selection and also
+	GEN3 selection.  GEN1 is always fixed. GEN2 uses preset 0 for -6 db,
+	and preset 1 for -3.5 db de-emphasis. GEN3 can be preset 0 thru 10.
+	This preset is not a vector, but an integer from 0 to 10.
+	    GEN1 - do nothing, this value ignored
+	    GEN2 - set to 0 for -6 db
+	    GEN2 - set to 1 for -3.5 db
+	    GEN3 - set to 0 to 10
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-TX-PRESET-EP-OVERRIDE.N%d.PORT%d = "4";
+
+	/* Configure the electrical idle refset detect value.  This specifies the
+	voltage swing at the input of the QLM receiver. A signal level less than this
+	value is considered electrical idle.  Testing done in the lab showed that
+	slower parts required an idle detect of 6. However, some other testing
+	showed a value of 4 produced improved results. It depends on the channel
+	loss obviously, since these values represent millivolts. This value should
+	be used on platforms that will operate in EP/RC mode.
+	   0 = 23.0 mV
+	   1 = 27.4 mV
+	   2 = 31.8 mV
+	   3 = 36.2 mV
+	   4 = 40.6 mV
+	   5 = 45.0 mV
+	   6 = 49.4 mV
+	   7 = 53.8 mV
+	   8 = 58.2 mV
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-IDLE-REFSET-VALUE.N%d.QLM%d = "6";
+
+	/* Configure a forced rx detect for a given PCIe port. Setting this is for
+	lab debug or boards that are not within PCIe compliance in the rx detect.
+	Setting this field to '1' for a given port will select all lanes of that
+	port to be valid so that the rx detect is ignored. This ultimately sets the
+	register bits within the GSERNX_LANEX_TX_RXD_BCFG register.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	 PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional.  */
+	//PCIE-RC-OVERRIDE-DETECT.N%d.PORT%d = "0";
+
+	/* Configure the physical slot number for a PCIe port. This is used by error
+	reporting to narrow down failures to a board PCIe slot number. The
+	default value of -1 doesn't set the slot number.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-PHYSICAL-SLOT.N%d.PORT%d = "-1";
+	PCIE-PHYSICAL-SLOT.N0.PORT0 = "0";
+	PCIE-PHYSICAL-SLOT.N0.PORT3 = "1";
+
+	/* Number of physical functions (PFs) to expose on a PCIe endpoint.
+	Valid values are 1-16. Defaults to 1.
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-NUM-PFS.N%d.PORT%d = "1";
+
+	/* PCIe device ID for endpoints.
+	Defaults to 0xb200177d, see PCIEEPX_ID.
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-ID.N%d.PORT%d = "0xb200177d";
+
+	/* PCIe device ID for endpoints.
+	Defaults to 0x0b800000, see PCIEEPX_REV.
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-REV.N%d.PORT%d = "0xb800000";
+
+	/* PCIe subsystem for endpoints.
+	Defaults to 0xb200177d, see PCIEEPX_SUBSYS.
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-SUBSYS.N%d.PORT%d = "0xb200177d";
+
+	/* PCIe endpoint BAR size as a power of 2. A value of zero disables the BAR.
+	BAR0 defaults to 23 bits, or 8MB
+	BAR2 defaults to 28 bits, or 256MB
+	BAR4 defaults to 26 bits, or 64MB
+	Only applies to CN9XXX.
+	Parameters:
+	    BAR#: Must be BAR0, BAR2, or BAR4.
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-BAR%d-SIZE.N%d.PORT%d = "-1";
+
+	/* PCIe endpoint expansion ROM size as a power of 2. A value of zero disables the ROM.
+	Defaults to 0, disabled
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-ROM-SIZE.N%d.PORT%d = "0";
+
+	/* Number of virtual functions (VFs) to expose on a PCIe endpoint.
+	Valid values are 0-240. Defaults to 128.
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-NUM-VFS.N%d.PORT%d = "0x80";
+
+	/* PCIe SRIOV device ID for endpoints.
+	Defaults to 0xb203, see PCIEEPX_SRIOV_DEV.
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-SRIOV-DEV.N%d.PORT%d = "0xb203";
+
+	/* PCIe endpoint VBAR size as a power of 2. A value of zero disables the BAR.
+	BAR0 defaults to 20 bits, or 1MB
+	BAR2 defaults to disabled, recommended
+	BAR4 defaults to disabled, recommended
+	Only applies to CN9XXX.
+	Parameters:
+	    BAR#: Must be BAR0, BAR2, or BAR4.
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional. */
+	//PCIE-EP-SRIOV-BAR%d.N%d.PORT%d = "-1";
+
+	/* The voltage, VDDA_GSER, supplied to the SERDES by the board in
+	millivolts. Some SERDES tuning is based on the voltage supplyed
+	to the chip. The default value matches the HRM recommended value.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//QLM-VOLTAGE.N%d = "0x384";
+
+	/* Set the mode of a QLM/DLM. The possible mode strings are:
+	    DISABLED     # CN83XX: All             CN81XX: All         CN80XX: All         CN96XX: All
+	    PCIE_X1      #                                             CN80XX: DLM0
+	    PCIE_X2      # CN83XX: DLM4,5          CN81XX: DLM0,2,3    CN80XX: DLM0,2,3    CN96XX: DLM4,5
+	    PCIE_X4      # CN83XX: QLM0-3,DLM5     CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM0,1,2,3,6,7, DLM4-5
+	    PCIE_X8      # CN83XX: QLM0,2                                                  CN96XX: QLM0-1,6-7
+	    PCIE_X16     #                                                                 CN96XX: QLM0-3
+	    PCIE_X4-EP   #                                                                 CN96XX: QLM0,3,6
+	    PCIE_X8-EP   #                                                                 CN96XX: QLM0-1,6-7
+	    PCIE_X16-EP  #                                                                 CN96XX: QLM0-3
+	    SATA         # CN83XX: DLM4,5          CN81XX: DLM3        CN80XX: DLM3
+	    SGMII        # CN83XX: QLM2-6          CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3-7
+	    1G_X         # CN83XX: QLM2-6          CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3-7
+	    QSGMII       # CN83XX: QLM2-4,DLM4,5   CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3,6,7,DLM4,5
+	    XAUI         # CN83XX: QLM3,4          CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM3,6,7
+	    RXAUI        # CN83XX: QLM3-6          CN81XX: DLM0-3      CN80XX: DLM2        CN96XX: QLM3-7
+	    XFI          # CN83XX: QLM2-6          CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3-7
+	    SFI          #                                                                 CN96XX: QLM3-7
+	    XLAUI        # CN83XX: QLM3,4          CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM3,6,7
+	    XLAUI_C2M    #                                                                 CN96XX: QLM3,6,7
+	    10G_KR       # CN83XX: QLM3-6          CN81XX: DLM0-3      CN80XX: DLM0-3      CN96XX: QLM3-7
+	    40G_CR4      # CN83XX: QLM3,4,DLM5     CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM3,6,7
+	    40G_KR4      # CN83XX: QLM3,4,DLM5     CN81XX: DLM0,2      CN80XX: DLM2        CN96XX: QLM3,6,7
+	    20GAUI_C2C   #                                                                 CN96XX: QLM3-7
+	    25GAUI_C2C   #                                                                 CN96XX: QLM3-7
+	    25GAUI_C2M   #                                                                 CN96XX: QLM3-7
+	    25G_CR       #                                                                 CN96XX: QLM3-7
+	    25G_KR       #                                                                 CN96XX: QLM3-7
+	    25GAUI_2_C2C #                                                                 CN96XX: QLM3-7
+	    40GAUI_2_C2C #                                                                 CN96XX: QLM3-7
+	    50GAUI_2_C2C #                                                                 CN96XX: QLM3-7
+	    50GAUI_2_C2M #                                                                 CN96XX: QLM3-7
+	    50G_CR2      #                                                                 CN96XX: QLM3-7
+	    50G_KR2      #                                                                 CN96XX: QLM3-7
+	    50GAUI_4_C2C #                                                                 CN96XX: QLM3,6,7
+	    80GAUI_4_C2C #                                                                 CN96XX: QLM3,6,7
+	    CAUI_4_C2C   #                                                                 CN96XX: QLM3,6,7
+	    CAUI_4_C2M   #                                                                 CN96XX: QLM3,6,7
+	    100G_CR4     #                                                                 CN96XX: QLM3-7
+	    100G_KR4     #                                                                 CN96XX: QLM3-7
+	    USXGMII_4X1  #                                                                 CN96XX: QLM3,6,7,DLM4,5
+	    USXGMII_2X1  #                                                                 CN96XX: QLM3,6,7,DLM4,5
+	    USXGMII_1X1  #                                                                 CN96XX: QLM3,6,7,DLM4,5
+	Notes:
+	    1) For protocols spanning multiple QLM/DLM, only specify the lowest
+	        DLM/QLM. The other DLM/QLM will automatically be configured. This
+	        note applies to QLM-FREQ QLM-CLK, and QLM-CLK-TERM also.
+	    2) For CN8XXX, PCIe EP mode is specified by strapping. Don't add
+	        entries for these QLM/DLM here.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-MODE.N%d.QLM%d.LANE%d = "";
+	QLM-MODE.N0.QLM0 = "PCIE_X8"; /* PCIe slot 0 */
+	QLM-MODE.N0.QLM2 = "PCIE_X8"; /* PCIe slot 1 */
+	QLM-MODE.N0.QLM4 = "PCIE_X2"; /* M2 PCIe */
+	QLM-MODE.N0.QLM5.LANE0 = "XFI";/* J107 = Port9(SFP28), No PHY */
+	QLM-MODE.N0.QLM5.LANE1 = "SGMII"; /* J110 = RJ45, with 88E1514 */
+	QLM-MODE.N0.QLM6 = "XFI"; /* J105 = QSFP2, with 88x5123 PHY */
+	QLM-MODE.N0.QLM7 = "XFI"; /* J106 = QSFP1, with 88x5123 PHY */
+
+
+	/* Set the speed of a QLM/DLM in Mhz. The possible speeds are:
+	    1250 # Networking SGMII,1G_X
+	    1500 # SATA Gen1
+	    2500 # PCIe Gen1, Networking SGMII
+	    3000 # SATA Gen2
+	    3125 # Networking XAUI
+	    5000 # PCIe Gen2, Networking QSGMII
+	    6000 # SATA Gen3
+	    6250 # Networking XAUI,RXAUI
+	    8000 # PCIe Gen3
+	   10312 # Networking XFI,XLAUI,10G_KR,40G_CR4,40G_KR4
+	   12890 # Networking 25GAUI_2, 50GAUI_4
+	   16000 # PCIe Gen4 (CN9XXX)
+	   20625 # Networking 20GAUI, 40GAUI_2, 80GAUI_4, USXGMII (CN9XXX)
+	   25781 # Networking (CN9XXX)
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-FREQ.N%d.QLM%d.LANE%d = "0";
+	QLM-FREQ.N0.QLM0 = "16000";
+	QLM-FREQ.N0.QLM2 = "16000";
+	QLM-FREQ.N0.QLM4 = "16000";
+	QLM-FREQ.N0.QLM5.LANE0 = "10312";
+	QLM-FREQ.N0.QLM5.LANE1 = "1250";
+	QLM-FREQ.N0.QLM6 = "10312";
+	QLM-FREQ.N0.QLM7 = "10312";
+
+	/* Set the source of the QLM/DLM reference clock:
+	    0 = Common clock 0 (CN9XXX 100 Mhz No SSC)
+	    1 = Common clock 1 (CN9XXX 100 Mhz SSC)
+	    2 = QLM/DLM external reference
+	    3 = Common clock 2 (CN9XXX 156.25 Mhz)
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional. */
+	//QLM-CLK.N%d.QLM%d = "4";
+	QLM-CLK.N0.QLM0 = "1"; /* 100 Mhz, SSC */
+	QLM-CLK.N0.QLM2 = "1"; /* 100 Mhz, SSC */
+	QLM-CLK.N0.QLM4 = "1"; /* 100 Mhz, SSC */
+	QLM-CLK.N0.QLM5 = "3"; /* 156.25 Mhz */
+	QLM-CLK.N0.QLM6 = "3"; /* 156.25 Mhz */
+	QLM-CLK.N0.QLM7 = "3"; /* 156.25 Mhz */
+
+	/* Set the QLM/DLM reference clock termination, not used for CN8XXX:
+	   -1 = No clock, powered down (default)
+	    0 = No termination
+	    1 = LVPECL termination
+	    2 = Reserved
+	    3 = HCSL termination
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional. */
+	//QLM-CLK-TERM.N%d.QLM%d = "-1";
+	QLM-CLK-TERM = "0";
+
+	/* Transmitter Main (C0) equalizer tap coefficient value.  Programs
+	the SerDes transmitter Main tap. Valid range is 24 to 48.
+	This can only be used for QLMs or DLMs configured for Networking.
+	NOTE: This setting only applies to CN9XXX.
+	Parameters:
+	    <MODE>: DLM/QLM mode string from QLM-MODE. Optional.
+	    <FREQ>: DLM/QLM frequency from QLM-FREQ. Optional.
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-TUNING-TX-MAIN.%s.%d.N%d.QLM%d.LANE%d = "-1";
+
+	/* Transmitter Pre (C-1) equalizer tap coefficient value.  Programs the
+	SerDes transmitter Pre tap. Valid range is 0 to 16.
+	This can only be used for QLMs or DLMs configured for Networking.
+	NOTE: This setting only applies to CN9XXX.
+	Parameters:
+	    <MODE>: DLM/QLM mode string from QLM-MODE. Optional.
+	    <FREQ>: DLM/QLM frequency from QLM-FREQ. Optional.
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-TUNING-TX-PRE.%s.%d.N%d.QLM%d.LANE%d = "-1";
+
+	/* Transmitter Post (C+1) equalizer tap coefficient value.  Programs
+	the SerDes transmitter Post tap. Valid range is 0 to 16.
+	This can only be used for QLMs or DLMs configured for Networking.
+	NOTE: This setting only applies to CN9XXX.
+	Parameters:
+	    <MODE>: DLM/QLM mode string from QLM-MODE. Optional.
+	    <FREQ>: DLM/QLM frequency from QLM-FREQ. Optional.
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-TUNING-TX-POST.%s.%d.N%d.QLM%d.LANE%d = "-1";
+
+	/* Tx bias/swing selection.  This can only be used for QLMs or DLMs
+	configured in PCIe mode. Typical values would be:
+	    52 = Nominal 1.2V p-p transmit amplitude
+	    42 = Nominal 1.0V p-p transmit amplitude
+	    22 = Nominal 0.6V p-p transmit amplitude
+	NOTE: This setting only applies to CN9XXX.
+	Parameters:
+	    <MODE>: DLM/QLM mode string from QLM-MODE. Optional.
+	    <FREQ>: DLM/QLM frequency from QLM-FREQ. Optional.
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-TUNING-TX-BS.%s.%d.N%d.QLM%d.LANE%d = "-1";
+
+	/* Controls whether the GSERN preVGA gain is initially adapted.  This
+	can only be used for QLMs or DLMs configured in 20.625Gb/s modes.
+	NOTE: This setting only applies to CN9XXX A0 and B0.
+	-1 - S/W default is selected. (default)
+	 0 - PreVGA gain is NOT adapted. Pre-VGA gain override value used.
+	 1 - PreVGA gain is initially adapted.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-LANE-RX-PREVGA-GN-ADAPT.N%d.QLM%d.LANE%d = "-1";
+	QLM-LANE-RX-PREVGA-GN-ADAPT.N0.QLM6 = "0";
+	QLM-LANE-RX-PREVGA-GN-ADAPT.N0.QLM7 = "0";
+
+	/* Sets the GSERN prevga gain override value.  This can only be used
+	for QLMs or DLMs configured in 20.625Gb/s modes.
+	NOTE: This setting only applies to CN9XXX A0 and B0.
+	    -1 - S/W default is selected. (default)
+	    Valid Range: 0 to 7
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-LANE-RX-PREVGA-GN-OVRD.N%d.QLM%d.LANE%d = "-1";
+	QLM-LANE-RX-PREVGA-GN-OVRD.N0.QLM6 = "0";
+	QLM-LANE-RX-PREVGA-GN-OVRD.N0.QLM7 = "0";
+
+	/* Set the GSER lane Rx polarity
+	NOTE: This setting only applies to CN9XXX.
+	0 - Normal polarity. Positive differential pair signal connected
+	   to link partner's positive signal. (Default)
+	1 - Inverted polarity. Positive differential pair signal connected
+	   to link partner's negative signal.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-LANE-RX-POLARITY.N%d.QLM%d.LANE%d = "0";
+
+	/* Set the GSER lane Tx polarity
+	NOTE: This setting only applies to CN9XXX.
+	0 - Normal polarity. Positive differential pair signal connected
+	   to link partner's positive signal. (Default)
+	1 - Inverted polarity. Positive differential pair signal connected
+	   to link partner's negative signal
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-LANE-TX-POLARITY.N%d.QLM%d.LANE%d = "0";
+
+	/* Perform (or do not perform) GSER RX adaptation
+	NOTE: This setting only applies to CN9XXX DLM/QLM configured for Ethernet.
+	0 - Do not perform RX adaptation.
+	1 - Perform RX adaptation. (Default)
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    QLM#: Parameter can be different for each DLM/QLM. Optional.
+	    LANE#: Parameter can be different for each DLM/QLM lane. Optional. */
+	//QLM-RX-ADAPTATION.N%d.QLM%d.LANE%d = "1";
+
+	/* Speed grade to use for DRAM in MT/s. Hardware may adjust this value
+	slightly to improve DRAM stability, so scope measurements may not
+	exactly match the frequency with MT/s. The supported speed
+	grades are:
+	    CN8XXX                                 CN9XXX
+	       0 (auto-set from SPD contents)         0 (auto-set from SPD contents)
+	     666 MT/s (DDR3 only)                  1600 MT/s
+	     800 MT/s (DDR3 only)                  1866 MT/s
+	    1066 MT/s (DDR3 only)                  2133 MT/s
+	    1333 MT/s (DDR3 only)                  2400 MT/s
+	    1600 MT/s                              2666 MT/s
+	    1866 MT/s                              2933 MT/s
+	    2133 MT/s (DDR4 only)                  3200 MT/s
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DDR-SPEED.N%d = "0";
+
+	/* TWSI address of the DIMM SPD. The encoding of this address is
+	:    [15:12]: TWSI bus the DIMM is connected to.
+	     [11:7]: Reserved, set to zero.
+	      [6:0]: TWSI address for the DIMM.
+	A value of zero means the DIMMs are not accessible. Hard coded
+	values will be read from DDR-CONFIG-SPD-DATA.Parameters:
+	    LMC#: Parameter can be different for memory controller. This
+	        specifies which LMC the value is for. LMC must be
+	        0-3. Optional.
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DDR-CONFIG-SPD-ADDR.DIMM%d.LMC%d.N%d = "0";
+	DDR-CONFIG-SPD-ADDR.DIMM0.LMC0 = "0x1050";
+	DDR-CONFIG-SPD-ADDR.DIMM1.LMC0 = "0x1051";
+	DDR-CONFIG-SPD-ADDR.DIMM0.LMC1 = "0x1052";
+	DDR-CONFIG-SPD-ADDR.DIMM1.LMC1 = "0x1053";
+	DDR-CONFIG-SPD-ADDR.DIMM0.LMC2 = "0x1054";
+	DDR-CONFIG-SPD-ADDR.DIMM1.LMC2 = "0x1055";
+
+        /* Other DRAM settings are read from ddr4-cn9xxx.dtsi */
+
+	/* Specify a on-chip GPIO used to control power for a USB port. When
+	set, the USB host controller will toggle the GPIO automatically
+	during USB reset events. The default value assumes the SOC has no
+	control of the USB power and it is always on. */
+	//USB-PWR-GPIO.N%d.PORT%d = "-1";
+
+	/* Specify the polarity of a on-chip GPIO used to control power for
+	a USB port. The GPIO used is specified by USB-PWR-GPIO. Setting this
+	GPIO low. The default value drives the GPIO high. */
+	//USB-PWR-GPIO-POLARITY.N%d.PORT%d = "1";
+
+	/* Specify reference clock source for SuperSpeed and HighSpeed PLL.
+	Possible sources:
+	 USB_REF_CLK pin
+	Additional sources for CN81XX/CN80XX chips
+	 DLMC_REF_CLK0 pin
+	 DLMC_REF_CLK1 pin
+	 PLL_REF_CLK
+	Clock used by usb needs to run at 100MHz frequency except PLL_REF_CLK
+	which requires 50MHz frequency.
+	Encoding:
+	0 - SS(USB_REF_CLK)   HS(USB_REF_CLK)
+	1 - SS(DLMC_REF_CLK0) HS(DLMC_REF_CLK0)
+	2 - SS(DLMC_REF_CLK1) HS(DLMC_REF_CLK1)
+	3 - SS(USB_REF_CLK)   HS(PLL_REF_CLK)
+	4 - SS(DLMC_REF_CLK0) HS(PLL_REF_CLK)
+	5 - SS(DLMC_REF_CLK1) HS(PLL_REF_CLK)
+	The default is 0 : USB_REF_CLK. */
+	//USB-REFCLK-SRC.N%d.PORT%d = "0";
+
+	/* Temperature where THERMAL_TRIP_N is asserted. When the chip reaches
+	this temperature THERMAL_TRIP_N will assert, signalling the board
+	to emergency power off. The default value is the recommended
+	maximum temperature of the chip. Values between 0 and 140 degrees
+	Celsius.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//VRM-TEMP-TRIP.N%d = "0x6e";
+
+	/* Temperature where maximum throttling is applied to the chip. Chip
+	performance will be greatly reduced to keep the temperature below
+	thermal trip (VRM-TEMP-TRIP). The default value is the
+	recommended maximum operating temperature of the chip. Values
+	between 0 and 140 degrees Celsius.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//VRM-TEMP-HIGH.N%d = "0x6e";
+
+	/* Maximum Core clock (RCLK) frequency in MHz. DVFS control will vary the
+	actual RCLK frequency depending on Tj, power budget, and system load;
+	this sets an upper bound.  If fuses indicate the part supports a lower
+	frequency, the fuse value is used.  Valid range is 500MHz-3300MHz. Doesn't
+	apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//RCLK-FREQ-MAX.N%d = "0x1f4";
+	RCLK-FREQ-MAX = "1600";
+
+	/* Minimum Core clock (RCLK) frequency in MHz. DVFS control will vary the
+	actual RCLK frequency depending on Tj, power budget, and system load;
+	this sets the lower bound.  Default value 500MHz.  WARNING- setting
+	this above 500MHz may result in excess power consumption and sudden
+	thermal shutdown. Valid range is 500MHz-3300MHz. Doesn't apply to
+	CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//RCLK-FREQ-MIN.N%d = "0x1f4";
+
+	/* Coprocessor clock (SCLK) frequency in MHz. Valid range is
+	500MHz-1200MHz. Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//SCLK-FREQ.N%d = "0x1f4";
+	SCLK-FREQ = "1000";
+
+	/* Cryptographic accelerator clock (CPTCLK) frequency in MHz. If fuses
+	indicate the part supports a lower frequency, the fuse value is used.
+	Valid range 200MHz-1600MHz. Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//CPTCLK-FREQ.N%d = "0x320";
+	CPTCLK-FREQ = "1000";
+
+	/* Maximum bphy clock (BCLK) frequency in MHz. SCP firmware will vary
+	the actual BCLK frequency between min and max based on SCMI messages
+	from the AP. F95* only; ignored in other chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//BCLK-FREQ-MAX.N%d = "0x1f4";
+
+	/* Minimum bphy clock (BCLK) frequency in MHz. SCP firmware will vary
+	the actual BCLK frequency between min and max based on SCMI messages
+	from the AP. F95* only; ignored in other chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//BCLK-FREQ-MIN.N%d = "0x1f4";
+
+	/* Maximum dsp clock (DSPCLK) frequency in MHz. SCP firmware will vary
+	the actual DSPCLK frequency between min and max based on SCMI messages
+	from the AP. F95* only; ignored in other chips.Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DSPCLK-FREQ-MAX.N%d = "0x1f4";
+
+	/* Maximum dsp clock (DSPCLK) frequency in MHz. SCP firmware will vary
+	the actual DSPCLK frequency between min and max based on SCMI messages
+	from the AP. F95* only; ignored in other chips.Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DSPCLK-FREQ-MIN.N%d = "0x1f4";
+
+	/* The +/- control tolerance of the vdd_core supply as measured at
+	the Chip in mV. Default is +/-8mV. Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//VDD-CORE-TOLERANCE.N%d = "8";
+
+	/* The +/- ripple of the vdd_core supply as measured at the Chip in
+	mV. Default is +/-21mV. Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//VDD-CORE-RIPPLE.N%d = "21";
+
+	/* The compensation factor in percentage for the vdd_core supply.
+	This can be used to adjust the voltage programmed by firmware to
+	account for customer-specific VRM design requirements.  An example
+	usage is below.
+	    VDDC required voltage = 800mV
+	    Compensation percentage = 95%
+	    VDDC actual programmed voltage = 760mV
+	This should be set to 100% for most designs.  Default is 100.
+	Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//VDD-CORE-COMPENSATION.N%d = "0x64";
+
+	/* The +/- control tolerance of the vdd_sys supply as measured at
+	the Chip in mV. Default is +/-8mV. Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//VDD-SYS-TOLERANCE.N%d = "8";
+
+	/* The +/- ripple of the vdd_sys supply as measured at the Chip in
+	mV. Default is +/-21mV. Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//VDD-SYS-RIPPLE.N%d = "21";
+
+	/* The compensation factor in percentage for the vdd_sys supply.
+	This can be used to adjust the voltage programmed by firmware to
+	account for customer-specific VRM design requirements.  An example
+	usage is below.
+	    VDD_SYS required voltage = 800mV
+	    Compensation percentage = 95%
+	    VDD_SYS actual programmed voltage = 760mV
+	This should be set to 100% for most designs.  Default is 100.
+	Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//VDD-SYS-COMPENSATION.N%d = "0x64";
+
+	/* The total chip power budget in Watts, used in POWER_CAPPED_USING_ACTIVITY
+	and EFFICIENT_OPERATION modes, DVFS control makes a best-effort
+	attempt to keep power at or below this level. Values between 0 and
+	150 Watts.  Default is 100W. Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DVFS-POWER-BUDGET.N%d = "0x64";
+
+	/* The operating mode of the DVFS (Dynamic Frequency Voltage Scaling)
+	power control code.  Encoding:
+	    1 - POWER_CAPPED: Caps power consumption at or below
+	        DVFS_POWER_BUDGET.
+	    2 - THERMAL_BUDGET: Gives best performance within thermal budget.
+	    3 - EFFICIENT_OPERATION: Sets performance level based on OSPM messages.
+	    4 - MANUAL_CONTROL: Set voltage and frequencies manually.
+	    5 - DVFS_OFF: Operate only at RCLK_FREQ_MAX (default).
+	Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DVFS-POWER-CONTROL-MODE.N%d = "5";
+
+	/* DVFS control will assert the THERMAL_HOT_L pin when the highest
+	observed temperature on the chip is at or above this value. This
+	value is recommended to be 10 degrees Celsius below BDK_CONFIG_DVFS_MAX_TJ.
+	The default value is the recommended maximum temperature of
+	the chip minus 10. Values between 0 and 140 degrees Celsius. Doesn't
+	apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DVFS-THERMAL-HOT.N%d = "0x64";
+
+	/* The percentage that the DVFS control should attempt to reduce the chip
+	power when the board asserts THERMAL_HOT.  A value of 30 means reduce
+	power 30%, etc.  Allowed values 0 to 100.  Default is 50. Doesn't
+	apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DVFS-THERMAL-HOT-BACKOFF.N%d = "0x32";
+
+	/* This timeout detects boot failures in when booting from the primary
+	boot device, and causes a reboot from secondary. In seconds. Doesn't
+	apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//SCP-FAILSAFE-TIMEOUT.N%d = "0";
+
+	/* Selects which uart SCP will use for the SCP CLI and logging.
+	0xf selects no logging. Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//SCP-UART-NUM.N%d = "1";
+
+	/* Instructs SCP firmware to not start the MCP. Doesn't apply to
+	CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//SCP-MCP-DISABLE.N%d = "0";
+
+	/* Force the next reboot to use the secondary boot device. Doesn't
+	apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//SCP-FORCE-SECONDARY-BOOT.N%d = "0";
+
+	/* Enumerated by CPC_WAKEUP_MODE_E. Default FAST_WAKE_SLOW_SLEEP. Doesn't
+	apply to CN8XXX chips.
+	    0 = FAST_WAKE_OFF: When AP activity detected, ramp from min_rclk
+	        to max_rclk over ~10ms.
+	    1 = FAST_WAKE_SLOW_SLEEP: When AP activity detected, ramp from
+	        min_rclk to max_rclk in 1ms. When activity ceases, ramp from
+	        max_rclk to min_rclk over ~10ms.
+	    2 = FAST_WAKE_FAST_SLEEP: When AP activity detected, ramp from
+	        min_rclk to max_rclk in 1ms. When activity ceases, ramp from
+	        max_rclk to min_rclk IN 1ms.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//SCP-WAKEUP-MODE.N%d = "1";
+
+	/* The percentage of maximum IPC at which a core is considered active.
+	Encoded as percent * 1000. Range 0.001% to 32.7%. Default 1%. Doesn't
+	apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//SCP-ACTIVE-THRESHOLD.N%d = "0x3e8";
+
+	/* Timeout in seconds for SCP to configure clocks and signal complete to
+	the BDK. Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//SCP-FAIL-TIMEOUT.N%d = "0xa";
+
+	/* Action to take if the SCP fail timeout expires:
+	    0: Continue to boot (Default)
+	    1: Reboot the system
+	    2: Halt forever
+	Doesn't apply to CN8XXX chips.
+	Parameters:
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//SCP-FAIL-ACTION.N%d = "0";
+
+	/* Internal source for GPIO pins. The enumeration GPIO_PIN_SEL_E
+	details the possible internal sources for GPIO pins in the chip.
+	The value of this setting is the numeric value from the GPIO_PIN_SEL_E
+	enumeration. The default value(-1) leaves the pin at the hardware
+	default, which is to connect the pin to the GPIO block for manual
+	control.
+	Parameters:
+	    GPIO#: Which GPIO pin to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//GPIO-PIN-SELECT-GPIO%d.N%d = "-1";
+	GPIO-PIN-SELECT-GPIO46 = "0x29e"; /* TWSI4 SDA */
+	GPIO-PIN-SELECT-GPIO47 = "0x298"; /* TWSI4 SCL */
+
+	/* Set the polarity of GPIO pins. GPIO pins are normally high=1 and
+	low=0. Setting this configuration item to '1' inverts this, so
+	high=0 and low=1. The inversion applies to both input and output.
+	The default value of '0' configures high=1 and low=0.
+	Parameters:
+	    GPIO#: Which GPIO pin to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//GPIO-POLARITY-GPIO%d.N%d = "0";
+
+	/* Configure a PBUS region. The encoding of this value is the exact
+	register contents of PBUS_REGX_CFG. Note that the base is
+	overwritten by the BDK to fix addressing in the code.
+	Parameters:
+	    REGION#: Which PBUS region to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//PBUS-CFG.REGION%d.N%d = "0";
+
+	/* Configure a PBUS region timing. The encoding of this value is the
+	exact register contents of PBUS_REGX_TIM.
+	Parameters:
+	    REGION#: Which PBUS region to configure.
+	    N#: Setting can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//PBUS-TIM.REGION%d.N%d = "0";
+}; /* cavium,bdk */
+}; /* / */

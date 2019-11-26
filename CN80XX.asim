@@ -1,0 +1,26 @@
+# ***********************license start***********************************
+# Copyright (C) 2018 Marvell International Ltd.
+# SPDX-License-Identifier: BSD-3-Clause
+# https://spdx.org/licenses
+# **********************license end**************************************
+
+ASIM_CHIP=CN81XX
+
+# Load the CN81XX
+@${BDK_ROOT}/CN81XX.asim
+
+# Set the fuses for CN80XX
+# Note that the BDK will report the incorrect SKU because Asim doesn't
+# implement raw fuse read. The L2C, LMC, and QLMs are still correctly
+# limited.
+# bit 22 = Alternate packet 2
+# bit 5 = LMC_HALF
+control n0.fus0 set fuse 2 0x110400020
+reset
+# bit 33 = Half cache
+control n0.fus0 set fuse 3 0x200000000
+
+# Set RCLK 2500, SCLK 800
+control n0.rst0 set rclk 50
+control n0.rst0 set sclk 16
+

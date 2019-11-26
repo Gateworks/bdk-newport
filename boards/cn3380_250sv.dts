@@ -1,0 +1,217 @@
+/***********************license start***********************************
+* Copyright (C) 2019 Marvell International Ltd.
+* SPDX-License-Identifier: BSD-3-Clause
+* https://spdx.org/licenses
+***********************license end**************************************/
+/dts-v1/;
+
+/include/ "ddr4-cn9xxx.dtsi"
+/include/ "cn3380_250sv_common.dtsi"
+
+/ {
+cavium,bdk {
+	DEVICES = "U57,type=PHY-88X6141,smi=0,addr=15,qlm0=4,qlm1=5";
+
+	QLM-VOLTAGE.N0 = "1000"; /* VDDA_GSER in mV */
+
+	QLM-MODE.N0.QLM0 = "PCIE_X8-EP";
+	QLM-MODE.N0.QLM3 = "PCIE_X4-EP";
+	QLM-FREQ.N0.QLM0 = "8000";
+	QLM-FREQ.N0.QLM3 = "8000";
+	QLM-CLK.N0.QLM0 = "0";
+	QLM-CLK.N0.QLM3 = "1";
+
+	QLM-MODE.N0.QLM4 = "50GAUI_2_C2C";
+	QLM-FREQ.N0.QLM4 = "25781";
+	QLM-CLK.N0.QLM4  = "3";
+	QLM-RX-ADAPTATION.N0.QLM4.LANE0 = "0";
+	QLM-RX-ADAPTATION.N0.QLM4.LANE1 = "0";
+	NETWORK-FLAGS.N0.CGX1.P0 = "2";
+	NETWORK-FLAGS.N0.CGX1.P1 = "2";
+
+	QLM-MODE.N0.QLM5 = "50GAUI_2_C2C";
+	QLM-FREQ.N0.QLM5 = "25781";
+	QLM-CLK.N0.QLM5  = "3";
+	QLM-RX-ADAPTATION.N0.QLM5.LANE0 = "0";
+	QLM-RX-ADAPTATION.N0.QLM5.LANE1 = "0";
+	NETWORK-FLAGS.N0.CGX1.P2 = "2";
+	NETWORK-FLAGS.N0.CGX1.P3 = "2";
+
+	/* Set the QLM/DLM reference clock termination, not used for CN8XXX:
+	   -1 = No clock, powered down (default)
+	    0 = No termination
+	    1 = LVPECL termination
+	    2 = Reserved
+	    3 = HCSL termination */
+	QLM-CLK-TERM.N0.QLM0 = "3";
+	QLM-CLK-TERM.N0.QLM3 = "0";
+	QLM-CLK-TERM.N0.QLM4 = "1";
+	QLM-CLK-TERM.N0.QLM5 = "1";
+
+	/* Extra PEM2 parameters for board revision 1 */
+        PCIE-TX-PRESET-EP-OVERRIDE.N0.PORT2 = "8";
+	PCIE-EP-ID.N0.PORT2 = "0x3380177d";
+	PCIE-EP-REV.N0.PORT2 = "0x02000000";
+	PCIE-EP-SRIOV-DEV.N0.PORT2 = "0x3383";
+
+	/* PCIe subsystem for endpoints.
+	Defaults to 0xb200177d, see PCIEEPX_SUBSYS.
+	Only applies to CN9XXX.
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional.
+	    PORT#: Parameter can be different for PCIe port. This specifies
+	        which PCIe RC port the value is for. Optional.
+        Subystem Id reflects board revision. so it is different for each 
+        board */
+	PCIE-EP-SUBSYS.N0.PORT0 = "0x0001177d";
+	PCIE-EP-SUBSYS.N0.PORT2 = "0x0001177d";
+
+	/* Speed grade to use for DRAM in MT/s. Hardware may adjust this value
+	slightly to improve DRAM stability, so scope measurements may not
+	exactly match the frequency with MT/s. The supported speed
+	grades are:
+	    CN8XXX                                 CN9XXX
+	       0 (auto-set from SPD contents)         0 (auto-set from SPD contents)
+	     666 MT/s (DDR3 only)                  1600 MT/s
+	     800 MT/s (DDR3 only)                  1866 MT/s
+	    1066 MT/s (DDR3 only)                  2133 MT/s
+	    1333 MT/s (DDR3 only)                  2400 MT/s
+	    1600 MT/s                              2666 MT/s
+	    1866 MT/s                              2933 MT/s
+	    2133 MT/s (DDR4 only)                  3200 MT/s
+	Parameters:
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DDR-SPEED.N0 = "1600";
+	DDR-SPEED.N0 = "0";
+    DDR-CONFIG-CUSTOM-DRAM-CONNECTION.LMC0.N0= "1";
+    DDR-CONFIG-CUSTOM-DRAM-CONNECTION.LMC1.N0= "1";
+
+	/* TWSI address of the DIMM SPD. The encoding of this address is
+	:    [15:12]: TWSI bus the DIMM is connected to.
+	     [11:7]: Reserved, set to zero.
+	      [6:0]: TWSI address for the DIMM.
+	A value of zero means the DIMMs are not accessible. Hard coded
+	values will be read from DDR-CONFIG-SPD-DATA.Parameters:
+	    LMC#: Parameter can be different for memory controller. This
+	        specifies which LMC the value is for. LMC must be
+	        0-3. Optional.
+	    N#: Parameter can be different for each node. This specifies
+	        which node the value is for. Node must be 0-3. Optional. */
+	//DDR-CONFIG-SPD-ADDR.DIMM%d.LMC%d.N%d = "0";
+
+
+DDR-CONFIG-SPD-DATA.DIMM0.LMC0.N0 = [
+23 10 0C 02 45 21 00 08 00 40 00 03 0A 0B 80 00
+00 00 05 0D FF 2B 01 00 6E 6E 6E 11 00 76 F0 0A
+20 08 00 05 00 F0 2B 34 2E 00 78 00 14 3C 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 9C B5 00 00 00 00 E7 00 A1 C7
+C7 11 1F 01 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 0D A5
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+80 2C 00 00 00 30 37 35 45 4D 54 34 30 41 35 31 
+32 4D 31 36 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 82 30
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+];
+
+DDR-CONFIG-SPD-DATA.DIMM0.LMC1.N0 = [
+23 10 0C 02 45 21 00 08 00 40 00 03 0A 0B 80 00
+00 00 05 0D FF 2B 01 00 6E 6E 6E 11 00 76 F0 0A
+20 08 00 05 00 F0 2B 34 2E 00 78 00 14 3C 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 9C B5 00 00 00 00 E7 00 A1 C7
+C7 11 1F 01 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 0D A5
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+80 2C 00 00 00 30 37 35 45 4D 54 34 30 41 35 31 
+32 4D 31 36 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 82 30
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+];
+
+
+        /* Other DRAM settings are read from ddr4-cn9xxx.dtsi */
+
+        /* Maximum Core clock (RCLK) frequency in MHz. DVFS control will vary the
+	actual RCLK frequency depending on Tj, power budget, and system load;
+	this sets an upper bound.  If fuses indicate the part supports a lower
+	frequency, the fuse value is used.  Valid range is 500MHz-3300MHz. Doesn't
+	apply to CN8XXX chips. */
+	//RCLK-FREQ-MAX.N%d = "0x1f4";
+	RCLK-FREQ-MAX = "1200";
+
+	/* Coprocessor clock (SCLK) frequency in MHz. Valid range is
+	500MHz-1200MHz. Doesn't apply to CN8XXX chips. */
+	//SCLK-FREQ.N%d = "0x1f4";
+	SCLK-FREQ = "1000";
+
+	/* Cryptographic accelerator clock (CPTCLK) frequency in MHz. If fuses
+	indicate the part supports a lower frequency, the fuse value is used.
+	Valid range 800MHz-1600MHz. Doesn't apply to CN8XXX chips. */
+	//CPTCLK-FREQ.N%d = "0x320";
+	CPTCLK-FREQ = "1000";
+
+	/* The operating mode of the DVFS (Dynamic Frequency Voltage Scaling)
+	power control code.  Encoding:
+	1 - POWER_CAPPED: Caps power consumption at or below
+	DVFS_POWER_BUDGET.
+	2 - THERMAL_BUDGET: Gives best performance within thermal budget.
+	3 - EFFICIENT_OPERATION: Sets performance level based on OSPM messages.
+	4 - MANUAL_CONTROL: Set voltage and frequencies manually.
+	5 - DVFS_OFF: Operate only at RCLK_FREQ_MAX (default).
+	Doesn't apply to CN8XXX chips.
+	Parameters:
+	N#: Setting can be different for each node. This specifies
+	which node the value is for. Node must be 0-3. Optional. */
+	//DVFS-POWER-CONTROL-MODE.N%d = "5";
+
+	/* The total chip power budget in Watts, used in POWER_CAPPED_USING_ACTIVITY
+	and EFFICIENT_OPERATION modes, DVFS control makes a best-effort
+	attempt to keep power at or below this level. Values between 0 and
+	150 Watts.  Default is 100W. Doesn't apply to CN8XXX chips. */
+	//DVFS-POWER-BUDGET.N%d = "0x64";
+}; /* cavium,bdk */
+}; /* / */
