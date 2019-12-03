@@ -14,7 +14,7 @@ init.bin: app.bin
 init.bin.lzma.sign: init.bin.lzma $(BDK_ROOT)/trust-keys/bdk-sign-public.pem
 	$(BDK_ROOT)/bin/bdk-sign bdk-sign-private $@ $<
 
-boardsrc := $(wildcard $(BDK_ROOT)/boards/*.c)
+#boardsrc := $(wildcard $(BDK_ROOT)/boards/*.c)
 boardobjs = $(addsuffix .o, $(basename $(boardsrc)))
 boarddeps = $(addsuffix .d, $(basename $(boardsrc)))
 

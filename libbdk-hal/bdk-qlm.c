@@ -24,6 +24,7 @@ extern const bdk_qlm_ops_t bdk_qlm_ops_loki;
 extern const bdk_qlm_ops_t bdk_qlm_ops_cn98xx;
 
 static const bdk_qlm_ops_t *qlm_ops_list[] = {
+#if 0 // saves 163568 bytes
     &bdk_qlm_ops_cn83xx,
     &bdk_qlm_ops_cn81xx,
     &bdk_qlm_ops_cn96xx,
@@ -32,6 +33,9 @@ static const bdk_qlm_ops_t *qlm_ops_list[] = {
     &bdk_qlm_ops_cnf95xx_gserr,
     &bdk_qlm_ops_loki,
     &bdk_qlm_ops_cn98xx,
+#else
+    &bdk_qlm_ops_cn81xx,
+#endif
     NULL
 };
 static const bdk_qlm_ops_t *qlm_ops;

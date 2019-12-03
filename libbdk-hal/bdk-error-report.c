@@ -781,6 +781,7 @@ static void check_cn9xxx(bdk_node_t node)
 void (*bdk_error_check)(bdk_node_t node) = NULL;
 void bdk_error_enable(bdk_node_t node)
 {
+#if 0 // saves 13200 bytes
     if (bdk_is_model(OCTEONTX_CN83XX))
     {
         enable_cn83xx(node);
@@ -799,6 +800,14 @@ void bdk_error_enable(bdk_node_t node)
         check_cn9xxx(node);
         bdk_error_check = check_cn9xxx;
     }
+#else
+    if (bdk_is_model(OCTEONTX_CN81XX))
+    {
+        enable_cn81xx(node);
+        check_cn81xx(node);
+        bdk_error_check = check_cn81xx;
+    }
+#endif
     else
         bdk_error("Error reporting not implemented for this chip\n");
 }

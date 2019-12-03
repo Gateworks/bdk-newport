@@ -20,8 +20,10 @@ static const __bdk_pcie_ops_t* get_ops()
     {
         if (bdk_is_model(OCTEONTX_CN8XXX))
             ops = &pcie_ops_cn8xxx;
+#if 0 // saves 25680 bytes
         else
             ops = &pcie_ops_cn9xxx;
+#endif
     }
     return ops;
 }
