@@ -167,6 +167,7 @@ void __bdk_init(uint32_t image_crc, uint64_t reg_x0, uint64_t reg_x1, uint64_t r
     bdk_node_t node = bdk_numa_local();
     bdk_numa_set_exists(node);
 
+#if 0 // NEWPORT
     /* Default color, Reset scroll region and goto bottom */
     static const char BANNER_1[] = "\33[0m\33[1;r\33[100;1H"
                                    "\n\n\nOcteonTX SOC\n";
@@ -174,6 +175,7 @@ void __bdk_init(uint32_t image_crc, uint64_t reg_x0, uint64_t reg_x1, uint64_t r
     static const char BANNER_CRC_RIGHT[] = "PASS: CRC32 verification\n";
     static const char BANNER_CRC_WRONG[] = "FAIL: CRC32 verification\n";
     static const char BANNER_3[] = "Transferring to thread scheduler\n";
+#endif
 
     BDK_MSR(TPIDR_EL3, 0);
 
@@ -199,14 +201,18 @@ void __bdk_init(uint32_t image_crc, uint64_t reg_x0, uint64_t reg_x1, uint64_t r
             bdk_set_baudrate(node, 1, BDK_UART_BAUDRATE, 0);
 
         __bdk_fs_init_early();
+#if 0 // NEWPORT
         if (BDK_SHOW_BOOT_BANNERS)
             write(1, BANNER_1, sizeof(BANNER_1)-1);
+#endif
 
         /* Only lock L2 if DRAM isn't initialized */
         if (!__bdk_is_dram_enabled(node))
         {
+#if 0 // NEWPORT
             if (BDK_TRACE_ENABLE_INIT)
                 write(1, BANNER_2, sizeof(BANNER_2)-1);
+#endif
             /* Lock the work cache area */
             uint64_t top_of_cache = bdk_dram_get_top_of_cache();
             bdk_l2c_lock_mem_region(node, bdk_numa_get_address(node, 0), top_of_cache);
@@ -260,6 +266,7 @@ void __bdk_init(uint32_t image_crc, uint64_t reg_x0, uint64_t reg_x1, uint64_t r
 
         /* Validate the image CRC */
         extern void _start();
+#if 0 // NEWPORT
         uint32_t *ptr_crc32 = (uint32_t *)(_start + 16);
         uint32_t correct_crc = bdk_le32_to_cpu(*ptr_crc32);
         if (correct_crc == image_crc)
@@ -269,6 +276,7 @@ void __bdk_init(uint32_t image_crc, uint64_t reg_x0, uint64_t reg_x1, uint64_t r
 
         if (BDK_TRACE_ENABLE_INIT)
             write(1, BANNER_3, sizeof(BANNER_3)-1);
+#endif
         bdk_thread_initialize();
     }
 

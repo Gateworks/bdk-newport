@@ -222,7 +222,9 @@ static void wr_masked(bdk_node_t node, int mdio_bus, int phy_addr, int reg, int 
 
 static void vitesse_program(bdk_node_t node, int mdio_bus, int phy_addr)
 {
+#if 0 // NEWPORT
     printf("Programming Vitesse PHY at address %d\n", phy_addr);
+#endif
     bdk_mdio_write(node, mdio_bus, phy_addr, 31, 0x0010);
     bdk_mdio_write(node, mdio_bus, phy_addr, 18, 0x800f);
     bdk_mdio_write(node, mdio_bus, phy_addr, 31, 0x0010);

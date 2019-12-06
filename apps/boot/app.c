@@ -56,17 +56,17 @@ void boot_menu(void)
         switch (key)
         {
             case 'N': /* Boot normally */
-                bdk_image_boot(next_stage ? next_stage : "/fatfs/init.bin.lzma", 0);
+                bdk_image_boot(next_stage ? next_stage : "/fatfs/init.bin", 0);
                 break;
             case 'I': /* Force-boot init.bin.lzma (skip any custom stage) */
-                bdk_image_boot("/fatfs/init.bin.lzma", 0);
+                bdk_image_boot("/fatfs/init.bin", 0);
                 break;
             case 'S': /* Enter Setup */
                 bdk_image_boot("/fatfs/setup.bin.lzma", 0);
                 break;
             case 'D': /* Boot diagnostics */
                 bdk_config_set_int(1, BDK_CONFIG_BOOT_PATH_OPTION);
-                bdk_image_boot("/fatfs/init.bin.lzma", 0);
+                bdk_image_boot("/fatfs/init.bin", 0);
                 break;
             case 'E': /* Enter diagnostics directly */
                 if (bdk_is_model(OCTEONTX_CN81XX))
@@ -129,6 +129,7 @@ int main(int argc, const char **argv)
 {
     bdk_node_t node = bdk_numa_local();
 
+#if 0 // NEWPORT
     if (bdk_is_model(OCTEONTX_CN9XXX) && bdk_is_platform(BDK_PLATFORM_HW))
     {
         /* The following code programs clocks, ignoring the SCP. This should be
@@ -245,14 +246,24 @@ int main(int argc, const char **argv)
         }
 
     }
+#endif // NEWPORT
 
+    int key = -1;
+    FRESULT res= FR_OK;
+    FILINFO info;
+    res = f_stat("diagnostics.bin.lzma", &info);
+if (res == FR_OK) {
     int boot_timeout = bdk_config_get_int(BDK_CONFIG_BOOT_MENU_TIMEOUT);
     printf("\nPress 'B' within %d seconds for boot menu\n", boot_timeout);
-    int key;
     do
     {
         key = bdk_readline_getkey(boot_timeout * 1000000);
     } while ((key != -1) && (key != 'B') && (key != 'b'));
+}
+
+    const char *board = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
+    if (!strcmp(board, "unknown"))
+	next_stage = "/fatfs/setup.bin.lzma";
 
     if (key == -1)
     {
@@ -269,7 +280,7 @@ int main(int argc, const char **argv)
             printf("**********************************************************************\n");
         }
 
-        bdk_image_boot("/fatfs/init.bin.lzma", 0);
+        bdk_image_boot("/fatfs/init.bin", 0);
     }
     else if (bdk_is_model(OCTEONTX_CN9XXX))
     {

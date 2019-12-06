@@ -66,7 +66,11 @@ void bdk_boot_dram(bdk_node_t node, int override_for_speed)
     bdk_watchdog_poke();
 
     /* Report DRAM status */
+#if 0 // NEWPORT
     printf("Node %d: DRAM:%s\n", node, bdk_dram_get_info_string(node));
+#else
+    printf("DRAM    :%s\n", bdk_dram_get_info_string(node));
+#endif
 
     /* See if we should test this node's DRAM during boot */
     int test_dram = bdk_config_get_int(BDK_CONFIG_DRAM_BOOT_TEST, node);

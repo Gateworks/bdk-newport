@@ -6,6 +6,7 @@
 #include <bdk.h>
 #include <stdarg.h>
 #include <libfdt.h>
+#include <newport.h>
 #include "libbdk-arch/bdk-csrs-bgx.h"
 #include "libbdk-arch/bdk-csrs-ccs.h"
 #include "libbdk-arch/bdk-csrs-cgx.h"
@@ -792,6 +793,7 @@ static int devtree_fixups(void *fdt)
 int devtree_process(int use_atf)
 {
     void *fdt = NULL;
+#if 0 // NEWPORT
     const char *model = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
     const char *revision = bdk_config_get_str(BDK_CONFIG_BOARD_REVISION);
     char filename[64];
@@ -837,6 +839,25 @@ int devtree_process(int use_atf)
         snprintf(filename, sizeof(filename), "/fatfs/dtb/generic-linux.dtb");
         fdt = devtree_load(filename);
     }
+#else
+	const char *model = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
+	char filename[64];
+	const char *file;
+	bdk_node_t node = bdk_numa_master();
+	int i;
+
+	for (i = 0; ; i++) {
+		file = gsc_get_dtb_name(node, i);
+		if (!file)
+			break;
+		snprintf(filename, sizeof(filename), "/fatfs/%s-linux.dtb",
+			 file);
+		fdt = devtree_load(filename);
+		if (fdt) {
+			break;
+		}
+	}
+#endif // NEWPORT
 
     /* Warn if we could load a device tree */
     if (!fdt)
@@ -874,6 +895,13 @@ int devtree_process(int use_atf)
 
     /* Perform device tree fixups for Linux */
     if (devtree_fixups(fdt))
+    {
+        free(fdt);
+        return -1;
+    }
+
+    /* Perform device tree fixups for board */
+    if (newport_devtree_fixups(fdt))
     {
         free(fdt);
         return -1;

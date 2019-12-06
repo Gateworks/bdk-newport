@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <libfdt.h>
 #include <unistd.h>
+#include <libbdk/gsc.h>
 #include "libbdk-arch/bdk-csrs-cpc.h"
 #include "libbdk-arch/bdk-csrs-mio_fus.h"
 #include "libbdk-arch/bdk-csrs-fus.h"
@@ -1772,7 +1773,12 @@ int bdk_config_save(void)
     }
 
     fclose(outf);
+
+#if 0 // NEWPORT
     return 0;
+#else
+    return gsc_eeprom_update(bdk_numa_master());
+#endif
 }
 
 /**
@@ -2159,7 +2165,9 @@ void __bdk_config_init(void)
                     config_node = fdt_path_offset(config_fdt, "/" BDK_DEVICE_TREE_ROOT);
                     if (config_node > 0)
                     {
+#if 0 // NEWPORT
                         printf("Using configuration from previous image\n");
+#endif
                         goto done;
                     }
                     else
@@ -2188,6 +2196,7 @@ void __bdk_config_init(void)
     __bdk_trust_init();
     done_trust_init = true;
 
+#if 0 // NEWPORT
     if (bdk_is_platform(BDK_PLATFORM_ASIM))
     {
         if (bdk_is_model(OCTEONTX_CN83XX))
@@ -2282,6 +2291,28 @@ void __bdk_config_init(void)
         if (config_load_file(filename, 0) == 0)
             goto done;
     }
+#else
+	bdk_node_t node = bdk_numa_master();
+	const char *model;
+	char path[64];
+	const char *file;
+	int i;
+
+	if (gsc_init(node))
+		goto done;
+	model = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
+
+	for (i = 0; ; i++) {
+		file = gsc_get_dtb_name(node, i);
+		if (!file)
+			break;
+		snprintf(path, sizeof(path), "/fatfs/%s.dtb", file);
+		if (config_load_file(path, 0) == 0) {
+			printf("DTB     : %s.dtb\n", file);
+			goto done;
+		}
+	}
+#endif // NEWPORT
 
     /* No board specific configuration was found. Warn the user */
     printf("\33[1m"); /* Bold */

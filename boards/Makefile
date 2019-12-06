@@ -52,6 +52,7 @@ else ifneq ($(findstring t98, $(PLAT)),)
 DTS_FILES+=asim-cn98xx.dts
 FIRMWARE_INPUT=$(wildcard $(BDK_ROOT)/target-bin/gser?-cn98xx.frm)
 endif
+DTS_FILES=$(wildcard gw*.dts)
 # This is needed for buildroot as it copies SDK linux devicetree files to
 # boards directory inside BDK, will not have impact of SDK build
 DTS_FILES+=$(wildcard *-linux.dts*)
@@ -95,6 +96,7 @@ all:  $(DTB_FILES) $(DTB_SIGNATURES) $(FIRMWARE_FILES) $(FIRMWARE_SIGS) $(EXTRA_
 	    --mcp_bl1 "$(BDK_ROOT)/target-bin/mcp_bl1.exe" \
 	    --key "$(BDK_ROOT)/trust-keys/hw-rot-public.pem" \
 	    --nv $(NV_COUNT) $(SSK_ARG) $(HUK_ARG) \
+	    "$(BDK_ROOT)/apps/init/init.bin" \
 	    "$(BDK_ROOT)/apps/init/init.bin.lzma" \
 	    "$(BDK_ROOT)/apps/init/init.bin.lzma.sign" \
 	    "$(BDK_ROOT)/apps/diagnostics/diagnostics.bin.lzma" \

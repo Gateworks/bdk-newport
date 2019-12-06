@@ -5,10 +5,12 @@
 ***********************license end**************************************/
 #include <bdk.h>
 #include <libfdt.h>
+#include <gsc.h>
 #include "menu-common.h"
 
 static void write_board_fdt(bdk_menu_t *parent, char key, void *arg)
 {
+#if 0 // NEWPORT
     const int FDT_SIZE = 0x10000;
     FILE *outf = NULL;
     void *fdt = calloc(1, FDT_SIZE);
@@ -108,6 +110,12 @@ cleanup:
         fclose(outf);
     if (fdt)
         free(fdt);
+#else
+	if (gsc_eeprom_update(bdk_numa_master()))
+		bdk_error("Failed to write to GSC EEPROM");
+	else
+		printf("Board information written to GSC EEPROM\n");
+#endif
 }
 
 void menu_board(bdk_menu_t *parent, char key, void *arg)

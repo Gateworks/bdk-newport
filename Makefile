@@ -162,7 +162,8 @@ endif
 SOURCE_DATE_EPOCH?=$(shell date -u +%s)
 BUILD_DATE=$(shell date -u -R -d @${SOURCE_DATE_EPOCH})
 # Build the full BDK version string
-DISPLAY_VERSION=$(BUILD_REV), Branch: $(BUILD_BRANCH), Built: $(BUILD_DATE)
+#DISPLAY_VERSION=$(BUILD_REV), Branch: $(BUILD_BRANCH), Built: $(BUILD_DATE)
+DISPLAY_VERSION = "Gateworks Newport SPL \($(BUILD_REV) $(shell date -u)\)"
 
 .PHONY: version
 version:

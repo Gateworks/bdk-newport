@@ -633,6 +633,7 @@ static void wdog_default(bdk_node_t node)
 /**
  * Macro to make it easier to submit a command and fail on bad status
  */
+#if 0 // NEWPORT
 #define MMC_CMD_OR_ERROR(node, cmd, arg, busid, dbuf, rtype_xor, ctype_xor, offset)   \
 do {                                                                            \
     bdk_mio_emm_rsp_sts_t status = mmc_cmd(node, cmd, arg, busid, dbuf, rtype_xor, ctype_xor, offset); \
@@ -641,7 +642,15 @@ do {                                                                            
         return 0 ;                                                              \
     }                                                                           \
 } while (0)
-
+#else
+#define MMC_CMD_OR_ERROR(node, cmd, arg, busid, dbuf, rtype_xor, ctype_xor, offset)   \
+do {                                                                            \
+    bdk_mio_emm_rsp_sts_t status = mmc_cmd(node, cmd, arg, busid, dbuf, rtype_xor, ctype_xor, offset); \
+    if(status.u) {                                                            \
+        return 0 ;                                                              \
+    }                                                                           \
+} while (0)
+#endif
 
 /**
  * Initialize a MMC for read/write

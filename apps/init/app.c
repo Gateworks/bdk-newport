@@ -5,6 +5,7 @@
 ***********************license end**************************************/
 #include <bdk.h>
 #include <malloc.h>
+#include <newport.h>
 #include "libbdk-arch/bdk-csrs-key.h"
 #include "libbdk-arch/bdk-csrs-usbh.h"
 
@@ -71,6 +72,7 @@ int main(int argc, const char **argv)
     /* Enable watchdog. Must be after loading the config so we know the
        watchdog timeout */
     bdk_watchdog_set(0);
+#if 0 // NEWPORT
     bdk_boot_board_init_early();
     bdk_watchdog_poke();
 
@@ -139,6 +141,17 @@ int main(int argc, const char **argv)
             bdk_if_phy_setup(n);
         }
     }
+#else
+    if (newport_config()) {
+		printf("hang\n");
+		while (1) {
+			bdk_wait_usec(10000);
+		}
+    }
+
+    /* disable boot watchdog */
+    gsc_boot_wd_disable(node, true);
+#endif // NEWPORT
 
     /* Poke the watchdog */
     bdk_watchdog_poke();

@@ -1099,9 +1099,13 @@ static int pcie_rc_initialize(bdk_node_t node, int pcie_port)
         if (result < 0)
         {
             int ltssm_state = __bdk_pcie_rc_get_ltssm_state(node, pcie_port);
+#if 0 // NEWPORT
             printf("N%d.PCIe%d: Link timeout, probably the slot is empty (LTSSM %s)\n",
                 node, pcie_port, ltssm_string(ltssm_state));
             return -1;
+#else
+            return -2;
+#endif
         }
         retry_count++;
     }
@@ -1143,6 +1147,7 @@ static int pcie_rc_initialize(bdk_node_t node, int pcie_port)
         BDK_CSR_WRITE(node, BDK_PEMX_BAR1_INDEXX(pcie_port, i), bar1_idx.u);
     }
 
+#if 0 // NEWPORT
     /* Display the link status */
     if (bdk_is_platform(BDK_PLATFORM_ASIM))
     {
@@ -1153,6 +1158,7 @@ static int pcie_rc_initialize(bdk_node_t node, int pcie_port)
         printf("N%d.PCIe%d: Link active, %d lanes, speed gen%d\n",
             node, pcie_port, pciercx_cfg032.s.nlw, pciercx_cfg032.s.ls);
     }
+#endif
 
     return 0;
 }

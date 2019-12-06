@@ -143,8 +143,10 @@ static int init_octeon_dram_interface(bdk_node_t node,
     if (mem_size_mbytes < 0) { // means restart is IMPOSSIBLE
         error_print("N%d.LMC%d Configuration FAILED!\n", node, ddr_interface_num);
     } else {
+#if 0 // NEWPORT
         error_print("N%d.LMC%d Configuration Completed: %d MB\n",
                     node, ddr_interface_num, mem_size_mbytes);
+#endif
     }
     return mem_size_mbytes;
 }

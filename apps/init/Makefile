@@ -6,11 +6,13 @@
 include $(BDK_ROOT)/libbdk/bdk.mk
 
 .PHONY: all
-all: init.bin.lzma.sign
+all: init.bin.lzma.sign init.bin.sign
 
 init.bin.lzma: init.bin
 init.bin: app.bin
 	$(BDK_ROOT)/bin/bdk-update-romfs $@ $^
+init.bin.sign: init.bin $(BDK_ROOT)/trust-keys/bdk-sign-public.pem
+	$(BDK_ROOT)/bin/bdk-sign bdk-sign-private $@ $<
 init.bin.lzma.sign: init.bin.lzma $(BDK_ROOT)/trust-keys/bdk-sign-public.pem
 	$(BDK_ROOT)/bin/bdk-sign bdk-sign-private $@ $<
 

@@ -1,0 +1,48 @@
+/dts-v1/;
+
+/include/ "ddr4-cn8xxx.dtsi"
+/include/ "gw640x.dtsi"
+
+/ {
+cavium,bdk {
+	/*
+	 * DRAM Configuration: 2GiB: 2 bank grouns 4 banks 8Gb density, 512Mbx16 16row x 10col
+	 */
+	/* Drive strength control for DDR-DQ* / DDR_DQS_*_P/N drivers
+	 *  0x1 = 24ohm
+	 *  0x2 = 26.67ohm
+	 *  0x3 = 30ohm
+	 *  0x4 = 34.3ohm
+	 *  0x5 = 40ohm
+	 *  0x6 = 48ohm
+	 *  0x7 = 60ohm
+	 */
+	DDR-CONFIG-DQX-CTL = "0x4";
+	DDR-ALT-REFCLK.N0 = "100"; /* use ext 100MHz ref clk */
+	DDR-CONFIG-CUSTOM-MODE32B.LMC0.N0 = "1"; /* only 32 DQ's used */
+	DDR-TEST-BOOT = "0";
+	/* Speed grade to use for DRAM in MT/s */
+	DDR-SPEED.N0 = "1600"; /* 666|800|1066|1333|1600|1866|2133 */
+        DDR-CONFIG-SPD-DATA.DIMM0.LMC0.N0 = [
+	 23 11 0C 02 45 21 00 08 00 60 00 03 02 02 80 00
+         00 00 07 0D F0 1F 00 00 6E 6E 6E 11 00 6E F0 0A
+         20 08 00 05 00 A8 1B 28 28 00 9C B5 00 00 00 00
+	 E7 D6 57 26 23 05 80 B3 30 00 00 00 00 00 00 00
+
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+	];
+};
+};

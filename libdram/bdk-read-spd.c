@@ -639,8 +639,14 @@ int Get_DDR_Addressing_Data(bdk_node_t node, int ddr_interface_num,
     // always print out the useful DIMM information...
     for (i = 0; i < DDR_CFG_T_MAX_DIMMS; i++) {
         if (i < dimm_count)
+#if 0 // NEWPORT
             report_dimm(node, &dimm_config_table[i], i, ddr_interface_num,
                         num_ranks, dram_width, mem_size_mbytes / dimm_count);
+#else
+	{
+		;
+	}
+#endif
         else
             if (validate_dimm(node, &dimm_config_table[i]) == 0) // only if there is a slot
                 printf("N%d.LMC%d.DIMM%d: Not Present\n", node, ddr_interface_num, i);
