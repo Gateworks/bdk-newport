@@ -84,16 +84,14 @@ static int ti_phy_setup(bdk_node_t node, int qlm, int bus, int addr)
 		reg |= 0x0b00; /* chD tx clock*/
 		if_phy_ti_write(node, bus, addr, REG_IO_MUX_CFG, reg);
 
-#if 0 // use this if don't want to change uboot/kernel
-      // but will break if kernel phy driver enabled
-		/* disable PHY TX delay, enable PHY RX delay
-		 * as the default for the CN80XX is to enable RX delay
-		 * and disable TX delay
+		/* disable PHY TX delay and enable PHY RX delay
+		 * as the default for the CN80XX is to enable TX delay
+		 * and disable RX delay
 		 */
 		reg = if_phy_ti_read(node, bus, addr, REG_RGMIICTL);
-		reg &= ~0x2; // clear RGMII_TX_CLK_DELAY
+		reg &= ~0x3;
+		reg |= 0x1; // enable RGMII_RX_CLK_DELAY
 		if_phy_ti_write(node, bus, addr, REG_RGMIICTL, reg);
-#endif
 	}
 
 	/* SGMII PHY */
