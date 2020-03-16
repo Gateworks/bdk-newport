@@ -69,11 +69,12 @@ cavium,bdk {
 	/*
 	 * USB 3.0 Configuration
 	 */
+	/* GPIO-22 is USB0_PEN */
+	USB-PWR-GPIO.N0.PORT0 = "22";
+	USB-PWR-GPIO-POLARITY.N0.PORT0 = "1";
 	/* Specify reference clock source for SuperSpeed and HighSpeed PLL */
 	USB-REFCLK-SRC.N0.PORT0 = "2"; /* DLMC_REF_CLK1 */
 	USB-REFCLK-SRC.N0.PORT1 = "2"; /* DLMC_REF_CLK1 */
-	/* GPIO-22 is USB1_PEN */
-	USB-PWR-GPIO.N0.PORT0 = "22";
 
 	/*
 	 * BGX Configuration
