@@ -1140,18 +1140,29 @@ gsc_init(bdk_node_t node)
 	 * Configure early GPIO
 	 */
 	/* enable USB HUB */
+#if 0
 	if (cfg->gpio_usben != -1)
 		gpio_output(cfg->gpio_usben, 1);
+#endif
 	/* put PHY's into reset */
 	if (cfg->gpio_phyrst != -1)
 		gpio_output(cfg->gpio_phyrst, cfg->gpio_phyrst_pol);
 	/* Enable front-panel LEDs */
-	if (cfg->gpio_ledgrn != -1)
-		gpio_output(cfg->gpio_ledgrn, 1);
-	if (cfg->gpio_ledred != -1)
-		gpio_output(cfg->gpio_ledred, 0);
-	if (cfg->gpio_ledblu != -1)
-		gpio_output(cfg->gpio_ledblu, 0);
+	if (cfg->gpio_ledblu != -1) {
+		/* tri-color LED stack individually controlled active low */
+		if (cfg->gpio_ledgrn != -1)
+			gpio_output(cfg->gpio_ledgrn, 0);
+		if (cfg->gpio_ledred != -1)
+			gpio_output(cfg->gpio_ledred, 1);
+		if (cfg->gpio_ledblu != -1)
+			gpio_output(cfg->gpio_ledblu, 1);
+	} else {
+		/* bi-color LED stack push-pull active high */
+		if (cfg->gpio_ledgrn != -1)
+			gpio_output(cfg->gpio_ledgrn, 1);
+		if (cfg->gpio_ledred != -1)
+			gpio_output(cfg->gpio_ledred, 0);
+	}
 	/* Configure Mezzanine IO */
 	if (cfg->gpio_mezz_pwrdis != -1)
 		gpio_output(cfg->gpio_mezz_pwrdis, 0);
