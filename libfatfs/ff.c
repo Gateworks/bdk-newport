@@ -2159,6 +2159,219 @@ BYTE check_fs (	/* 0:FAT boor sector, 1:Valid boor sector but not FAT, 2:Not a b
 
 
 
+#define EFI_SUPPORT
+#ifdef EFI_SUPPORT
+/*-----------------------------------------------------------------------*/
+/* Load a sector and check if it is a GPT                                */
+/*-----------------------------------------------------------------------*/
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define le16_to_cpu(x) (x)
+#define le32_to_cpu(x) (x)
+#define le64_to_cpu(x) (x)
+#else
+#define le16_to_cpu(x) bswap_16(x)
+#define le32_to_cpu(x) bswap_32(x)
+#define le64_to_cpu(x) bswap_64(x)
+#endif
+
+typedef uint8_t u8;
+typedef uint16_t efi_char16_t;
+typedef uint32_t __le32;
+typedef uint64_t __le64;
+
+typedef struct {
+	u8 b[16];
+} efi_guid_t __attribute__((aligned(8)));
+
+/* based on linux/fs/partitions/efi.h */
+typedef struct __attribute__ ((packed))
+{
+	__le64 signature;
+	__le32 revision;
+	__le32 header_size;
+	__le32 header_crc32;
+	__le32 reserved1;
+	__le64 my_lba;
+	__le64 alternate_lba;
+	__le64 first_usable_lba;
+	__le64 last_usable_lba;
+	efi_guid_t disk_guid;
+	__le64 partition_entry_lba;
+	__le32 num_partition_entries;
+	__le32 sizeof_partition_entry;
+	__le32 partition_entry_array_crc32;
+} gpt_header;
+
+#define PARTNAME_SZ	(72 / sizeof(efi_char16_t))
+typedef struct __attribute__ ((packed))
+{
+	efi_guid_t partition_type_guid;
+	efi_guid_t unique_partition_guid;
+	__le64 starting_lba;
+	__le64 ending_lba;
+	__le64 attributes;
+	efi_char16_t partition_name[PARTNAME_SZ];
+} gpt_entry;
+
+#if 0
+static char *print_efiname(gpt_entry *pte) {
+	static char name[PARTNAME_SZ + 1];
+	int i;
+	for (i = 0; i < (int)PARTNAME_SZ; i++) {
+		u8 c;
+		c = pte->partition_name[i] & 0xff;
+		c = (c && !isprint(c)) ? '.' : c;
+		name[i] = c;
+	}
+	name[PARTNAME_SZ] = 0;
+	return name;
+}
+#endif
+
+/* This is structure is in big-endian */
+typedef struct __attribute__ ((packed))
+{
+	unsigned int time_low;
+	unsigned short time_mid;
+	unsigned short time_hi_and_version;
+	unsigned char clock_seq_hi_and_reserved;
+	unsigned char clock_seq_low;
+	unsigned char node[6];
+} uuid;
+
+#define GPT_HEADER_SIGNATURE 0x5452415020494645
+
+/* UUID */
+#define EFI_GUID(a, b, c, d0, d1, d2, d3, d4, d5, d6, d7) \
+	{{ (a) & 0xff, ((a) >> 8) & 0xff, ((a) >> 16) & 0xff, \
+		((a) >> 24) & 0xff, \
+		(b) & 0xff, ((b) >> 8) & 0xff, \
+		(c) & 0xff, ((c) >> 8) & 0xff, \
+		(d0), (d1), (d2), (d3), (d4), (d5), (d6), (d7) } }
+#define PARTITION_BASIC_DATA_GUID \
+	EFI_GUID( 0xEBD0A0A2, 0xB9E5, 0x4433, \
+		0x87, 0xC0, 0x68, 0xB6, 0xB7, 0x26, 0x99, 0xC7)
+
+#if 0
+/*
+ * uuid_bin_to_str() - convert big endian binary data to string UUID or GUID.
+ *
+ * @param uuid_bin:	pointer to binary data of UUID (big endian) [16B]
+ * @param uuid_str:	pointer to allocated array for output string [37B]
+ * @str_format:		bit 0: 0 - UUID; 1 - GUID
+ *			bit 1: 0 - lower case; 2 - upper case
+ */
+#define UUID_STR_LEN	36
+#define UUID_BIN_LEN	sizeof(uuid)
+/* Bits of a bitmask specifying the output format for GUIDs */
+#define UUID_STR_FORMAT_STD	0
+#define UUID_STR_FORMAT_GUID	1
+#define UUID_STR_UPPER_CASE	2
+void uuid_bin_to_str(const unsigned char *uuid_bin, char *uuid_str,
+		     int str_format)
+{
+	const u8 uuid_char_order[UUID_BIN_LEN] = {0, 1, 2, 3, 4, 5, 6, 7, 8,
+						  9, 10, 11, 12, 13, 14, 15};
+	const u8 guid_char_order[UUID_BIN_LEN] = {3, 2, 1, 0, 5, 4, 7, 6, 8,
+						  9, 10, 11, 12, 13, 14, 15};
+	const u8 *char_order;
+	const char *format;
+	int i;
+
+	/*
+	 * UUID and GUID bin data - always in big endian:
+	 * 4B-2B-2B-2B-6B
+	 * be be be be be
+	 */
+	if (str_format & UUID_STR_FORMAT_GUID)
+		char_order = guid_char_order;
+	else
+		char_order = uuid_char_order;
+	if (str_format & UUID_STR_UPPER_CASE)
+		format = "%02X";
+	else
+		format = "%02x";
+
+	for (i = 0; i < 16; i++) {
+		sprintf(uuid_str, format, uuid_bin[char_order[i]]);
+		uuid_str += 2;
+		switch (i) {
+		case 3:
+		case 5:
+		case 7:
+		case 9:
+			*uuid_str++ = '-';
+			break;
+		}
+	}
+}
+#endif
+
+/* get_fatfs_gpt: verify GUID Partition Table
+ *  sect - LBA to start at
+ *
+ * will handle starting at a Master Boot Record or a GPT header
+ * returns:
+ *  3=read error
+ *  2=invalid GPT
+ *  1=GPT but no FATFS
+ *  0=success: fs will hold the data from the first FATFS partition
+ */
+static
+BYTE get_fatfs_gpt(FATFS *fs, DWORD sect)
+{
+	gpt_header *hdr;
+	gpt_entry *gpt;
+	efi_guid_t unused_guid = { 0 };
+	int i, num;
+	static const efi_guid_t partition_basic_data_guid = PARTITION_BASIC_DATA_GUID;
+
+	/* read block */
+	if (move_window(fs, sect) != FR_OK)
+		return 3;
+
+	/* if boot record skip to next block */
+	if (LD_WORD(&fs->win[BS_55AA]) == 0xAA55) {
+		sect += 1;
+		if (move_window(fs, sect) != FR_OK)
+			return 3;
+	}
+
+	/* verify GPT signauture */
+	hdr = (gpt_header *)&fs->win;
+	if (le64_to_cpu(hdr->signature) != GPT_HEADER_SIGNATURE)
+		return 2;
+
+	// TODO: check GUID partition table CRC
+
+	/* parse PTE's */
+	sect = le64_to_cpu(hdr->partition_entry_lba);
+	num = le32_to_cpu(hdr->num_partition_entries);
+	for (i = 0; i < num; i++) {
+		if (move_window(fs, sect + (i / 2)) != FR_OK)
+			return 3;
+		gpt = (gpt_entry *)(&fs->win[((i % 2) == 0) ? 0 : 128]);
+
+		//char uuid[UUID_STR_LEN + 1];
+		//uuid_bin_to_str(gpt->partition_type_guid.b, uuid, UUID_STR_FORMAT_GUID);
+
+		/* stop at the first non valid PTE */
+		if (memcmp(gpt->partition_type_guid.b, unused_guid.b, sizeof(unused_guid.b)) == 0)
+			return 1;
+
+		/* stop at the first FATFS */
+		if (memcmp(gpt->partition_type_guid.b, partition_basic_data_guid.b, sizeof(unused_guid.b)) == 0) {
+			sect = le64_to_cpu(gpt->starting_lba);
+			break;
+		}
+	}
+
+	return check_fs(fs, sect); /* Check the partition */
+}
+#endif // EFI_SUPPORT
 
 /*-----------------------------------------------------------------------*/
 /* Find logical drive and check if the volume is mounted                 */
@@ -2231,6 +2444,13 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 		} while (!LD2PT(vol) && fmt && ++i < 4);
 	}
 	if (fmt == 3) return FR_DISK_ERR;		/* An error occured in the disk I/O layer */
+#ifdef EFI_SUPPORT
+	if (fmt) {
+		fmt = get_fatfs_gpt(fs, bsect);
+		if (!fmt)
+			bsect = fs->winsect;
+	}
+#endif
 	if (fmt) return FR_NO_FILESYSTEM;		/* No FAT volume is found */
 
 	/* An FAT volume is found. Following code initializes the file system object */
