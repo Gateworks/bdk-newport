@@ -861,43 +861,41 @@ fdt_get_int(void *fdt, int offset, const char *prop, int def)
 static int
 show_hwmon(void *fdt)
 {
-	int len, off, reg, val;
-	int offset;
-	const char *label, *type;
+	int len, off, reg, val, mode;
+	const char *label;
 	bdk_node_t node = bdk_numa_local();
 
 	/* GSC firmware v51 required */
         if (gsc_get_fwver() < 51)
 		return -1;
 
-	off = fdt_node_offset_by_compatible(fdt, -1, "gw,gsc-hwmon");
+	off = fdt_node_offset_by_compatible(fdt, -1, "gw,gsc-adc");
 	if (off <= 0)
 		return -1;
 
 	/* iterate over hwmon nodes */
 	off = fdt_first_subnode(fdt, off);
 	while (off >= 0) {
-		type = fdt_get_string(fdt, off, "type", NULL);
+		mode = fdt_get_int(fdt, off, "gw,mode", -1);
 		reg = fdt_get_int(fdt, off, "reg", -1);
-		offset = fdt_get_int(fdt, off, "gw,voltage-offset", 0);
 		label = fdt_get_string(fdt, off, "label", NULL);
 		val = gsc_hwmon_reg(node, reg);
 
-		if (label && !strcasecmp(type, "gw,hwmon-temperature")) {
+		if (label && (mode == 0)) {
 			if (val > 0x8000)
 				val -= 0xffff;
 			printf("%-8s: %d.%dC\n", label, val / 10,
 				abs(val % 10));
 		}
 
-		else if (label && !strcasecmp(type, "gw,hwmon-voltage")) {
+		else if (label && (mode == 1)) {
 			if (val != 0xffff) {
 				printf("%-8s: %d.%03dV\n", label,
 					val / 1000, val % 1000);
 			}
 		}
 
-		else if (label && !strcasecmp(type, "gw,hwmon-voltage-raw")) {
+		else if (label && (mode == 2)) {
 			/* scale based on ref volt and resolution */
 			val *= 2500;
 			val /= 1<<12;
@@ -905,7 +903,7 @@ show_hwmon(void *fdt)
 			/* apply pre-scaler voltage divider */
 			const uint32_t *div;
 			int r[2];
-			div  = fdt_getprop(fdt, off, "gw,voltage-divider",
+			div  = fdt_getprop(fdt, off, "gw,voltage-divider-ohms",
 					   &len);
 			if (div && (len == sizeof(uint32_t) * 2)) {
 				r[0] = fdt32_to_cpu(div[0]);
@@ -917,6 +915,7 @@ show_hwmon(void *fdt)
 			}
 
 			/* adjust by offset */
+			int offset = fdt_get_int(fdt, off, "gw,voltage-offset-microvolt", 0);
 			val += offset;
 
 			printf("%-8s: %d.%03dV\n", label,
