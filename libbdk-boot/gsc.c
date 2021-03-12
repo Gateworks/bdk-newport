@@ -716,8 +716,8 @@ retry:
 
 	/* use model as equivalent DTS if not specified */
 	if ((info->equiv_dts[0] == 0) || (info->equiv_dts[0] == 0xff)) {
-		strncpy(info->equiv_dts, info->model,
-		        sizeof(info->equiv_dts) - 1);
+		strncpy(info->equiv_dts, info->model, sizeof(info->equiv_dts) - 1);
+		info->equiv_dts[strlen(info->model)-1] = 0;
 	}
 	type = GW_UNKNOWN;
 	switch (info->equiv_dts[3]) {
@@ -1194,7 +1194,7 @@ gsc_get_dtb_name(bdk_node_t node, int level)
 		*p = 0;
 
 	/* determine BOM revision from model */
-	for (i = strlen(model); i > 0; i--) {
+	for (i = strlen(model) - 1; i > 0; i--) {
 		if (model[i] == '-')
 			break;
 		if (model[i] >= '1' && model[i] <= '9') {
@@ -1204,7 +1204,7 @@ gsc_get_dtb_name(bdk_node_t node, int level)
 	}
 
 	/* determine PCB revision from model */
-	for (i = sizeof(model) - 1; i > 0; i--) {
+	for (i = strlen(model) - 1; i > 0; i--) {
 		if (model[i] == '-')
 			break;
 		if (model[i] >= 'A' && model[i] <= 'Z') {
