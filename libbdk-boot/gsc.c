@@ -1024,7 +1024,7 @@ octeontx_chip_details(bdk_node_t node, struct newport_board_config *cfg)
 	printf("\n");
 
 	/* Boot devices */
-	for (i = 0; i < cfg->mmc_devs; i++) {
+	for (i = cfg->mmc_devs - 1; i >= 0; i--) {
 		if (bdk_mmc_initialize(node, i) > 0)
 			printf("MMC%d    : %s\n", i,
 			       bdk_mmc_card_is_sd(node, i) ? "microSD":"eMMC");
