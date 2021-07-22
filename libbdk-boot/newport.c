@@ -1520,7 +1520,7 @@ static int show_hwmon(void *fdt)
 
 			/* adjust by offset */
 			int offset = fdt_get_int(fdt, off, "gw,voltage-offset-microvolt", 0);
-			val += offset;
+			val += (offset / 1000);
 
 			printf("%-8s: %d.%03dV\n", label,
 				val / 1000, val % 1000);
