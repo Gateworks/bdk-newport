@@ -1526,6 +1526,16 @@ static int show_hwmon(void *fdt)
 				val / 1000, val % 1000);
 		}
 
+		else if (label && (mode == 3)) {
+			printf("%-8s: %d.%03dV\n", label,
+					val / 1000, val % 1000);
+		}
+
+		else if (label && (mode == 4)) {
+			val *= 30; /* convert to revolutions per minute */
+			printf("%-8s: %d RPM\n", label, val);
+		}
+
 		off = fdt_next_subnode(fdt, off);
 	}
 	return 0;
