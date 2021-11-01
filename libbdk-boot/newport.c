@@ -842,6 +842,24 @@ static int vt_phy_setup(bdk_node_t n, int qlm, int b, int a)
 	return 0;
 }
 
+/* XWAY PHY setup */
+static int xway_phy_setup(bdk_node_t node, int qlm, int bus, int addr)
+{
+	int id2;
+
+	/* Check if the PHY is TI PHY we expect */
+	id2 = bdk_mdio_read(node, bus, addr, BDK_MDIO_PHY_REG_ID2);
+
+	/* MaxLinear GPY111 */
+	if (id2 != 0xa401)
+		return -1;
+
+	printf("MDIO%d   : GPY111 (%s)\n", bus,
+		(qlm == -1) ? "RGMII" : "SGMII");
+
+	return 0;
+}
+
 static int parse_hwconfig_skt(bdk_node_t node, int i, char *hwconfig,
 			      struct newport_board_config *cfg, bool quiet)
 {
@@ -1216,7 +1234,7 @@ static void phy_reset(bdk_node_t node, struct newport_board_config *cfg)
 	gpio_output(cfg->gpio_phyrst, cfg->gpio_phyrst_pol);
 	bdk_wait_usec(1000);
 	gpio_output(cfg->gpio_phyrst, !cfg->gpio_phyrst_pol);
-	bdk_wait_usec(110000);
+	bdk_wait_usec(300000);
 }
 
 static int newport_phy_setup(bdk_node_t node)
@@ -1254,6 +1272,10 @@ static int newport_phy_setup(bdk_node_t node)
 			}
 			else if (id1 == 0x0007) { /* Vitesse */
 				vt_phy_setup(node, qlm, mdio_bus, mdio_addr);
+				detected++;
+			}
+			else if (id1 == 0xd565) { /* XWAY */
+				xway_phy_setup(node, qlm, mdio_bus, mdio_addr);
 				detected++;
 			}
 			else
