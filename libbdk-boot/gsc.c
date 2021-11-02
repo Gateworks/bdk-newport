@@ -717,7 +717,7 @@ retry:
 	/* use model as equivalent DTS if not specified */
 	if ((info->equiv_dts[0] == 0) || (info->equiv_dts[0] == 0xff)) {
 		strncpy(info->equiv_dts, info->model, sizeof(info->equiv_dts) - 1);
-		info->equiv_dts[strlen(info->model)-1] = 0;
+		info->equiv_dts[strlen(info->model)] = 0;
 	}
 	type = GW_UNKNOWN;
 	switch (info->equiv_dts[3]) {
