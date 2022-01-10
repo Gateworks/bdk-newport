@@ -163,6 +163,44 @@ struct newport_board_config board_configs[] = {
 		.ext_temp = 1,
 	},
 
+	/* GW650x */
+	{
+		.qlm = {
+			/* PCIe Gen2 */
+			{ BDK_QLM_MODE_PCIE_X1, 5000, BDK_QLM_CLK_COMMON_1 },
+			/* SGMII 1Gb/s */
+			{ BDK_QLM_MODE_QSGMII, 5000, BDK_QLM_CLK_COMMON_1 },
+			/* PCIe Gen2 */
+			{ BDK_QLM_MODE_PCIE_X1, 5000, BDK_QLM_CLK_COMMON_1 },
+			/* PCIe Gen2 (default) or SATA */
+			{ BDK_QLM_MODE_PCIE_X1, 5000, BDK_QLM_CLK_COMMON_1 },
+		},
+		.skt = {
+			/* qlm, skt, defmode, optmode */
+			{ 0, "J9", "PCI", NULL },
+			{ 3, "J10", "PCI", "SATA,USB2" },
+			{ 2, "J11", "PCI", NULL },
+		},
+		/* serial */
+		.gpio_uart_hd = 15,
+		.gpio_uart_term = 16,
+		.gpio_uart_rs485 = 17,
+		/* LED */
+		.gpio_ledgrn = 31,
+		.gpio_ledred = 14,
+		.gpio_ledblu = -1,
+		/* misc */
+		.gpio_satasel = -1,
+		.gpio_usb2sel = 20,
+		.gpio_usb3sel = -1,
+		.gpio_phyrst = 23,
+		.gpio_phyrst_pol = 1,
+		.gpio_mezz_pwrdis = 28,
+		.gpio_mezz_irq = 29,
+		.mmc_devs = 2,
+		.ext_temp = 1,
+	},
+
 	/* GW6903 */
 	{
 		.qlm = {
@@ -733,6 +771,9 @@ retry:
 	case '4':
 		type = GW640x;
 		break;
+	case '5':
+		type = GW650x;
+		break;
 	case '9':
 		if (!strncmp("GW6903", info->equiv_dts, 6))
 			type = GW6903;
@@ -833,6 +874,8 @@ retry:
 			cfg->gpio_usb2sel = -1;
 			break;
 		}
+		break;
+	case GW650x:
 		break;
 	case GW6903:
 		switch(rev_pcb) {
