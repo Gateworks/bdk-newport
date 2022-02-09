@@ -752,17 +752,13 @@ static int vt_sfp_detect(bdk_node_t node, int bus, int addr, int port)
 	return pres | los << 1;
 }
 
-/* vt_phy_setup - setup VSC8574 PHY */
-static int vt_phy_setup(bdk_node_t n, int qlm, int b, int a)
+/* setup VSC8574 PHY */
+static int vt_phy_setup_vsc8574(bdk_node_t n, int qlm, int b, int a)
 {
 	int reg, p;
 
 	debug("%s QLM%d MDIO%d 0x%02x\n", __func__, qlm, b, a);
 	reg = bdk_mdio_read(n, b, a, BDK_MDIO_PHY_REG_ID2);
-
-	/* VSC8475-04 */
-	if (reg != 0x04a2)
-		return -1;
 
 	printf("MDIO%d   : VSC8574 (QSGMII)\n", b);
 
@@ -837,6 +833,44 @@ static int vt_phy_setup(bdk_node_t n, int qlm, int b, int a)
 					continue;
 		}
 		vt_set_port_mode(n, b, a, p, MAC_QSGMII, MEDIA_CAT5_COPPER);
+	}
+
+	return 0;
+}
+
+/* setup VSC8514 PHY */
+static int vt_phy_setup_vsc8514(bdk_node_t n, int qlm, int b, int a)
+{
+	int reg, p;
+
+	debug("%s QLM%d MDIO%d 0x%02x\n", __func__, qlm, b, a);
+	reg = bdk_mdio_read(n, b, a, BDK_MDIO_PHY_REG_ID2);
+
+	printf("MDIO%d   : VSC8514 (QSGMII)\n", b);
+
+	bdk_if_phy_vsc8514_setup(n, qlm, b, a);
+
+	/* Port specific config */
+	for (p = 0; p < 4; p++) {
+		// set 17e2(0x11) bit 11:10 to invert LED0/LED1
+		bdk_mdio_write(n, b, a + p, MSCC_EXT_PAGE_ACCESS,
+			       MSCC_PHY_PAGE_EXTENDED_2);
+		reg = bdk_mdio_read(n, b, a + p, 0x11);
+		reg = bdk_insert(reg, 0x3, 10, 2);
+		bdk_mdio_write(n, b, a + p, 0x11, reg);
+		bdk_mdio_write(n, b, a + p, MSCC_EXT_PAGE_ACCESS,
+			       MSCC_PHY_PAGE_STANDARD);
+
+		// LED0 (Green) link/activity
+		vt_set_port_led(n, b, a, p, 0, VT_LED_LINK_ACT);
+		// LED1 (Yellow) speed
+		vt_set_port_led(n, b, a, p, 1, VT_LED_LINK1000_ACT);
+		reg = bdk_mdio_read(n, b, a + p, 0x1e);
+		reg = bdk_insert(reg, 0x1, 1, 1); // disable LED1 activity
+		bdk_mdio_write(n, b, a + p, 0x1e, reg);
+		// LED2/LED3 off
+		vt_set_port_led(n, b, a, p, 2, VT_LED_OFF);
+		vt_set_port_led(n, b, a, p, 3, VT_LED_OFF);
 	}
 
 	return 0;
@@ -1241,7 +1275,7 @@ static int newport_phy_setup(bdk_node_t node)
 {
 	int bgx, addr;
 	int detected = 0;
-	int id1;
+	int id1, id2;
 
 	/* 81xx has only 2 BGX (BGX0-BGX1); BGX2 is RGMII */
 	for (bgx = 2; bgx >= 0; bgx--) {
@@ -1266,13 +1300,21 @@ static int newport_phy_setup(bdk_node_t node)
 			/* PHY id */
 			id1 = bdk_mdio_read(node, mdio_bus, mdio_addr,
 					    BDK_MDIO_PHY_REG_ID1);
+			id2 = bdk_mdio_read(node, mdio_bus, mdio_addr,
+					    BDK_MDIO_PHY_REG_ID2);
 			if (id1 == 0x2000) { /* TI */
 				ti_phy_setup(node, qlm, mdio_bus, mdio_addr);
 				detected++;
 			}
 			else if (id1 == 0x0007) { /* Vitesse */
-				vt_phy_setup(node, qlm, mdio_bus, mdio_addr);
-				detected++;
+				if (id2 == 0x04a2) {
+					vt_phy_setup_vsc8574(node, qlm, mdio_bus, mdio_addr);
+					detected++;
+				}
+				if (id2 == 0x0670) {
+					vt_phy_setup_vsc8514(node, qlm, mdio_bus, mdio_addr);
+					detected++;
+				}
 			}
 			else if (id1 == 0xd565) { /* XWAY */
 				xway_phy_setup(node, qlm, mdio_bus, mdio_addr);
