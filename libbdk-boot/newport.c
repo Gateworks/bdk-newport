@@ -1307,6 +1307,8 @@ int newport_config(void)
 		if (hwconfig)
 			quiet = atoi(hwconfig) ? true : false;
 		hwconfig = fw_getenv("hwconfig");
+		if (hwconfig)
+			hwconfig = strdup(hwconfig);
 		fw_env_close(NULL);
 	} else
 		printf("failed opening U-Boot env\n");
@@ -1356,6 +1358,8 @@ int newport_config(void)
 	bdk_boot_mdio(); /* handle MDIO-WRITE's from board dts */
 	phy_reset(node, cfg);
 	newport_phy_setup(node);
+	if (hwconfig)
+		free(hwconfig);
 
 	return 0;
 }
