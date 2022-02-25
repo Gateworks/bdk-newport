@@ -123,6 +123,11 @@
 
 #define MSCC_PHY_TWS_DATA			22
 
+static int sgmii_phy_id = -1;
+static int rgmii_phy_id = -1;
+static int tx_delay = -1;
+static int rx_delay = -1;
+
 static int if_phy_ti_read(bdk_node_t node, int bus, int addr, int reg)
 {
 	bdk_mdio_write(node, bus, addr, REG_REGCR, 0x001f);
@@ -879,17 +884,27 @@ static int vt_phy_setup_vsc8514(bdk_node_t n, int qlm, int b, int a)
 /* XWAY PHY setup */
 static int xway_phy_setup(bdk_node_t node, int qlm, int bus, int addr)
 {
-	int id2;
+	int reg;
 
 	/* Check if the PHY is TI PHY we expect */
-	id2 = bdk_mdio_read(node, bus, addr, BDK_MDIO_PHY_REG_ID2);
+	reg = bdk_mdio_read(node, bus, addr, BDK_MDIO_PHY_REG_ID2);
 
 	/* MaxLinear GPY111 */
-	if (id2 != 0xa401)
+	if (reg != 0xa401)
 		return -1;
 
 	printf("MDIO%d   : GPY111 (%s)\n", bus,
 		(qlm == -1) ? "RGMII" : "SGMII");
+	if (qlm == -1) { // RGMII
+		rx_delay = 2000;
+		tx_delay = 0;
+		reg = bdk_mdio_read(node, bus, addr, 0x17);
+		reg |= BIT(11); // 2.5V
+		reg &= ~((0x7 << 12) | (0x7 << 8));
+		reg |= ((rx_delay / 500) << 12);
+		reg |= ((tx_delay / 500) << 8);
+		bdk_mdio_write(node, bus, addr, 0x17, reg);
+	}
 
 	return 0;
 }
@@ -1302,6 +1317,10 @@ static int newport_phy_setup(bdk_node_t node)
 					    BDK_MDIO_PHY_REG_ID1);
 			id2 = bdk_mdio_read(node, mdio_bus, mdio_addr,
 					    BDK_MDIO_PHY_REG_ID2);
+			if (qlm == -1) // RGMII
+				rgmii_phy_id = id1 << 16 | id2;
+			else
+				sgmii_phy_id = id1 << 16 | id2;
 			if (id1 == 0x2000) { /* TI */
 				ti_phy_setup(node, qlm, mdio_bus, mdio_addr);
 				detected++;
@@ -1609,10 +1628,65 @@ static int show_hwmon(void *fdt)
 	return 0;
 }
 
+#define CN81XX_MRML_PATH "/soc@0/pci@848000000000/mrml-bridge0/"
+#define CN81XX_MDIO0_PATH CN81XX_MRML_PATH "mdio-nexus@1,3/mdio0@87e005003800/"
+#define CN81XX_MDIO1_PATH CN81XX_MRML_PATH "mdio-nexus@1,3/mdio1@87e005003880/"
 int newport_devtree_fixups(void *fdt)
 {
 	struct newport_board_config *cfg = gsc_get_board_config();
 	const char *str;
+	int offset;
+
+	/* set props in dt for U-Boot/Linux RGMII PHY drivers */
+	switch(rgmii_phy_id) {
+	case 0x2000a231: /* TI DP83867 */
+		offset = fdt_path_offset(fdt, CN81XX_MDIO0_PATH "/rgmii00");
+		if (offset >= 0) {
+			/* CHD_TXCLK */
+			fdt_setprop_u32(fdt, offset, "ti,clk-output-sel", 0xb);
+			/* rx delay: 2ns */
+			fdt_setprop_u32(fdt, offset, "ti,rx-internal-delay", 0x7);
+			/* tx delay: 2ns */
+			fdt_setprop_u32(fdt, offset, "ti,tx-internal-delay", 0x7);
+			/* fifo depth */
+			fdt_setprop_u32(fdt, offset, "tx-fifo-depth", 3);
+			fdt_setprop_u32(fdt, offset, "rx-fifo-depth", 3);
+			fdt_setprop_u32(fdt, offset, "ti,fifo-depth", 3);	/* deprecated */
+		}
+		break;
+	case 0xd565a401: /* MaxLinear GPY111 */
+		offset = fdt_path_offset(fdt, CN81XX_MDIO0_PATH "/rgmii00");
+		if (offset >= 0) {
+			fdt_setprop_u32(fdt, offset, "rx-internal-delay-ps", rx_delay);
+			fdt_setprop_u32(fdt, offset, "tx-internal-delay-ps", tx_delay);
+		}
+		/* set drive compensation prop in dt for U-Boot */
+		offset = fdt_path_offset(fdt, CN81XX_MRML_PATH "rgx0");
+		if (offset >= 0) {
+			fdt_setprop_u32(fdt, offset, "cavium,drv_nctl", 0x1f);
+			fdt_setprop_u32(fdt, offset, "cavium,drv_pctl", 0x1f);
+		}
+		break;
+	}
+
+	/* set props in dt for U-Boot/Linux SGMII PHY drivers */
+	switch(sgmii_phy_id) {
+	case 0x000704a2: /* Vitesse VSC8574 */
+		break;
+	case 0x00070670: /* Vitesse VSC8514 */
+		break;
+	case 0x2000a231: /* TI DP83867 */
+		offset = fdt_path_offset(fdt, CN81XX_MDIO1_PATH "sgmii@0");
+		if (offset >= 0) {
+			/* fifo depth */
+			fdt_setprop_u32(fdt, offset, "tx-fifo-depth", 3);
+			fdt_setprop_u32(fdt, offset, "rx-fifo-depth", 3);
+			fdt_setprop_u32(fdt, offset, "ti,fifo-depth", 3);	/* deprecated */
+		}
+		break;
+	case 0xd565a401: /* MaxLinear GPY111 */
+		break;
+	}
 
 	/* hwmon inputs */
 	show_hwmon(fdt);
