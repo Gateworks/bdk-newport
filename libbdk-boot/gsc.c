@@ -118,7 +118,7 @@ struct newport_board_config board_configs[] = {
 		.gpio_usb2sel = -1,
 		.gpio_usb3sel = 19,
 		.gpio_phyrst = 23,
-		.gpio_phyrst_pol = 1,
+		.gpio_phyrst_pol = 0,
 		.gpio_mezz_pwrdis = 28,
 		.gpio_mezz_irq = 29,
 		.mmc_devs = 2,
@@ -858,11 +858,20 @@ retry:
 			cfg->ext_temp = 0;
 			break;
 		case 'C':
+			cfg->gpio_phyrst_pol = 1;
 			cfg->gpio_satasel = 20;
 			cfg->ext_temp = 0;
 			break;
 		case 'D':
+			cfg->gpio_phyrst_pol = 1;
 			cfg->gpio_satasel = -1;
+			break;
+		case 'E':
+			cfg->gpio_phyrst_pol = 1;
+			break;
+		case 'F':
+			if (!rev_bom)
+				cfg->gpio_phyrst_pol = 1;
 			break;
 		}
 		break;
