@@ -80,7 +80,7 @@ struct newport_board_config board_configs[] = {
 		.gpio_usb2sel = -1,
 		.gpio_usb3sel = 19,
 		.gpio_phyrst = 23,
-		.gpio_phyrst_pol = 1,
+		.gpio_phyrst_pol = 0,
 		.gpio_mezz_pwrdis = -1,
 		.gpio_mezz_irq = -1,
 		.mmc_devs = 2,
@@ -831,6 +831,13 @@ retry:
 	case GW610x:
 		break;
 	case GW620x:
+		switch(rev_pcb) {
+		case 'A':
+		case 'B':
+		case 'C':
+			cfg->gpio_phyrst_pol = 1;
+			break;
+		}
 		break;
 	case GW630x:
 		switch(rev_pcb) {
