@@ -757,8 +757,9 @@ retry:
 		strncpy(info->equiv_dts, info->model, sizeof(info->equiv_dts) - 1);
 		info->equiv_dts[strlen(info->model)] = 0;
 	}
+	/* check model first, then equiv if still unknown */
 	type = GW_UNKNOWN;
-	switch (info->equiv_dts[3]) {
+	switch (info->model[3]) {
 	case '1':
 		type = GW610x;
 		break;
@@ -775,9 +776,32 @@ retry:
 		type = GW650x;
 		break;
 	case '9':
-		if (!strncmp("GW6903", info->equiv_dts, 6))
+		if (!strncmp("GW6903", info->model, 6))
 			type = GW6903;
 		break;
+	}
+	if (type == GW_UNKNOWN) {
+		switch (info->equiv_dts[3]) {
+		case '1':
+			type = GW610x;
+			break;
+		case '2':
+			type = GW620x;
+			break;
+		case '3':
+			type = GW630x;
+			break;
+		case '4':
+			type = GW640x;
+			break;
+		case '5':
+			type = GW650x;
+			break;
+		case '9':
+			if (!strncmp("GW6903", info->equiv_dts, 6))
+				type = GW6903;
+			break;
+		}
 	}
 	if (type == GW_UNKNOWN) {
 		bdk_error("EEPROM: Failed model identification\n");
