@@ -1001,16 +1001,25 @@ gsc_get_rst_cause(bdk_node_t node)
 	}
 
 	if (reg < ARRAY_SIZE(names))
-		sprintf(str, "%s", names[reg]);
+		sprintf(str, "%s ", names[reg]);
 	else
-		sprintf(str, "0x%02x", reg);
+		sprintf(str, "0x%02x ", reg);
 
 	/* GSC v53 adds thermal protection which we will enable always */
 	if (gsc_get_fwver() > 52) {
+		int tmax;
+
+		strcat(str, "Thermal Protection ");
 		i2c_read(node, 0, GSC_SC_ADDR, GSC_SC_THERM_PROTECT, &reg, 1);
-		reg |= 1;
-		i2c_write(node, 0, GSC_SC_ADDR, GSC_SC_THERM_PROTECT, &reg, 1);
-		strcat(str, " Thermal Protection Enabled");
+		tmax = ((reg & 0xf8) >>3) * 2;
+		if (tmax)
+			tmax += 70;
+		else
+			tmax = 120;
+		if (reg & 1)
+			sprintf(str + strlen(str), "Enabled at board temp of %dC", tmax);
+		else
+			strcat(str, "Disabled");
 	}
 
 	return str;
@@ -1156,8 +1165,8 @@ gsc_init(bdk_node_t node)
 {
 	struct newport_board_info *info = &board_info;
 	struct newport_board_config *cfg;
-	unsigned char buf[16];
-	int i, t;
+	unsigned char buf[32];
+	int i, t, tmax;
 
 	bdk_twsix_initialize(node);
 
@@ -1167,7 +1176,7 @@ gsc_init(bdk_node_t node)
 	 * running.  We will wait here indefinately for the GSC/EEPROM.
 	 */
 	for (i = 2000; i > 0; i--) {
-		if (!i2c_read(node, 0, GSC_SC_ADDR, 0, buf, 16))
+		if (!i2c_read(node, 0, GSC_SC_ADDR, 0, buf, sizeof(buf)))
 			break;
 		bdk_wait_usec(1000);
 	}
@@ -1190,17 +1199,18 @@ gsc_init(bdk_node_t node)
 	cfg = gsc_get_board_config();
 	/* Display/Configure temperature */
 	t = gsc_board_temp(node);
+	tmax = ((buf[GSC_SC_THERM_PROTECT] >> 3) * 2) + 70;
 	if (cfg->ext_temp) {
 		init_max6642(node);
 		i2c_read(node, 0, MAX6642_SLAVE, MAX6642_R_TEMP_REMOTE,
 			&buf[0], 1);
 		i2c_read(node, 0, MAX6642_SLAVE, MAX6642_R_LIMIT_REMOTE,
 			&buf[1], 1);
-		printf("Temp    : Board:%dC/86C CPU:%dC/%dC\n", t / 10,
-			buf[0], buf[1]);
+		printf("Temp    : Board:%dC/%dC CPU:%dC/%dC\n", t / 10,
+			tmax, buf[0], buf[1]);
 	}
 	else
-		printf("Temp    : Board:%dC/86C\n", t / 10);
+		printf("Temp    : Board:%dC/%dC\n", t / 10, tmax);
 	printf("Model   : %s\n", info->model);
 	printf("MFGDate : %02x-%02x-%02x%02x\n",
 		info->mfgdate[0], info->mfgdate[1],
