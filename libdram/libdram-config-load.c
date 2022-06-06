@@ -200,10 +200,19 @@ const dram_config_t *libdram_config_load(bdk_node_t node)
     }
 
     int speed = bdk_config_get_int(BDK_CONFIG_DDR_SPEED, node);
-    switch (speed) // define only DDR4 standard speeds (1600-3200)
+    switch (speed)
     {
     	case 0: // AUTO
             cfg->ddr_clock_hertz = 0;
+            break;
+        case 666:
+            cfg->ddr_clock_hertz = 333333333;
+            break;
+        case 1066:
+            cfg->ddr_clock_hertz = 533333333;
+            break;
+        case 1333:
+            cfg->ddr_clock_hertz = 666666666;
             break;
         case 1866:
         case 1880:
@@ -229,6 +238,7 @@ const dram_config_t *libdram_config_load(bdk_node_t node)
         default:
             bdk_warn("Non-standard DRAM speed of %d MT/s\n", speed);
             // fall through
+        case 800:
         case 1600:
         case 2100:
         case 2400:
