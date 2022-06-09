@@ -543,6 +543,7 @@ static int __bdk_pcie_rc_initialize_link(bdk_node_t node, int pcie_port)
     BDK_TRACE(PCIE, "N%d.PCIe%d: Enabling the link\n", node, pcie_port);
     BDK_CSR_MODIFY(c, node, BDK_PEMX_CTL_STATUS(pcie_port), c.cn83xx.lnk_enb = 1);
 
+#if 0 // NEWPORT
 retry_speed:
     /* Clear RC Correctable Error Status Register */
     BDK_CSR_WRITE(node, BDK_PCIERCX_CFG068(pcie_port), -1);
@@ -751,6 +752,10 @@ retry_speed:
         }
         return 0; /* Link at correct speed and width */
     }
+#else
+    // For newport we will skip evaluating link training result as Linux will do this
+    return 0;
+#endif
 }
 
 /**

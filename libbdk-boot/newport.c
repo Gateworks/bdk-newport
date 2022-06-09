@@ -1398,6 +1398,7 @@ int newport_config(void)
 		BDK_CSR_DEFINE(pciercx_cfg032, BDK_PCIERCX_CFG032(p));
 		/* Only init PCIe that are attached to QLMs */
 		if (qlm != -1) {
+#if 0
 			printf("PEM%d    : QLM%d ", p, qlm);
 			switch(bdk_pcie_rc_initialize(node, p)) {
 			case -2:
@@ -1412,6 +1413,9 @@ int newport_config(void)
 				printf("unkown\n");
 				break;
 			}
+#else
+			bdk_pcie_rc_initialize(node, p);
+#endif
 		}
 	}
 

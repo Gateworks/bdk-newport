@@ -62,7 +62,7 @@ static void bdk_dram_clear_mem(bdk_node_t node)
         uint64_t len =  (mbytes << 20) - skip;
 
         //VB_PRT(VBL_DEV, "N%d: Before clearing DRAM: Waiting for a sec...\n", node);
-        bdk_wait_usec(1000000); // wait a sec...
+        //bdk_wait_usec(1000000); // wait a sec...
 
         if (ddr_memory_preserved(node)) {
             ddr_print("N%d: Preserve DRAM contents: start 0x%lx length 0x%lx\n",
@@ -621,9 +621,10 @@ int libdram_config(int node, const dram_config_t *dram_config, int ddr_clock_ove
         errs = bdk_libdram_maybe_tune_node(node);
         BDK_TRACE(DRAM, "N%d: DRAM tuning returned %d errors\n",
                   node, errs);
-
+#if 0 // We don't need to clear memory, this just wastes time
         // finally, clear memory and any left-over ECC errors
         bdk_dram_clear_mem(node);
+#endif
         bdk_dram_clear_ecc(node);
 
         // re-enable ECC reporting after we are ready for public use

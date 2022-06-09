@@ -10,11 +10,14 @@
 // Basic definitions for the eMMC interface
 
 #ifndef BDK_MMC_CLOCK_HZ
-#define BDK_MMC_CLOCK_HZ 10000000
+#define BDK_MMC_CLOCK_HZ 35000000
 #endif
 /* Some large devices (32GB Samsung EVO) have shown timeouts with a watchdog of
    500ms. The 750ms values is to give a 50% margin */
 #define BDK_MMC_WATCHDOG 750 /* In milliseconds */
+#define MMC_TIMEOUT_SHORT       20      /* in ms */
+#define MMC_TIMEOUT_LONG        1000
+#define MMC_TIMEOUT_ERASE       10000
 
 // Basic Commands
 #define MMC_CMD_GO_IDLE_STATE		0
@@ -353,6 +356,18 @@ typedef struct
 #define ULL unsigned long long
 static mmc_card_state_t card_state[4];
 
+/**
+ * Setup the eMMC controller watchdog to BDK_MMC_WATCHDOG(ms)
+ */
+static void set_wdog(bdk_node_t node, uint64_t timeout, int chip_sel)
+{
+    BDK_CSR_INIT(mode_reg, node, BDK_MIO_EMM_MODEX(chip_sel));
+    uint64_t sclk = bdk_clock_get_rate(node, BDK_CLOCK_SCLK);
+    uint64_t wdog_value = sclk * timeout / 1000;
+    wdog_value /= mode_reg.s.clk_hi + mode_reg.s.clk_lo;
+    BDK_CSR_WRITE(node, BDK_MIO_EMM_WDOG, wdog_value);
+}
+
 static void mmc_delay_msec(uint64_t msec)
 {
     if (bdk_is_platform(BDK_PLATFORM_EMULATOR))
@@ -412,6 +427,19 @@ static void print_cmd_status(bdk_node_t node)
  */
 static bdk_mio_emm_rsp_sts_t mmc_cmd(bdk_node_t node, uint64_t cmd, uint64_t arg, uint64_t busid, uint64_t dbuf, uint64_t rtype_xor, uint64_t ctype_xor, uint64_t offset)
 {
+    static const uint64_t timeout_short = 0xFFFFFFA4FCF9FFDFull;
+    uint64_t timeout;
+
+    if (timeout_short & (1ull << cmd))
+        timeout = MMC_TIMEOUT_SHORT;
+    else if (cmd == MMC_CMD_SWITCH && card_state[busid].card_is_sd)
+        timeout = 2560;
+    else if (cmd == MMC_CMD_ERASE)
+        timeout = MMC_TIMEOUT_ERASE;
+    else
+        timeout = MMC_TIMEOUT_LONG;
+    set_wdog(node, timeout, busid);
+    timeout = (timeout + 1) * 1000;
     BDK_CSR_DEFINE(cmd_reg, BDK_MIO_EMM_CMD);
     cmd_reg.u = 0;
     cmd_reg.s.bus_id = busid;
@@ -428,8 +456,7 @@ static bdk_mio_emm_rsp_sts_t mmc_cmd(bdk_node_t node, uint64_t cmd, uint64_t arg
     BDK_CSR_READ(node, BDK_MIO_EMM_CMD);
 
     BDK_TRACE(EMMC, "Waiting for command completion\n");
-    int timeout = bdk_is_platform(BDK_PLATFORM_EMULATOR) ? 10000 : BDK_MMC_WATCHDOG * 1000;
-    if (BDK_CSR_WAIT_FOR_FIELD(node, BDK_MIO_EMM_RSP_STS, cmd_done, ==, 1, timeout))
+    if (BDK_CSR_WAIT_FOR_FIELD(node, BDK_MIO_EMM_RSP_STS, cmd_done, ==, 1, timeout ))
     {
         BDK_TRACE(EMMC, "No response, timeout.\n");
         BDK_CSR_INIT(sts_reg, node, BDK_MIO_EMM_RSP_STS);
@@ -618,19 +645,6 @@ static void print_csd_reg(int chip_sel, uint64_t reg_hi, uint64_t reg_lo)
 
 
 /**
- * Setup the eMMC controller watchdog to BDK_MMC_WATCHDOG(ms)
- */
-static void wdog_default(bdk_node_t node)
-{
-    BDK_CSR_INIT(mode_reg, node, BDK_MIO_EMM_MODEX(0));
-    uint64_t sclk = bdk_clock_get_rate(node, BDK_CLOCK_SCLK);
-    uint64_t wdog_value = sclk * BDK_MMC_WATCHDOG / 1000;
-    wdog_value /= mode_reg.s.clk_hi + mode_reg.s.clk_lo;
-    BDK_CSR_WRITE(node, BDK_MIO_EMM_WDOG, wdog_value);
-}
-
-
-/**
  * Macro to make it easier to submit a command and fail on bad status
  */
 #if 0 // NEWPORT
@@ -652,6 +666,30 @@ do {                                                                            
 } while (0)
 #endif
 
+uint64_t get_clock_rate(bdk_node_t node, int chip_sel)
+{
+    BDK_CSR_INIT(emm_mode, node, BDK_MIO_EMM_MODEX(chip_sel));
+    emm_mode.u = BDK_CSR_READ(node, BDK_MIO_EMM_MODEX(chip_sel));
+    uint64_t sclk = bdk_clock_get_rate(node, BDK_CLOCK_SCLK);
+    return (sclk / (emm_mode.s.clk_lo + emm_mode.s.clk_hi));
+}
+
+
+// The bdk_mmc_initialize code is executed many times due to different
+// apps running as well as during the relocation to dram. We do not need
+// to reset the entire bus and reconfigure if we have already done it once
+// Just check if any of the device clocks have been set higher than 20mhz
+// in which case, that would be the bdk code that has set it up.
+int mmc_need_init(bdk_node_t node)
+{
+    int i;
+    for (i = 0; i < 4; i++) {
+        if (card_state[i].init_status)
+            return 0;
+    }
+    return 1;
+}
+
 /**
  * Initialize a MMC for read/write
  *
@@ -663,48 +701,72 @@ do {                                                                            
  */
 int64_t bdk_mmc_initialize(bdk_node_t node, int chip_sel)
 {
-    if (bdk_is_platform(BDK_PLATFORM_EMULATOR))
-    {
-        if (card_state[chip_sel].init_status)
-            return card_state[chip_sel].init_status;
+    if (card_state[chip_sel].init_status) {
+	if (card_state[chip_sel].init_status == -1)
+		return 0;
+        return card_state[chip_sel].init_status;
     }
+
+    int need_init = mmc_need_init(node);
+
     bdk_mio_emm_rsp_sts_t status;
     ocr_register_t ocr_reg;
+    int i;
+    uint64_t mio_emm_cfg;
+
+    BDK_CSR_INIT(emm_mode, node, BDK_MIO_EMM_MODEX(chip_sel));
+    BDK_CSR_DEFINE(emm_switch, BDK_MIO_EMM_SWITCH);
 
     // Disable buses, causes the clocking to reset to the default
     // Errata (EMMC-26703) EMMC CSR reset doesn't consistently work
-    BDK_CSR_INIT( mio_emm_modex, node, BDK_MIO_EMM_MODEX(chip_sel));
-    while (mio_emm_modex.s.clk_lo != 2500)
-    {
+
+    if (need_init) {
+	// We need to delay a minimum of 2 emm_clk cycles in this reset according to HRM (MIO_EMM_CFG)
+	// in order to process a quick full reset, set all clk registers to 20
+	for (i = 0; i < 4; i++) {
+	    emm_mode.u = BDK_CSR_READ(node, BDK_MIO_EMM_MODEX(chip_sel));
+	    emm_switch.u = 0;
+	    emm_switch.s.bus_id = i;
+	    emm_switch.s.switch_exe = 0;
+	    emm_switch.s.hs_timing = emm_mode.s.hs_timing;
+	    emm_switch.s.bus_width = emm_mode.s.bus_width;
+	    emm_switch.s.power_class = emm_mode.s.power_class;
+	    emm_switch.s.clk_hi = 20;
+	    emm_switch.s.clk_lo = 20;
+	    BDK_CSR_WRITE(node, BDK_MIO_EMM_SWITCH, emm_switch.u);
+	}
+        BDK_CSR_INIT( mio_emm_modex, node, BDK_MIO_EMM_MODEX(chip_sel));
         BDK_CSR_WRITE(node, BDK_MIO_EMM_CFG, 0x0);
-        BDK_CSR_WRITE(node, BDK_MIO_EMM_CFG, 1<<chip_sel);
-        mio_emm_modex.u = BDK_CSR_READ(node, BDK_MIO_EMM_MODEX(chip_sel));
+	do {
+            mio_emm_modex.u = BDK_CSR_READ(node, BDK_MIO_EMM_MODEX(chip_sel));
+        } while (mio_emm_modex.s.clk_lo != 2500);
+        BDK_TRACE(EMMC, "Delay 1ms\n");
+        mmc_delay_msec(1);
+
+        // Disable buses and reset eMMC device using GPIO8, do this the first time and put all busses into reset
+        BDK_CSR_WRITE(node, BDK_MIO_EMM_CFG, 0);
+        BDK_CSR_MODIFY(c, node, BDK_GPIO_BIT_CFGX(8),
+                       c.s.tx_oe = 1);
+        BDK_TRACE(EMMC, "Delay 1ms\n");
+        mmc_delay_msec(1);
+
+        BDK_CSR_WRITE(node, BDK_GPIO_TX_CLR, 1<<8);
+
+	// Per the HRM (40.6.1) this is 20ms
+        BDK_TRACE(EMMC, "Delay 20ms\n");
+        mmc_delay_msec(20);
+
+        BDK_CSR_WRITE(node, BDK_GPIO_TX_SET, 1<<8);
+
+        BDK_TRACE(EMMC, "Delay 2ms\n");
+        mmc_delay_msec(2);
     }
-    BDK_TRACE(EMMC, "Delay 200ms\n");
-    mmc_delay_msec(200);
-
-    // Disable buses and reset device using GPIO8
-    BDK_CSR_WRITE(node, BDK_MIO_EMM_CFG, 0x0);
-    BDK_CSR_MODIFY(c, node, BDK_GPIO_BIT_CFGX(8),
-                   c.s.tx_oe = 1);
-    BDK_TRACE(EMMC, "Delay 1ms\n");
-    mmc_delay_msec(1);
-
-    BDK_CSR_WRITE(node, BDK_GPIO_TX_CLR, 1<<8);
-
-    BDK_TRACE(EMMC, "Delay 200ms\n");
-    mmc_delay_msec(200);
-
-    BDK_CSR_WRITE(node, BDK_GPIO_TX_SET, 1<<8);
-
-    BDK_TRACE(EMMC, "Delay 2ms\n");
-    mmc_delay_msec(2);
 
     // Enable bus
-    BDK_CSR_WRITE(node, BDK_MIO_EMM_CFG, 1<<chip_sel);
-
-    // Assume card is eMMC
-    card_state[chip_sel].card_is_sd = 0;
+    mio_emm_cfg = BDK_CSR_READ(node, BDK_MIO_EMM_CFG);
+    mio_emm_cfg |= (1<<chip_sel);
+    BDK_CSR_WRITE(node, BDK_MIO_EMM_CFG, mio_emm_cfg);
+    mmc_delay_msec(2);
 
     // Reset the status mask reg., boot will change it
     BDK_CSR_WRITE(node, BDK_MIO_EMM_STS_MASK, 0xE4390080);
@@ -712,8 +774,14 @@ int64_t bdk_mmc_initialize(bdk_node_t node, int chip_sel)
     BDK_TRACE(EMMC, "Delay 2ms\n");
     mmc_delay_msec(2);
 
+    // Assume there is no card
+    card_state[chip_sel].init_status = -1;
+
+    // Assume card is eMMC
+    card_state[chip_sel].card_is_sd = 0;
+
     // Setup watchdog timer
-    wdog_default(node);
+    set_wdog(node, BDK_MMC_WATCHDOG, chip_sel);
 
     //Reset the device
     MMC_CMD_OR_ERROR(node, MMC_CMD_GO_IDLE_STATE, 0, chip_sel, 0, 0, 0, 0);
@@ -878,10 +946,10 @@ int64_t bdk_mmc_initialize(bdk_node_t node, int chip_sel)
         CLOCK_HZ = sclk / 4;
     sclk /= CLOCK_HZ;
     sclk /= 2; /* Half is time hi/lo */
-    BDK_CSR_INIT(emm_mode, node, BDK_MIO_EMM_MODEX(chip_sel));
-    BDK_CSR_DEFINE(emm_switch, BDK_MIO_EMM_SWITCH);
+
+    emm_mode.u = BDK_CSR_READ(node, BDK_MIO_EMM_MODEX(chip_sel));
     emm_switch.u = 0;
-    emm_switch.s.bus_id = 0;
+    emm_switch.s.bus_id = chip_sel;
     emm_switch.s.switch_exe = 0;
     emm_switch.s.hs_timing = emm_mode.s.hs_timing;
     emm_switch.s.bus_width = emm_mode.s.bus_width;
@@ -891,19 +959,19 @@ int64_t bdk_mmc_initialize(bdk_node_t node, int chip_sel)
     BDK_CSR_WRITE(node, BDK_MIO_EMM_SWITCH, emm_switch.u);
     BDK_TRACE(EMMC, "Delay 2ms\n");
     mmc_delay_msec(2);
-    if (bdk_is_platform(BDK_PLATFORM_EMULATOR))
-    {
+    if (!card_state[chip_sel].card_is_sd) {
+        set_wdog(node, 1000, chip_sel);
         BDK_TRACE(EMMC, "Switch eMMC to 8 bit, single data rate\n");
         emm_switch.s.switch_exe = 1;
-        emm_switch.s.bus_width = 2; /* 8 bit single data rate */
+        emm_switch.s.bus_width = 6; /* 8 bit double data rate */
         BDK_CSR_WRITE(node, BDK_MIO_EMM_SWITCH, emm_switch.u);
-        mmc_delay_msec(2);
+        mmc_delay_msec(100);
         emm_switch.u = BDK_CSR_READ(node, BDK_MIO_EMM_SWITCH);
         BDK_TRACE(EMMC, "MIO_EMM_SWITCH 0x%lx\n", emm_switch.u);
     }
 
     // Reset watchdog timer for the new bus speed
-    wdog_default(node);
+    set_wdog(node, BDK_MMC_WATCHDOG, chip_sel);
 
     // Return the card size in bytes
     BDK_TRACE(EMMC, "MMC init done\n");
@@ -930,6 +998,9 @@ bool bdk_mmc_card_is_sd(bdk_node_t node, int chip_sel)
  */
 int bdk_mmc_read(bdk_node_t node, int chip_sel, uint64_t address, void *buffer, int length)
 {
+    int block_cnt = card_state[chip_sel].block_addressable_device ? length / 512: length;
+    int card_addr = card_state[chip_sel].block_addressable_device ? address / 512: address;
+
     if (address > (1ull << 40))
     {
         bdk_error("MMC read address too large\n");
@@ -950,49 +1021,91 @@ int bdk_mmc_read(bdk_node_t node, int chip_sel, uint64_t address, void *buffer, 
         bdk_error("MMC read length must be a multiple of 512\n");
         return -1;
     }
+	if (__bdk_is_dram_enabled(node)) {
+		BDK_CSR_DEFINE(emm_dma_int, BDK_MIO_EMM_DMA_INT);
+		emm_dma_int.u = BDK_CSR_READ(node, BDK_MIO_EMM_DMA_INT);
+		BDK_CSR_WRITE(node, BDK_MIO_EMM_DMA_INT, emm_dma_int.u);
 
-    /* Read until we've read all data */
-    while (length > 0)
-    {
-        BDK_TRACE(EMMC, "Read 0x%lx\n", address);
-        /* Send the read command */
-        BDK_CSR_DEFINE(status, BDK_MIO_EMM_RSP_STS);
-        status = mmc_cmd(node, MMC_CMD_READ_SINGLE_BLOCK, (card_state[chip_sel].block_addressable_device) ? address/512 : address, chip_sel, 0, 0, 0, 0);
-        if (status.u)
-        {
-            bdk_error("MMC: Read single block failed\n");
-            return -1;
-        }
+		BDK_CSR_DEFINE(emm_dma_addr, BDK_MIO_EMM_DMA_ADR);
+		BDK_CSR_DEFINE(emm_dma_cfg, BDK_MIO_EMM_DMA_CFG);
+		emm_dma_cfg.u = 0;
+		emm_dma_cfg.s.en = 1;
+		emm_dma_cfg.s.rw = 0;
+		emm_dma_cfg.s.clr = 0;
+		emm_dma_cfg.s.size = (length / 8) - 1;
+	#if __BYTE_ORDER != __BIG_ENDIAN
+		emm_dma_cfg.s.endian = 1;
+	#endif
+		emm_dma_addr.u = 0;
+		emm_dma_addr.s.adr = bdk_ptr_to_phys(buffer);
+		BDK_CSR_WRITE(node, BDK_MIO_EMM_DMA_ADR, emm_dma_addr.u);
+		BDK_CSR_WRITE(node, BDK_MIO_EMM_DMA_CFG, emm_dma_cfg.u);
 
-        /* Set our location in the internal buffer */
-        BDK_CSR_DEFINE(buf_idx, BDK_MIO_EMM_BUF_IDX);
-        buf_idx.u = 0;
-        buf_idx.s.inc = 1;
-        buf_idx.s.buf_num = 0;
-        buf_idx.s.offset = 0;
-        BDK_CSR_WRITE(node, BDK_MIO_EMM_BUF_IDX, buf_idx.u);
 
-        BDK_TRACE(EMMC, "Copy data\n");
-        /* Read out the data block and add it to the output buffer */
-        for (int i=0; i<512/8; i++)
-        {
-            uint64_t data = bdk_be64_to_cpu(BDK_CSR_READ(node, BDK_MIO_EMM_BUF_DAT));
-            *(uint64_t*)buffer = data;
-            buffer += 8;
-        }
-        /* Increment to the next position and adjust the size left */
-        address += 512;
-        length -= 512;
-        BDK_TRACE(EMMC, "Read done\n");
-        if (bdk_is_platform(BDK_PLATFORM_EMULATOR))
-        {
-            static int block_count = 0;
-            block_count++;
-            putchar('.');
-            if ((block_count & 63) == 0)
-                putchar('\n');
-        }
-    }
+		BDK_CSR_DEFINE(emm_dma, BDK_MIO_EMM_DMA);
+		emm_dma.u = 0;
+		emm_dma.s.bus_id = chip_sel;
+		emm_dma.s.dma_val = 1;
+		emm_dma.s.sector = card_state[chip_sel].block_addressable_device;
+		if (block_cnt > 1)
+			emm_dma.s.multi = 1;
+		emm_dma.s.block_cnt = block_cnt;
+		emm_dma.s.card_addr = card_addr;
+
+		set_wdog(node, 1000 + (block_cnt * 20), chip_sel);
+
+		BDK_CSR_WRITE(node, BDK_MIO_EMM_DMA, emm_dma.u);
+		BDK_CSR_DEFINE(emm_rsp_sts, BDK_MIO_EMM_RSP_STS);
+		do {
+			emm_rsp_sts.u = BDK_CSR_READ(node, BDK_MIO_EMM_RSP_STS);
+			emm_dma_int.u = BDK_CSR_READ(node, BDK_MIO_EMM_DMA_INT);
+		} while (emm_rsp_sts.s.dma_val || !emm_dma_int.s.done);
+
+		return 0;
+	} else {
+	    /* Read until we've read all data */
+	    while (length > 0)
+	    {
+	        BDK_TRACE(EMMC, "Read 0x%lx\n", address);
+	        /* Send the read command */
+	        BDK_CSR_DEFINE(status, BDK_MIO_EMM_RSP_STS);
+	        status = mmc_cmd(node, MMC_CMD_READ_SINGLE_BLOCK, (card_state[chip_sel].block_addressable_device) ? address/512 : address, chip_sel, 0, 0, 0, 0);
+	        if (status.u)
+	        {
+	            bdk_error("MMC: Read single block failed\n");
+	            return -1;
+	        }
+
+	        /* Set our location in the internal buffer */
+	        BDK_CSR_DEFINE(buf_idx, BDK_MIO_EMM_BUF_IDX);
+	        buf_idx.u = 0;
+	        buf_idx.s.inc = 1;
+	        buf_idx.s.buf_num = 0;
+	        buf_idx.s.offset = 0;
+	        BDK_CSR_WRITE(node, BDK_MIO_EMM_BUF_IDX, buf_idx.u);
+
+	        BDK_TRACE(EMMC, "Copy data\n");
+	        /* Read out the data block and add it to the output buffer */
+	        for (int i=0; i<512/8; i++)
+	        {
+	            uint64_t data = bdk_be64_to_cpu(BDK_CSR_READ(node, BDK_MIO_EMM_BUF_DAT));
+	            *(uint64_t*)buffer = data;
+	            buffer += 8;
+	        }
+	        /* Increment to the next position and adjust the size left */
+	        address += 512;
+	        length -= 512;
+	        BDK_TRACE(EMMC, "Read done\n");
+	        if (bdk_is_platform(BDK_PLATFORM_EMULATOR))
+	        {
+	            static int block_count = 0;
+	            block_count++;
+	            putchar('.');
+	            if ((block_count & 63) == 0)
+	                putchar('\n');
+	        }
+	    }
+	}
     return 0;
 }
 
