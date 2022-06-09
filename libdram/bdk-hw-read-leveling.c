@@ -1042,6 +1042,33 @@ Perform_Read_Leveling_for_an_RTT_NOM_value(bdk_node_t node,  int ddr_interface_n
                 if (rodt_ctl == default_rodt_ctl)
                     max_samples += rlevel_samples + 1;
 
+	bdk_lmcx_rlevel_ctl_t           rlevel_ctl;
+	bdk_lmcx_modereg_params0_t lmc_modereg_params0;
+	int pattern;
+	for (pattern = 1; pattern < 3; pattern++) {
+		rlevel_ctl.u = BDK_CSR_READ(node, BDK_LMCX_RLEVEL_CTL(ddr_interface_num));
+		lmc_modereg_params0.u = BDK_CSR_READ(node, BDK_LMCX_MODEREG_PARAMS0(ddr_interface_num));
+		switch (pattern) {
+			case 0:
+				rlevel_ctl.s.pattern = 0x55;
+				lmc_modereg_params0.s.mprloc = 0; /* MPR Page 0 Location 1, Pattern = 0x55  */
+				break;
+			case 1:
+				rlevel_ctl.s.pattern = 0x33;
+				lmc_modereg_params0.s.mprloc = 1; /* MPR Page 0 Location 1, Pattern = 0x33 */
+				break;
+			case 2:
+				rlevel_ctl.s.pattern = 0x0f;
+				lmc_modereg_params0.s.mprloc = 2; /* MPR Page 0 Location 2, Pattern = 0x0f */
+				break;
+		}
+		VB_PRT(VBL_DEV2, "Set pattern to 0x%02x, mprloc = %i\n", rlevel_ctl.s.pattern, lmc_modereg_params0.s.mprloc);
+
+		DRAM_CSR_WRITE(node, BDK_LMCX_RLEVEL_CTL(ddr_interface_num), rlevel_ctl.u);
+		DRAM_CSR_WRITE(node, BDK_LMCX_MODEREG_PARAMS0(ddr_interface_num), lmc_modereg_params0.u);
+
+		max_samples = 4;
+
                 for (sample_loops = 0; sample_loops < max_samples; sample_loops++) {
                     rlevel_bitmask_errors = 0;
 
@@ -1076,7 +1103,7 @@ Perform_Read_Leveling_for_an_RTT_NOM_value(bdk_node_t node,  int ddr_interface_n
                     rlevel_rodt_errors += rlevel_rank_errors;
 
                 } /* for (sample_loops = 0; sample_loops < max_samples; sample_loops++) */
-
+	}
                 /* We recorded the best score across the averaging loops */
                 rlevel_scoreboard->scoreboard[rtt_nom][rodt_ctl][rankx].score = rlevel_best_rank_score;
 
