@@ -10,7 +10,7 @@
 // Basic definitions for the eMMC interface
 
 #ifndef BDK_MMC_CLOCK_HZ
-#define BDK_MMC_CLOCK_HZ 35000000
+#define BDK_MMC_CLOCK_HZ 10000000
 #endif
 /* Some large devices (32GB Samsung EVO) have shown timeouts with a watchdog of
    500ms. The 750ms values is to give a 50% margin */
