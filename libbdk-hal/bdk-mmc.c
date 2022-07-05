@@ -10,8 +10,10 @@
 // Basic definitions for the eMMC interface
 
 #ifndef BDK_MMC_CLOCK_HZ
-#define BDK_MMC_CLOCK_HZ 10000000
+#define BDK_MMC_CLOCK_HZ 26000000
 #endif
+#define BDK_MMC_MIN_CLOCK_HZ 400000
+
 /* Some large devices (32GB Samsung EVO) have shown timeouts with a watchdog of
    500ms. The 750ms values is to give a 50% margin */
 #define BDK_MMC_WATCHDOG 750 /* In milliseconds */
@@ -351,10 +353,13 @@ typedef struct
     uint64_t card_is_sd;
     uint64_t relative_address;
     int64_t init_status;
+    bdk_mio_emm_switch_t mio_emm_switch;
 } mmc_card_state_t;
 
 #define ULL unsigned long long
 static mmc_card_state_t card_state[4];
+static int last_chipsel;
+static int init;
 
 /**
  * Setup the eMMC controller watchdog to BDK_MMC_WATCHDOG(ms)
@@ -412,6 +417,51 @@ static void print_cmd_status(bdk_node_t node)
 }
 
 
+void bdk_mmc_do_switch(bdk_node_t node, bdk_mio_emm_switch_t mio_emm_switch)
+{
+	int chip_sel = mio_emm_switch.s.bus_id;
+
+	if (chip_sel != 0) {
+		mio_emm_switch.s.bus_id = 0;
+		BDK_CSR_WRITE(node, BDK_MIO_EMM_SWITCH, mio_emm_switch.u);
+		bdk_wait_usec(100);
+		mio_emm_switch.s.bus_id = chip_sel;
+	}
+
+	BDK_CSR_WRITE(node, BDK_MIO_EMM_SWITCH, mio_emm_switch.u);
+
+	if (BDK_CSR_WAIT_FOR_FIELD(node, BDK_MIO_EMM_RSP_STS, switch_val, ==, 0, 10 * 1000 )) {
+		printf("Timeout waiting for switch command to complete\n");
+	}
+	card_state[chip_sel].mio_emm_switch = mio_emm_switch;
+}
+
+void bdk_mmc_switch_to(bdk_node_t node, int chip_sel)
+{
+	bdk_mio_emm_switch_t mio_emm_switch = card_state[chip_sel].mio_emm_switch;
+	bdk_mio_emm_rca_t mio_emm_rca;
+
+	if (chip_sel == last_chipsel)
+		return;
+
+	if (card_state[chip_sel].relative_address)
+		BDK_CSR_WRITE(node, BDK_MIO_EMM_RCA, card_state[chip_sel].relative_address);
+
+	bdk_mmc_do_switch(node, mio_emm_switch);
+
+	mio_emm_rca.u = 0;
+	mio_emm_rca.s.card_rca = card_state[chip_sel].relative_address;
+	BDK_CSR_WRITE(node, BDK_MIO_EMM_RCA, mio_emm_rca.u);
+	mmc_delay_msec(100);
+
+	set_wdog(node, MMC_TIMEOUT_LONG, chip_sel);
+
+	BDK_CSR_WRITE(node, BDK_MIO_EMM_STS_MASK, (1 << 7 | 1 << 22 | 1 << 23 | 1 << 19));
+
+	last_chipsel = chip_sel;
+	mmc_delay_msec(10);
+}
+
 /**
  * mmc_cmd
  *
@@ -440,6 +490,9 @@ static bdk_mio_emm_rsp_sts_t mmc_cmd(bdk_node_t node, uint64_t cmd, uint64_t arg
         timeout = MMC_TIMEOUT_LONG;
     set_wdog(node, timeout, busid);
     timeout = (timeout + 1) * 1000;
+
+    bdk_mmc_switch_to(node, busid);
+
     BDK_CSR_DEFINE(cmd_reg, BDK_MIO_EMM_CMD);
     cmd_reg.u = 0;
     cmd_reg.s.bus_id = busid;
@@ -674,20 +727,75 @@ uint64_t get_clock_rate(bdk_node_t node, int chip_sel)
     return (sclk / (emm_mode.s.clk_lo + emm_mode.s.clk_hi));
 }
 
-
-// The bdk_mmc_initialize code is executed many times due to different
-// apps running as well as during the relocation to dram. We do not need
-// to reset the entire bus and reconfigure if we have already done it once
-// Just check if any of the device clocks have been set higher than 20mhz
-// in which case, that would be the bdk code that has set it up.
-int mmc_need_init(bdk_node_t node)
+void bdk_mmc_host_probe(bdk_node_t node)
 {
-    int i;
-    for (i = 0; i < 4; i++) {
-        if (card_state[i].init_status)
-            return 0;
+    if (!init) {
+	// Inspired from u-boot host_probe function
+	// Reset the entire bus
+        BDK_CSR_WRITE(node, BDK_MIO_EMM_CFG, 0x0);
+        BDK_TRACE(EMMC, "Delay 1ms\n");
+        mmc_delay_msec(1);
+
+	// Reset Interrupt flags
+	BDK_CSR_DEFINE(emm_int, BDK_MIO_EMM_INT);
+	emm_int.u = BDK_CSR_READ(node, BDK_MIO_EMM_INT);
+	BDK_CSR_WRITE(node, BDK_MIO_EMM_INT, emm_int.u);
+
+	init = 1;
+	last_chipsel = -1;
     }
-    return 1;
+}
+
+void bdk_mmc_chipsel_probe(bdk_node_t node, int chip_sel)
+{
+	bdk_mio_emm_cfg_t mio_emm_cfg;
+	bdk_mio_emm_switch_t mio_emm_switch;
+	uint64_t sclk = bdk_clock_get_rate(node, BDK_CLOCK_SCLK);
+
+	// This code is inspired from u-bbot mmc_init_lowlevel
+	// Disable the bus
+	mio_emm_cfg.u = BDK_CSR_READ(node, BDK_MIO_EMM_CFG);
+	mio_emm_cfg.u &= ~(1<<chip_sel);
+	BDK_CSR_WRITE(node, BDK_MIO_EMM_CFG, mio_emm_cfg.u);
+	mmc_delay_msec(1);
+
+	// Enable the bus
+	mio_emm_cfg.u |= (1<<chip_sel);
+	BDK_CSR_WRITE(node, BDK_MIO_EMM_CFG, mio_emm_cfg.u);
+	mmc_delay_msec(1);
+
+	// Set the clock to the minimum clock frequency of 400Khz
+	// Change the clock
+	int CLOCK_HZ = BDK_MMC_MIN_CLOCK_HZ;
+	sclk /= CLOCK_HZ;
+	sclk /= 2; /* Half is time hi/lo */
+	mio_emm_switch.u = 0;
+	mio_emm_switch.s.bus_id = chip_sel;
+	mio_emm_switch.s.power_class = 10;
+	mio_emm_switch.s.clk_hi = sclk;
+	mio_emm_switch.s.clk_lo = sclk;
+
+	bdk_mmc_do_switch(node, mio_emm_switch);
+
+	set_wdog(node, MMC_TIMEOUT_LONG, chip_sel);
+
+	// Reset the status mask reg., boot will change it
+	BDK_CSR_WRITE(node, BDK_MIO_EMM_STS_MASK, 0xE4390080);
+
+	// Set the RCA as it could have been changed from a previous cmd7 call
+	BDK_CSR_WRITE(node, BDK_MIO_EMM_RCA, 0x1);
+
+	BDK_TRACE(EMMC, "Delay 10ms\n");
+	mmc_delay_msec(10);
+
+	// Assume there is no card
+	card_state[chip_sel].init_status = -1;
+
+	// Assume card is eMMC
+	card_state[chip_sel].card_is_sd = 0;
+
+	// Save off mio_emm_switch register
+	card_state[chip_sel].mio_emm_switch = mio_emm_switch;
 }
 
 /**
@@ -701,283 +809,196 @@ int mmc_need_init(bdk_node_t node)
  */
 int64_t bdk_mmc_initialize(bdk_node_t node, int chip_sel)
 {
-    if (card_state[chip_sel].init_status) {
-	if (card_state[chip_sel].init_status == -1)
-		return 0;
-        return card_state[chip_sel].init_status;
-    }
+	uint64_t CLOCK_HZ;
+	uint64_t sclk = bdk_clock_get_rate(node, BDK_CLOCK_SCLK);
+	bdk_mio_emm_switch_t mio_emm_switch;
+	bdk_mio_emm_rsp_sts_t status;
+	ocr_register_t ocr_reg;
 
-    int need_init = mmc_need_init(node);
-
-    bdk_mio_emm_rsp_sts_t status;
-    ocr_register_t ocr_reg;
-    int i;
-    uint64_t mio_emm_cfg;
-
-    BDK_CSR_INIT(emm_mode, node, BDK_MIO_EMM_MODEX(chip_sel));
-    BDK_CSR_DEFINE(emm_switch, BDK_MIO_EMM_SWITCH);
-
-    // Disable buses, causes the clocking to reset to the default
-    // Errata (EMMC-26703) EMMC CSR reset doesn't consistently work
-
-    if (need_init) {
-	// We need to delay a minimum of 2 emm_clk cycles in this reset according to HRM (MIO_EMM_CFG)
-	// in order to process a quick full reset, set all clk registers to 20
-	for (i = 0; i < 4; i++) {
-	    emm_mode.u = BDK_CSR_READ(node, BDK_MIO_EMM_MODEX(chip_sel));
-	    emm_switch.u = 0;
-	    emm_switch.s.bus_id = i;
-	    emm_switch.s.switch_exe = 0;
-	    emm_switch.s.hs_timing = emm_mode.s.hs_timing;
-	    emm_switch.s.bus_width = emm_mode.s.bus_width;
-	    emm_switch.s.power_class = emm_mode.s.power_class;
-	    emm_switch.s.clk_hi = 20;
-	    emm_switch.s.clk_lo = 20;
-	    BDK_CSR_WRITE(node, BDK_MIO_EMM_SWITCH, emm_switch.u);
+	if (card_state[chip_sel].init_status) {
+		if (card_state[chip_sel].init_status == -1)
+			return 0;
+		return card_state[chip_sel].init_status;
 	}
-        BDK_CSR_INIT( mio_emm_modex, node, BDK_MIO_EMM_MODEX(chip_sel));
-        BDK_CSR_WRITE(node, BDK_MIO_EMM_CFG, 0x0);
-	do {
-            mio_emm_modex.u = BDK_CSR_READ(node, BDK_MIO_EMM_MODEX(chip_sel));
-        } while (mio_emm_modex.s.clk_lo != 2500);
-        BDK_TRACE(EMMC, "Delay 1ms\n");
-        mmc_delay_msec(1);
 
-        // Disable buses and reset eMMC device using GPIO8, do this the first time and put all busses into reset
-        BDK_CSR_WRITE(node, BDK_MIO_EMM_CFG, 0);
-        BDK_CSR_MODIFY(c, node, BDK_GPIO_BIT_CFGX(8),
-                       c.s.tx_oe = 1);
-        BDK_TRACE(EMMC, "Delay 1ms\n");
-        mmc_delay_msec(1);
+	// Make sure we have setup the host side
+	bdk_mmc_host_probe(node);
 
-        BDK_CSR_WRITE(node, BDK_GPIO_TX_CLR, 1<<8);
+	// Setup a spefic chip select
+	bdk_mmc_chipsel_probe(node, chip_sel);
 
-	// Per the HRM (40.6.1) this is 20ms
-        BDK_TRACE(EMMC, "Delay 20ms\n");
-        mmc_delay_msec(20);
+	// Now switch to that chip select
+	bdk_mmc_switch_to(node, chip_sel);
 
-        BDK_CSR_WRITE(node, BDK_GPIO_TX_SET, 1<<8);
+	//Reset the device
+	MMC_CMD_OR_ERROR(node, MMC_CMD_GO_IDLE_STATE, 0, chip_sel, 0, 0, 0, 0);
 
-        BDK_TRACE(EMMC, "Delay 2ms\n");
-        mmc_delay_msec(2);
-    }
+	// Do a CMD SEND_EXT_CSD (8)
+	if (bdk_is_platform(BDK_PLATFORM_EMULATOR))
+		status.u = -1; /* This always fails on the emulator so save boot time */
+	else
+		status = mmc_cmd(node, MMC_CMD_SEND_EXT_CSD, 0x000001AA, chip_sel, 0, 2, 1, 0);
+	if (status.u == 0x0) {
+		// We may have an SD card, as it should respond
+		BDK_CSR_INIT(rsp_lo, node, BDK_MIO_EMM_RSP_LO);
+		if (((rsp_lo.u >> 8) & 0xFFFFFFFFFF) != 0x08000001AA) {
+			bdk_error("MMC: Unexpected response from MMC_CMD_SEND_EXT_CSD\n");
+			return 0;
+		}
+		// Send a ACMD 41
+		do {
+			status = mmc_cmd(node, MMC_CMD_APP_CMD, 0, chip_sel, 0, 0, 0, 0);
+			if (status.u == 0x0) {
+				status = mmc_cmd(node, 41, 0x40ff8000, chip_sel, 0, 3, 0, 0);
+				if (status.u) {
+					bdk_error("MMC: Failed to recognize card\n");
+					return 0;
+				}
+				card_state[chip_sel].card_is_sd = 1;
+			} else {
+				// Failed, not sure what's out there
+				bdk_error("MMC: Failed to recognize card\n");
+				return 0;
+			}
 
-    // Enable bus
-    mio_emm_cfg = BDK_CSR_READ(node, BDK_MIO_EMM_CFG);
-    mio_emm_cfg |= (1<<chip_sel);
-    BDK_CSR_WRITE(node, BDK_MIO_EMM_CFG, mio_emm_cfg);
-    mmc_delay_msec(2);
+			ocr_reg.u32 = (uint32_t) ((BDK_CSR_READ(node, BDK_MIO_EMM_RSP_LO) >>8) &0xFFFFFFFF);
+		} while (ocr_reg.s.done_bit == 0x0);
+		// Success, we have an SD card version 2.0 or above, fall through
+	} else {
+		// Card could be an SD version less than 2.0 or an MMC card
+		// Send a ACMD 41
+		do {
+			if (bdk_is_platform(BDK_PLATFORM_EMULATOR))
+				status.u = -1; /* This always fails on the emulator so save boot time */
+			else
+				status = mmc_cmd(node, MMC_CMD_APP_CMD, 0, chip_sel, 0, 0, 0, 0);
 
-    // Reset the status mask reg., boot will change it
-    BDK_CSR_WRITE(node, BDK_MIO_EMM_STS_MASK, 0xE4390080);
+			if (status.u == 0x0) {
+				status = mmc_cmd(node, 41, 0x40ff8000, chip_sel, 0, 3, 0, 0);
+				if (status.u) {
+					// Have an SD card, version less than 2.0
+					// fall through, exit the loop
+					card_state[chip_sel].card_is_sd = 1;
+					break;
+				}
+			} else {
+				// APP_CMD command failed
+				break;
+			}
+			ocr_reg.u32 = (uint32_t) ((BDK_CSR_READ(node, BDK_MIO_EMM_RSP_LO) >>8) &0xFFFFFFFF);
+		} while (ocr_reg.s.done_bit == 0x0);
 
-    BDK_TRACE(EMMC, "Delay 2ms\n");
-    mmc_delay_msec(2);
+		if (status.u == 0x0) {
+			// Success, we have an SD card version 2.0 or less
+			card_state[chip_sel].card_is_sd = 1;
+		} else {
+			//Have an MMC card, do a command 1
+			//Select the initial operating conditions
+			do {
+				MMC_CMD_OR_ERROR(node, MMC_CMD_SEND_OP_COND, 0x40ff8000, chip_sel, 0, 0, 0, 0);
+				ocr_reg.u32 = (uint32_t) ((BDK_CSR_READ(node, BDK_MIO_EMM_RSP_LO) >>8) &0xFFFFFFFF);
+			} while (ocr_reg.s.done_bit == 0x0);
+		}
+	}
 
-    // Assume there is no card
-    card_state[chip_sel].init_status = -1;
+	// Global to determine if the card is block or byte addressable.
+	card_state[chip_sel].block_addressable_device = ocr_reg.s.access_mode;
+	if (BDK_TRACE_ENABLE_EMMC)
+		print_ocr_reg(ocr_reg);
 
-    // Assume card is eMMC
-    card_state[chip_sel].card_is_sd = 0;
+	// Get card identification
+	MMC_CMD_OR_ERROR(node, MMC_CMD_ALL_SEND_CID, 0, chip_sel, 0, 0, 0, 0);
 
-    // Setup watchdog timer
-    set_wdog(node, BDK_MMC_WATCHDOG, chip_sel);
+	if (card_state[chip_sel].card_is_sd) {
+		// For SD, read the relative address from the card
+		// CMD3 response for SD cards is R6 format, similar to R1, but different
+		// Need to chane the mio_EMM_STS_MASK register so we don't get a response status error
+		BDK_CSR_INIT(sts_mask, node, BDK_MIO_EMM_STS_MASK);
+		BDK_CSR_WRITE(node, BDK_MIO_EMM_STS_MASK, 0xE000);
+		status = mmc_cmd(node, MMC_CMD_SET_RELATIVE_ADDR, 0, chip_sel, 0, 0, 0, 0);
+		BDK_CSR_WRITE(node, BDK_MIO_EMM_STS_MASK, sts_mask.u);
+		if (status.u) {
+			bdk_error("MMC: Command MMC_CMD_SET_RELATIVE_ADDR failed\n");
+			return 0;
+		}
+		card_state[chip_sel].relative_address = ((BDK_CSR_READ(node, BDK_MIO_EMM_RSP_LO) >>24) &0xFFFF);
+	} else {
+		// For MMC, set card relative address
+		card_state[chip_sel].relative_address = 1; //Default for MMC cards
+		MMC_CMD_OR_ERROR(node, MMC_CMD_SET_RELATIVE_ADDR, card_state[chip_sel].relative_address << 16, chip_sel, 0, 0, 0, 0);
+	}
 
-    //Reset the device
-    MMC_CMD_OR_ERROR(node, MMC_CMD_GO_IDLE_STATE, 0, chip_sel, 0, 0, 0, 0);
+	BDK_CSR_WRITE(node, BDK_MIO_EMM_RCA, card_state[chip_sel].relative_address);
 
-    // Do a CMD SEND_EXT_CSD (8)
-    if (bdk_is_platform(BDK_PLATFORM_EMULATOR))
-        status.u = -1; /* This always fails on the emulator so save boot time */
-    else
-        status = mmc_cmd(node, MMC_CMD_SEND_EXT_CSD, 0x000001AA, chip_sel, 0, 2, 1, 0);
-    if (status.u == 0x0)
-    {
-        // We may have an SD card, as it should respond
-        BDK_CSR_INIT(rsp_lo, node, BDK_MIO_EMM_RSP_LO);
-        if (((rsp_lo.u >> 8) & 0xFFFFFFFFFF) != 0x08000001AA)
-        {
-            bdk_error("MMC: Unexpected response from MMC_CMD_SEND_EXT_CSD\n");
-            return 0;
-        }
-        // Send a ACMD 41
-        do
-        {
-            status = mmc_cmd(node, MMC_CMD_APP_CMD, 0, chip_sel, 0, 0, 0, 0);
-            if (status.u == 0x0)
-            {
-                status = mmc_cmd(node, 41, 0x40ff8000, chip_sel, 0, 3, 0, 0);
-                if (status.u)
-                {
-                    bdk_error("MMC: Failed to recognize card\n");
-                    return 0;
-                }
-                card_state[chip_sel].card_is_sd = 1;
-            }
-            else
-            {
-                // Failed, not sure what's out there
-                bdk_error("MMC: Failed to recognize card\n");
-                return 0;
-            }
+	// Get CSD Register
+	MMC_CMD_OR_ERROR(node, MMC_CMD_SEND_CSD, card_state[chip_sel].relative_address << 16, chip_sel, 0, 0, 0, 0);
+	mmc_csd_register_lo_t csd_reg_lo;
+	csd_reg_lo.u = (BDK_CSR_READ(node, BDK_MIO_EMM_RSP_LO));
+	mmc_csd_register_hi_t csd_reg_hi;
+	csd_reg_hi.u = (BDK_CSR_READ(node, BDK_MIO_EMM_RSP_HI));
+	uint64_t mmc_capacity;
+	if (card_state[chip_sel].card_is_sd) {
+		sd_csd_register_hi_t  sd_csd_reg_hi;
+		sd_csd_register_lo_t  sd_csd_reg_lo;
+		sd_csd_reg_hi.u = csd_reg_hi.u;
+		sd_csd_reg_lo.u = csd_reg_lo.u;
+		mmc_capacity = (sd_csd_reg_hi.s.c_size << 2) + sd_csd_reg_lo.s.c_size;
+		mmc_capacity = (mmc_capacity + 1) << (sd_csd_reg_lo.s.c_size_mult + 2);
+		mmc_capacity *= 1<<sd_csd_reg_hi.s.read_bl_len;
+	} else {
+		mmc_csd_register_hi_t mmc_csd_reg_hi;
+		mmc_csd_register_lo_t mmc_csd_reg_lo;
+		mmc_csd_reg_hi.u = csd_reg_hi.u;
+		mmc_csd_reg_lo.u = csd_reg_lo.u;
+		mmc_capacity = (mmc_csd_reg_hi.s.c_size << 2) + mmc_csd_reg_lo.s.c_size;
+		mmc_capacity = (mmc_capacity + 1) << (mmc_csd_reg_lo.s.c_size_mult + 2);
+		mmc_capacity *= 1<<mmc_csd_reg_hi.s.read_bl_len;
+	}
 
-            ocr_reg.u32 = (uint32_t) ((BDK_CSR_READ(node, BDK_MIO_EMM_RSP_LO) >>8) &0xFFFFFFFF);
-        } while (ocr_reg.s.done_bit == 0x0);
-        // Success, we have an SD card version 2.0 or above, fall through
-    }
-    else
-    {
-        // Card could be an SD version less than 2.0 or an MMC card
-        // Send a ACMD 41
-        do
-        {
-            if (bdk_is_platform(BDK_PLATFORM_EMULATOR))
-                status.u = -1; /* This always fails on the emulator so save boot time */
-            else
-                status = mmc_cmd(node, MMC_CMD_APP_CMD, 0, chip_sel, 0, 0, 0, 0);
-            if (status.u == 0x0)
-            {
-                status = mmc_cmd(node, 41, 0x40ff8000, chip_sel, 0, 3, 0, 0);
-                if (status.u)
-                {
-                    // Have an SD card, version less than 2.0
-                    // fall through, exit the loop
-                    card_state[chip_sel].card_is_sd = 1;
-                    break;
-                }
-            }
-            else
-            {
-                // APP_CMD command failed
-                break;
-            }
-            ocr_reg.u32 = (uint32_t) ((BDK_CSR_READ(node, BDK_MIO_EMM_RSP_LO) >>8) &0xFFFFFFFF);
-        } while (ocr_reg.s.done_bit == 0x0);
+	if (BDK_TRACE_ENABLE_EMMC)
+		print_csd_reg(chip_sel, csd_reg_hi.u, csd_reg_lo.u);
 
-        if (status.u == 0x0)
-        {
-            // Success, we have an SD card version 2.0 or less
-            card_state[chip_sel].card_is_sd = 1;
-        }
-        else
-        {
-            //Have an MMC card, do a command 1
-            //Select the initial operating conditions
-            do
-            {
-                MMC_CMD_OR_ERROR(node, MMC_CMD_SEND_OP_COND, 0x40ff8000, chip_sel, 0, 0, 0, 0);
-                ocr_reg.u32 = (uint32_t) ((BDK_CSR_READ(node, BDK_MIO_EMM_RSP_LO) >>8) &0xFFFFFFFF);
-            } while (ocr_reg.s.done_bit == 0x0);
-        }
-    }
-    // Global to determine if the card is block or byte addressable.
-    card_state[chip_sel].block_addressable_device = ocr_reg.s.access_mode;
-    if (BDK_TRACE_ENABLE_EMMC)
-        print_ocr_reg(ocr_reg);
+	// Select Card
+	MMC_CMD_OR_ERROR(node, MMC_CMD_SELECT_CARD, card_state[chip_sel].relative_address << 16 , chip_sel, 0, 0, 0, 0);
+	// Send Card Status
+	MMC_CMD_OR_ERROR(node, MMC_CMD_SEND_STATUS, card_state[chip_sel].relative_address << 16 , chip_sel, 0, 0, 0, 0);
 
-    // Get card identification
-    MMC_CMD_OR_ERROR(node, MMC_CMD_ALL_SEND_CID, 0, chip_sel, 0, 0, 0, 0);
+	// Set the clock to a default clock frequency of 26Mhz
+	// Change the clock
+	CLOCK_HZ = BDK_MMC_CLOCK_HZ;
+	sclk /= CLOCK_HZ;
+	sclk /= 2; /* Half is time hi/lo */
+	mio_emm_switch.u = 0;
+	mio_emm_switch.s.bus_id = chip_sel;
+	mio_emm_switch.s.power_class = 10;
+	mio_emm_switch.s.clk_hi = sclk;
+	mio_emm_switch.s.clk_lo = sclk;
 
-    if (card_state[chip_sel].card_is_sd)
-    {
-        // For SD, read the relative address from the card
-        // CMD3 response for SD cards is R6 format, similar to R1, but different
-        // Need to chane the mio_EMM_STS_MASK register so we don't get a response status error
-        BDK_CSR_INIT(sts_mask, node, BDK_MIO_EMM_STS_MASK);
-        BDK_CSR_WRITE(node, BDK_MIO_EMM_STS_MASK, 0xE000);
-        status = mmc_cmd(node, MMC_CMD_SET_RELATIVE_ADDR, 0, chip_sel, 0, 0, 0, 0);
-        BDK_CSR_WRITE(node, BDK_MIO_EMM_STS_MASK, sts_mask.u);
-        if (status.u)
-        {
-            bdk_error("MMC: Command MMC_CMD_SET_RELATIVE_ADDR failed\n");
-            return 0;
-        }
-        card_state[chip_sel].relative_address = ((BDK_CSR_READ(node, BDK_MIO_EMM_RSP_LO) >>24) &0xFFFF);
-    }
-    else
-    {
-        // For MMC, set card relative address
-        card_state[chip_sel].relative_address = 1; //Default for MMC cards
-        MMC_CMD_OR_ERROR(node, MMC_CMD_SET_RELATIVE_ADDR, card_state[chip_sel].relative_address << 16, chip_sel, 0, 0, 0, 0);
-    }
+	bdk_mmc_do_switch(node, mio_emm_switch);
 
-    BDK_CSR_WRITE(node, BDK_MIO_EMM_RCA, card_state[chip_sel].relative_address);
+	// If we are a mmc card, we can additionally change the bus width
+	if (!card_state[chip_sel].card_is_sd) {
+		mio_emm_switch.s.switch_exe = 1;
+		mio_emm_switch.s.bus_width = 6; /* 8 bit double data rate */
 
-    // Get CSD Register
-    MMC_CMD_OR_ERROR(node, MMC_CMD_SEND_CSD, card_state[chip_sel].relative_address << 16, chip_sel, 0, 0, 0, 0);
-    mmc_csd_register_lo_t csd_reg_lo;
-    csd_reg_lo.u = (BDK_CSR_READ(node, BDK_MIO_EMM_RSP_LO));
-    mmc_csd_register_hi_t csd_reg_hi;
-    csd_reg_hi.u = (BDK_CSR_READ(node, BDK_MIO_EMM_RSP_HI));
-    uint64_t mmc_capacity;
-    if (card_state[chip_sel].card_is_sd)
-    {
-        sd_csd_register_hi_t  sd_csd_reg_hi;
-        sd_csd_register_lo_t  sd_csd_reg_lo;
-        sd_csd_reg_hi.u = csd_reg_hi.u;
-        sd_csd_reg_lo.u = csd_reg_lo.u;
-        mmc_capacity = (sd_csd_reg_hi.s.c_size << 2) + sd_csd_reg_lo.s.c_size;
-        mmc_capacity = (mmc_capacity + 1) << (sd_csd_reg_lo.s.c_size_mult + 2);
-        mmc_capacity *= 1<<sd_csd_reg_hi.s.read_bl_len;
-    }
-    else
-    {
-        mmc_csd_register_hi_t mmc_csd_reg_hi;
-        mmc_csd_register_lo_t mmc_csd_reg_lo;
-        mmc_csd_reg_hi.u = csd_reg_hi.u;
-        mmc_csd_reg_lo.u = csd_reg_lo.u;
-        mmc_capacity = (mmc_csd_reg_hi.s.c_size << 2) + mmc_csd_reg_lo.s.c_size;
-        mmc_capacity = (mmc_capacity + 1) << (mmc_csd_reg_lo.s.c_size_mult + 2);
-        mmc_capacity *= 1<<mmc_csd_reg_hi.s.read_bl_len;
-    }
+		BDK_CSR_WRITE(node, BDK_MIO_EMM_SWITCH, mio_emm_switch.u);
 
-    if (BDK_TRACE_ENABLE_EMMC)
-        print_csd_reg(chip_sel, csd_reg_hi.u, csd_reg_lo.u);
+		if (BDK_CSR_WAIT_FOR_FIELD(node, BDK_MIO_EMM_RSP_STS, switch_val, ==, 0, 10 * 1000 )) {
+			printf("Timeout waiting for switch command to complete\n");
+		}
+		card_state[chip_sel].mio_emm_switch = mio_emm_switch;
+	}
 
-    // Select Card
-    MMC_CMD_OR_ERROR(node, MMC_CMD_SELECT_CARD, card_state[chip_sel].relative_address << 16 , chip_sel, 0, 0, 0, 0);
-    // Send Card Status
-    MMC_CMD_OR_ERROR(node, MMC_CMD_SEND_STATUS, card_state[chip_sel].relative_address << 16 , chip_sel, 0, 0, 0, 0);
+	// Reset watchdog timer for the new bus speed
+	set_wdog(node, BDK_MMC_WATCHDOG, chip_sel);
 
-    // Change the clock
-    uint64_t CLOCK_HZ = BDK_MMC_CLOCK_HZ;
-    uint64_t sclk = bdk_clock_get_rate(node, BDK_CLOCK_SCLK);
-    if (bdk_is_platform(BDK_PLATFORM_EMULATOR))
-        CLOCK_HZ = sclk / 4;
-    sclk /= CLOCK_HZ;
-    sclk /= 2; /* Half is time hi/lo */
-
-    emm_mode.u = BDK_CSR_READ(node, BDK_MIO_EMM_MODEX(chip_sel));
-    emm_switch.u = 0;
-    emm_switch.s.bus_id = chip_sel;
-    emm_switch.s.switch_exe = 0;
-    emm_switch.s.hs_timing = emm_mode.s.hs_timing;
-    emm_switch.s.bus_width = emm_mode.s.bus_width;
-    emm_switch.s.power_class = emm_mode.s.power_class;
-    emm_switch.s.clk_hi = sclk;
-    emm_switch.s.clk_lo = sclk;
-    BDK_CSR_WRITE(node, BDK_MIO_EMM_SWITCH, emm_switch.u);
-    BDK_TRACE(EMMC, "Delay 2ms\n");
-    mmc_delay_msec(2);
-    if (!card_state[chip_sel].card_is_sd) {
-        set_wdog(node, 1000, chip_sel);
-        BDK_TRACE(EMMC, "Switch eMMC to 8 bit, single data rate\n");
-        emm_switch.s.switch_exe = 1;
-        emm_switch.s.bus_width = 6; /* 8 bit double data rate */
-        BDK_CSR_WRITE(node, BDK_MIO_EMM_SWITCH, emm_switch.u);
-        mmc_delay_msec(100);
-        emm_switch.u = BDK_CSR_READ(node, BDK_MIO_EMM_SWITCH);
-        BDK_TRACE(EMMC, "MIO_EMM_SWITCH 0x%lx\n", emm_switch.u);
-    }
-
-    // Reset watchdog timer for the new bus speed
-    set_wdog(node, BDK_MMC_WATCHDOG, chip_sel);
-
-    // Return the card size in bytes
-    BDK_TRACE(EMMC, "MMC init done\n");
-    card_state[chip_sel].init_status = mmc_capacity;
-    return mmc_capacity;
+	// Return the card size in bytes
+	BDK_TRACE(EMMC, "MMC init done\n");
+	card_state[chip_sel].init_status = mmc_capacity;
+	return mmc_capacity;
 }
+
+
 
 bool bdk_mmc_card_is_sd(bdk_node_t node, int chip_sel)
 {
@@ -1021,6 +1042,7 @@ int bdk_mmc_read(bdk_node_t node, int chip_sel, uint64_t address, void *buffer, 
         bdk_error("MMC read length must be a multiple of 512\n");
         return -1;
     }
+	bdk_mmc_switch_to(node, chip_sel);
 	if (__bdk_is_dram_enabled(node)) {
 		BDK_CSR_DEFINE(emm_dma_int, BDK_MIO_EMM_DMA_INT);
 		emm_dma_int.u = BDK_CSR_READ(node, BDK_MIO_EMM_DMA_INT);
@@ -1144,6 +1166,7 @@ int bdk_mmc_write(bdk_node_t node, int chip_sel, uint64_t address, const void *b
         return -1;
     }
 
+    bdk_mmc_switch_to(node, chip_sel);
     /* Write until no more data */
     while (length > 0)
     {
