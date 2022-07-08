@@ -1175,6 +1175,8 @@ static int newport_serial_config(bdk_node_t node, char *hwconfig)
 				printf("Serial  : invalid opt 'term=%s'\n", s);
 		}
 
+		/* setup UART2 RTS pinsel */
+		gpio_pinsel(12, BDK_GPIO_PIN_SEL_E_UARTX_RTS_CN8(2));
 		printf("Serial  : 1x RS485 %s-duplex with%s "
 		       "on-board termination\n",
 		       rs485_hd ? "half" : "full",
