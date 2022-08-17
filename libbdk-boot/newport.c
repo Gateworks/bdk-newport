@@ -855,6 +855,13 @@ static int vt_phy_setup_vsc8514(bdk_node_t n, int qlm, int b, int a)
 
 	bdk_if_phy_vsc8514_setup(n, qlm, b, a);
 
+	// select extended GPIO registers
+	bdk_mdio_write(n, b, a, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_EXTENDED_GPIO);
+	// Reg 14G GPIO control
+	reg = bdk_mdio_read(n, b, a, 14);
+	reg &= ~BIT(9); // Tri-state enable for LED's (output low)
+	bdk_mdio_write(n, b, a, 14, reg);
+
 	/* Port specific config */
 	for (p = 0; p < 4; p++) {
 		// set 17e2(0x11) bit 11:10 to invert LED0/LED1
