@@ -456,7 +456,8 @@ void bdk_mmc_switch_to(bdk_node_t node, int chip_sel)
 
 	set_wdog(node, MMC_TIMEOUT_LONG, chip_sel);
 
-	BDK_CSR_WRITE(node, BDK_MIO_EMM_STS_MASK, (1 << 7 | 1 << 22 | 1 << 23 | 1 << 19));
+
+	BDK_CSR_WRITE(node, BDK_MIO_EMM_STS_MASK, 0xE4390080);
 
 	last_chipsel = chip_sel;
 	mmc_delay_msec(10);
