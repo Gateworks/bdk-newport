@@ -229,7 +229,7 @@ struct newport_board_config board_configs[] = {
 		.gpio_usb2sel = -1,
 		.gpio_usb3sel = -1,
 		.gpio_phyrst = 23,
-		.gpio_phyrst_pol = 1,
+		.gpio_phyrst_pol = 0,
 		.gpio_mezz_pwrdis = -1,
 		.gpio_mezz_irq = -1,
 		.mmc_devs = 1,
@@ -921,6 +921,12 @@ retry:
 		switch(rev_pcb) {
 		case 'A':
 			cfg->gpio_ledred = 14;
+			cfg->gpio_phyrst_pol = 1;
+			break;
+		case 'B':
+		case 'C':
+		case 'D':
+			cfg->gpio_phyrst_pol = 1;
 			break;
 		}
 		break;
