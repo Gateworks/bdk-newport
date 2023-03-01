@@ -1452,6 +1452,7 @@ static void setup_mmc(void *fdt, int off, enum mmc_type type, int chipsel)
 		fdt_setprop_u32(fdt, off, "bus-width", 4);
 		fdt_setprop(fdt, off, "cap-sd-highspeed", NULL, 0);
 		fdt_setprop(fdt, off, "no-mmc", NULL, 0);
+		fdt_setprop(fdt, off, "broken-cd", NULL, 0);
 		break;
 	case MMC_EMMC:
 		/* setup eMMC */
@@ -1459,6 +1460,9 @@ static void setup_mmc(void *fdt, int off, enum mmc_type type, int chipsel)
 		fdt_setprop(fdt, off, "mmc-ddr-3_3v", NULL, 0);
 		fdt_setprop(fdt, off, "cap-mmc-highspeed", NULL, 0);
 		fdt_setprop(fdt, off, "no-sd", NULL, 0);
+		fdt_setprop(fdt, off, "non-removable", NULL, 0);
+		fdt_delprop(fdt, off, "broken-cd");
+		fdt_delprop(fdt, off, "disable-wp");
 		break;
 	}
 }
