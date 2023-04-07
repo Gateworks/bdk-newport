@@ -1651,8 +1651,38 @@ static int show_hwmon(void *fdt)
 int newport_devtree_fixups(void *fdt)
 {
 	struct newport_board_config *cfg = gsc_get_board_config();
-	const char *str;
-	int offset;
+	const char *serial, *model;
+	int offset, i;
+	char rev_pcb;
+	int rev_bom;
+
+	/* board serial number */
+	serial = bdk_config_get_str(BDK_CONFIG_BOARD_SERIAL);
+	fdt_setprop(fdt, 0, "system-serial", serial, strlen(serial) + 1);
+
+	/* board model */
+	model = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
+	fdt_setprop(fdt, 0, "board", model, strlen(model) + 1);
+
+	/* get board PCB rev and BOM rev */
+	rev_bom = 0;
+	for (i = strlen(model) - 1; i > 0; i--) {
+		if (model[i] == '-')
+			break;
+		if (model[i] >= '1' && model[i] <= '9') {
+			rev_bom = model[i] - '0';
+			break;
+		}
+	}
+	rev_pcb = 'A';
+	for (i = strlen(model) - 1; i > 0; i--) {
+		if (model[i] == '-')
+			break;
+		if (model[i] >= 'A') {
+			rev_pcb = model[i];
+			break;
+		}
+	}
 
 	/* set props in dt for U-Boot/Linux RGMII PHY drivers */
 	switch(rgmii_phy_id) {
@@ -1677,11 +1707,15 @@ int newport_devtree_fixups(void *fdt)
 			fdt_setprop_u32(fdt, offset, "rx-internal-delay-ps", rx_delay);
 			fdt_setprop_u32(fdt, offset, "tx-internal-delay-ps", tx_delay);
 		}
-		/* set drive compensation prop in dt for U-Boot */
-		offset = fdt_path_offset(fdt, CN81XX_MRML_PATH "rgx0");
-		if (offset >= 0) {
-			fdt_setprop_u32(fdt, offset, "cavium,drv_nctl", 0x1f);
-			fdt_setprop_u32(fdt, offset, "cavium,drv_pctl", 0x1f);
+		if ((!strncmp(model, "GW620", 5) && rev_pcb == 'D') ||
+		    (!strncmp(model, "GW630", 5) && rev_pcb == 'F'))
+		{
+			/* set drive compensation prop in dt for U-Boot */
+			offset = fdt_path_offset(fdt, CN81XX_MRML_PATH "rgx0");
+			if (offset >= 0) {
+				fdt_setprop_u32(fdt, offset, "cavium,drv_nctl", 0x1f);
+				fdt_setprop_u32(fdt, offset, "cavium,drv_pctl", 0x1f);
+			}
 		}
 		break;
 	}
@@ -1707,14 +1741,6 @@ int newport_devtree_fixups(void *fdt)
 
 	/* hwmon inputs */
 	show_hwmon(fdt);
-
-	/* board serial number */
-	str = bdk_config_get_str(BDK_CONFIG_BOARD_SERIAL);
-	fdt_setprop(fdt, 0, "system-serial", str, strlen(str) + 1);
-
-	/* board model */
-	str = bdk_config_get_str(BDK_CONFIG_BOARD_MODEL);
-	fdt_setprop(fdt, 0, "board", str, strlen(str) + 1);
 
 	/* max6642 */
 	if (!cfg->ext_temp) {
